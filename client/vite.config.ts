@@ -1,7 +1,10 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
+import { fileURLToPath } from 'node:url'
+import { dirname, resolve } from 'node:path'
 
 export default defineConfig(({ mode }) => {
+  const __dirname = dirname(fileURLToPath(import.meta.url))
   const env = loadEnv(mode, process.cwd(), '')
   const target = env.VITE_API_TARGET
 
@@ -22,9 +25,13 @@ export default defineConfig(({ mode }) => {
       port: Number(env.VITE_PORT || 5173),
       proxy,
     },
+    resolve: {
+      alias: {
+        '@': resolve(__dirname, './src'),
+      },
+    },
     preview: {
       port: Number(env.VITE_PORT || 5173),
     },
   }
 })
-

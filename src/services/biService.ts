@@ -1,7 +1,13 @@
 import { atlasPool } from '../../db';
+import { config } from '../config';
 
 export class BIService {
     static async getCustomerProjectHours() {
+        const f = config.filters;
+        const notInProjects = f.excludedProjectIds.length ? `AND project_id NOT IN (${f.excludedProjectIds.join(',')})` : '';
+        const notInCustomers = f.excludedCustomerIds.length ? `AND customer_id NOT IN (${f.excludedCustomerIds.join(',')})` : '';
+        const notInUsers = f.excludedUserIds.length ? `AND staff_member_id NOT IN (${f.excludedUserIds.join(',')})` : '';
+
         const [rows] = await atlasPool.query(`
       SELECT
         customer_name,
@@ -10,9 +16,9 @@ export class BIService {
       FROM timesheet_snapshots
       WHERE
         duration IS NOT NULL
-        AND project_id NOT IN(92, 93, 94, 95, 140, 141, 142, 145, 157)
-        AND customer_id NOT IN(43, 84, 85, 86)
-        AND staff_member_id NOT IN (155, 156, 157, 158, 168, 169, 170, 173)
+        ${notInProjects}
+        ${notInCustomers}
+        ${notInUsers}
       GROUP BY customer_name, project_name
       ORDER BY customer_name, project_name
     `);

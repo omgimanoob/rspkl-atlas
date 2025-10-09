@@ -3,25 +3,25 @@
 Status Legend: [ ] pending, [~] in progress, [x] done
 
 ## Day 1 — Schema + Auth Skeleton
-- [ ] Create migrations: `users`, `roles`, `user_roles`, `audit_logs`
-- [ ] Add env: `AUTH_JWT_SECRET`, `AUTH_COOKIE_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`
-- [ ] Implement `POST /auth/login`, `POST /auth/logout`, `GET /me`
-- [ ] Seed admin from env on first run
+- [x] Create migrations: `users`, `roles`, `user_roles`, `audit_logs` (sql/001_auth_schema.sql)
+- [x] Add env: `AUTH_JWT_SECRET`, `AUTH_COOKIE_NAME`, `ADMIN_EMAIL`, `ADMIN_PASSWORD` (code reads them; set values in `.env`)
+- [x] Implement `POST /auth/login`, `POST /auth/logout`, `GET /me`
+- [x] Seed admin from env on first run (via AuthService.seedAdminIfConfigured)
 
 Notes:
 
 ## Day 2 — RBAC + Route Guards
-- [ ] Implement `requireRole(...)` middleware
-- [ ] Protect read routes for hr|management|directors
-- [ ] Protect write and sync routes for hr|directors and admins
-- [ ] Add audit logging on write endpoints
+- [x] Implement `requireRole(...)` middleware
+- [x] Protect read routes for hr|management|directors
+- [x] Protect write and sync routes for hr|directors and admins
+- [x] Add audit logging on write endpoints
 
 Notes:
 
 ## Day 3 — Config + Security Hardening
-- [ ] Move hard‑coded ID filters to env config
-- [ ] Add `helmet`, rate limit login + write routes
-- [ ] Add `/healthz` endpoint and improve error handling
+- [x] Move hard‑coded ID filters to env config
+- [x] Add `helmet`, rate limit login + write routes
+- [x] Add `/healthz` endpoint and improve error handling
 
 Notes:
 
@@ -53,4 +53,3 @@ Notes:
 - [ ] Prepare rollout checklist and rollback steps
 
 Notes:
-

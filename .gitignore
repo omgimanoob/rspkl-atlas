@@ -53,3 +53,6 @@ coverage/
 .DS_Store
 Thumbs.db
 
+# Cookies
+cookies.txt
+

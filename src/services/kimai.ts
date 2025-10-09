@@ -1,4 +1,5 @@
 import { kimaiPool as pool } from '../../db';
+import { config } from '../config';
 
 export class Kimai {
   static async getProjects() {
@@ -28,6 +29,12 @@ export class Kimai {
     return rows;
   }
   static async getDetailedTimesheets() {
+    const f = config.filters;
+    const inProjects = f.includedProjectIds.length ? `AND kimai2_projects.id IN (${f.includedProjectIds.join(',')})` : '';
+    const notInProjects = f.excludedProjectIds.length ? `AND kimai2_projects.id NOT IN (${f.excludedProjectIds.join(',')})` : '';
+    const notInCustomers = f.excludedCustomerIds.length ? `AND kimai2_customers.id NOT IN (${f.excludedCustomerIds.join(',')})` : '';
+    const notInUsers = f.excludedUserIds.length ? `AND kimai2_users.id NOT IN (${f.excludedUserIds.join(',')})` : '';
+
     const [rows] = await pool.query(`
     SELECT DISTINCT
       kimai2_timesheet.id AS timesheet_id,
@@ -65,10 +72,10 @@ export class Kimai {
     WHERE
       kimai2_timesheet.duration IS NOT NULL
       AND kimai2_timesheet_meta.name="cncbd"
-      AND kimai2_projects.id NOT IN (92,93,94,95,140,141,142,145,157)
-      AND kimai2_customers.id NOT IN (43, 84, 85, 86)
-      AND kimai2_users.id NOT IN (155, 156, 157, 158, 168, 169, 170, 173)
-      AND kimai2_projects.id IN (20)
+      ${notInProjects}
+      ${notInCustomers}
+      ${notInUsers}
+      ${inProjects}
     ORDER BY
       customer_name ASC,
       project_name ASC,

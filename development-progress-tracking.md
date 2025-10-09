@@ -26,10 +26,10 @@ Notes:
 Notes:
 
 ## Day 4 — Client Scaffolding (shadcn/ui)
-- [ ] Scaffold `client/` (Vite + React + TS + Tailwind)
+- [x] Scaffold `client/` (Vite + React + TS + Tailwind)
 - [ ] Install shadcn/ui and generate base components
-- [ ] Implement API module and `.env` (`VITE_API_URL`)
-- [ ] Auth flow: `/auth/login` + `/me` hydration
+- [x] Implement API module and dev proxy (`VITE_API_TARGET`)
+- [x] Auth flow: `/auth/login` + `/me` hydration
 
 Notes:
 

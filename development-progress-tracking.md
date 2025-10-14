@@ -34,9 +34,9 @@ Notes:
 Notes:
 
 ## Day 5 — Projects UI
-- [ ] Projects table (Project, Money, Status, Actions) + search/filter
-- [ ] Edit Sheet/Dialog: status select wired to `PUT /overrides/status`
-- [ ] Role‑aware UI + toasts and basic validation
+- [x] Projects table (Project, Money, Status, Actions) + search/filter
+- [x] Edit Dialog: status select wired to `PUT /overrides/status`
+- [x] Role‑aware UI + success/error toasts
 
 Notes:
 

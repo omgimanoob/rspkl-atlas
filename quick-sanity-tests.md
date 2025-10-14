@@ -26,6 +26,13 @@ curl -i -X POST http://localhost:$PORT/auth/login \
   -d '{"email":"nickcys@gmail.com","password":"vgsd_gr0k79ZpLy77"}' \
   -c cookies.txt
 ```
+Expected:
+- HTTP/1.1 200 OK, Set-Cookie for auth cookie, body with `{ "email": "...", "roles": [ ... ] }`
+
+##### Browser client login
+1. In `client/`, set `VITE_API_TARGET=http://localhost:$PORT` in `.env`
+2. Run `npm run dev` and open the client URL (default http://localhost:5173)
+3. Login with your credentials; you should see the Projects page
 
 ##### Check /me again after login
 ```bash

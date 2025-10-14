@@ -1,4 +1,4 @@
-import { ReactNode } from 'react'
+import { ReactNode, Fragment } from 'react'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
@@ -20,18 +20,18 @@ export function PageHeader({
         <Separator orientation="vertical" className="mr-2 data-[orientation=vertical]:h-4" />
         <Breadcrumb>
           <BreadcrumbList>
-            {trail.map((c, i) => (
-              <>
-                <BreadcrumbItem key={`crumb-${i}`}>
-                  {c.current ? (
-                    <BreadcrumbPage>{c.label}</BreadcrumbPage>
-                  ) : (
-                    <BreadcrumbLink href={c.href || '#'}>{c.label}</BreadcrumbLink>
-                  )}
-                </BreadcrumbItem>
-                {i < trail.length - 1 && <BreadcrumbSeparator />}
-              </>
-            ))}
+          {trail.map((c, i) => (
+            <Fragment key={`crumb-${i}`}>
+              <BreadcrumbItem>
+                {c.current ? (
+                  <BreadcrumbPage>{c.label}</BreadcrumbPage>
+                ) : (
+                  <BreadcrumbLink href={c.href || '#'}>{c.label}</BreadcrumbLink>
+                )}
+              </BreadcrumbItem>
+              {i < trail.length - 1 && <BreadcrumbSeparator />}
+            </Fragment>
+          ))}
           </BreadcrumbList>
         </Breadcrumb>
     </header>

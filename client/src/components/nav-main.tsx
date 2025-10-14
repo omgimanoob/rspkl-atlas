@@ -1,7 +1,7 @@
 "use client"
 
 import { ChevronRight, type LucideIcon } from "lucide-react"
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 
 import {
   Collapsible,
@@ -33,20 +33,24 @@ export function NavMain({
     }[]
   }[]
 }) {
+  const location = useLocation()
+  const current = location.pathname
   return (
     <SidebarGroup>
       <SidebarGroupLabel>Platform</SidebarGroupLabel>
       <SidebarMenu>
-        {items.map((item) => (
+        {items.map((item) => {
+          const isParentActive = item.items?.some((s) => s.url === current)
+          return (
           <Collapsible
             key={item.title}
             asChild
-            defaultOpen={item.isActive}
+            defaultOpen={!!isParentActive}
             className="group/collapsible"
           >
             <SidebarMenuItem>
               <CollapsibleTrigger asChild>
-                <SidebarMenuButton tooltip={item.title}>
+                <SidebarMenuButton tooltip={item.title} isActive={!!isParentActive}>
                   {item.icon && <item.icon />}
                   <span>{item.title}</span>
                   <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
@@ -56,7 +60,7 @@ export function NavMain({
                 <SidebarMenuSub>
                   {item.items?.map((subItem) => (
                     <SidebarMenuSubItem key={subItem.title}>
-                      <SidebarMenuSubButton asChild>
+                      <SidebarMenuSubButton asChild isActive={current === subItem.url}>
                         <Link to={subItem.url}>
                           <span>{subItem.title}</span>
                         </Link>
@@ -67,7 +71,7 @@ export function NavMain({
               </CollapsibleContent>
             </SidebarMenuItem>
           </Collapsible>
-        ))}
+        )})}
       </SidebarMenu>
     </SidebarGroup>
   )

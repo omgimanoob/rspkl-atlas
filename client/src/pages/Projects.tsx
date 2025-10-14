@@ -11,6 +11,7 @@ export function Projects({ me }: { me: { email: string; roles: string[] } }) {
   useEffect(() => {
     (async () => {
       const data = await api.projects()
+      console.log(data)
       setRows(data)
       setLoading(false)
     })()

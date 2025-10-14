@@ -11,7 +11,29 @@ import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMe
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 
-export type ProjectRow = { id: number; name: string; moneyCollected?: number; status?: string }
+export type ProjectRow = {
+  id: number
+  customer_id: number
+  name: string
+  order_number: string | null
+  comment: string | null
+  visible: number
+  budget: number
+  color: string | null
+  time_budget: number
+  order_date: string | null
+  start: string | null
+  end: string | null
+  timezone: string | null
+  budget_type: string | null
+  billable: number
+  invoice_text: string | null
+  global_activities: number
+  status?: string | null
+  moneyCollected?: number | null
+  isProspective?: boolean | null
+  createdByUserId?: number | null
+}
 
 export function ProjectsTable({
   data,
@@ -287,4 +309,3 @@ export function ProjectsTable({
     </div>
   )
 }
-

@@ -36,7 +36,7 @@ export default function App() {
   return (
     <SidebarProvider>
       <Toaster richColors />
-      <AppSidebar />
+      <AppSidebar me={me} onLogout={async () => { try { await api.logout(); } finally { setMe(null) } }} />
       <SidebarInset>
         <PageHeader
           title="Projects"

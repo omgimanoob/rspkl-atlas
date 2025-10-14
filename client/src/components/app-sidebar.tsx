@@ -155,7 +155,7 @@ export function AppSidebar({ me, onLogout, ...props }: React.ComponentProps<type
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <TeamSwitcher teams={data.teams} />
+        <TeamSwitcher teams={data.teams} orgName={import.meta.env.VITE_ORG_NAME} subtitle={import.meta.env.VITE_SYSTEM_NAME || 'Atlas'} />
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={data.navMain} />

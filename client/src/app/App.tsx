@@ -39,11 +39,9 @@ export default function App() {
       <AppSidebar me={me} onLogout={async () => { try { await api.logout(); } finally { setMe(null) } }} />
       <SidebarInset>
         <PageHeader
-          title="Projects"
           trail={[{ label: 'Home', href: '#' }, { label: 'Projects', current: true }]}
-          right={<div className="text-sm text-gray-600">{me.email} · {me.roles.join(', ')}</div>}
         />
-        <div className="gap-2 px-4">
+        <div className="gap-2 px-4 py-4">
           <Projects me={me} />
         </div>
       </SidebarInset>

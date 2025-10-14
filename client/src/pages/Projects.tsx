@@ -58,65 +58,65 @@ export function Projects({ me }: { me: { email: string; roles: string[] } }) {
         value={q}
         onChange={e => setQ(e.target.value)}
       />
-      <div className="overflow-hidden border rounded">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Project</TableHead>
-              <TableHead>Money Collected</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.map(r => (
-              <TableRow key={r.id}>
-                <TableCell>{r.name}</TableCell>
-                <TableCell>{r.moneyCollected || 0}</TableCell>
-                <TableCell>{r.status || 'Unassigned'}</TableCell>
-                <TableCell>
-                  <Dialog open={editOpen && editing?.id === r.id} onOpenChange={(o) => { if (!o) { setEditOpen(false); setEditing(null) } }}>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" size="sm" disabled={!canEdit} onClick={() => beginEdit(r)}>
-                        Edit
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Edit status</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <div className="text-sm text-gray-600">Project</div>
-                          <div className="text-sm font-medium">{editing?.name}</div>
-                        </div>
-                        <div className="space-y-2">
-                          <div className="text-sm text-gray-600">Status</div>
-                          <Select value={editStatus} onValueChange={setEditStatus}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {['Unassigned', 'Schematic Design', 'Design Development', 'Tender', 'Under construction', 'Post construction', 'KIV', 'Others']
-                                .map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                        </div>
+
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Project</TableHead>
+            <TableHead>Money Collected</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {filtered.map(r => (
+            <TableRow key={r.id}>
+              <TableCell>{r.name}</TableCell>
+              <TableCell>{r.moneyCollected || 0}</TableCell>
+              <TableCell>{r.status || 'Unassigned'}</TableCell>
+              <TableCell>
+                <Dialog open={editOpen && editing?.id === r.id} onOpenChange={(o) => { if (!o) { setEditOpen(false); setEditing(null) } }}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" disabled={!canEdit} onClick={() => beginEdit(r)}>
+                      Edit
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Edit status</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <div className="text-sm text-gray-600">Project</div>
+                        <div className="text-sm font-medium">{editing?.name}</div>
                       </div>
-                      <DialogFooter>
-                        <DialogClose asChild>
-                          <Button variant="outline">Cancel</Button>
-                        </DialogClose>
-                        <Button onClick={saveEdit}>Save</Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+                      <div className="space-y-2">
+                        <div className="text-sm text-gray-600">Status</div>
+                        <Select value={editStatus} onValueChange={setEditStatus}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {['Unassigned', 'Schematic Design', 'Design Development', 'Tender', 'Under construction', 'Post construction', 'KIV', 'Others']
+                              .map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <DialogClose asChild>
+                        <Button variant="outline">Cancel</Button>
+                      </DialogClose>
+                      <Button onClick={saveEdit}>Save</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+
     </>
   )
 }

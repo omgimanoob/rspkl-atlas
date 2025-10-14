@@ -9,6 +9,7 @@
     "preview": "vite preview --port 5173"
   },
   "dependencies": {
+    "@radix-ui/react-checkbox": "^1.2.1",
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-collapsible": "^1.1.12",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -20,6 +21,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.441.0",
+    "@tanstack/react-table": "^8.20.5",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "sonner": "^1.5.0",

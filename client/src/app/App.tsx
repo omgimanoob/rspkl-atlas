@@ -41,7 +41,7 @@ export default function App() {
         <PageHeader
           trail={[{ label: 'Home', href: '#' }, { label: 'Projects', current: true }]}
         />
-        <div className="gap-2 px-4 py-4">
+        <div className="gap-2 px-4 h-full">
           <Projects me={me} />
         </div>
       </SidebarInset>

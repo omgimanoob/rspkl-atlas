@@ -3,7 +3,7 @@ import express from 'express';
 import { getProjectsHandler, getDetailedTimesheetsHandler } from './controllers/projectsController';
 import { syncTimesheetsHandler } from './controllers/syncController';
 import { getSunburstHandler } from './controllers/biController';
-import { updateProjectStatusHandler } from './controllers/projectOverridesController';
+import { updateProjectStatusHandler, updateProjectOverridesHandler } from './controllers/projectOverridesController';
 import { authMiddleware, requireRole } from './middleware/auth';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -47,6 +47,7 @@ app.use(express.static('public'));
 
 // API routes with RBAC
 app.put('/overrides/status', writeLimiter, requireRole('hr', 'directors'), updateProjectStatusHandler);
+app.put('/overrides', writeLimiter, requireRole('hr', 'directors'), updateProjectOverridesHandler);
 app.get('/bi/sunburst', requireRole('hr', 'management', 'directors'), getSunburstHandler);
 app.get('/projects', requireRole('hr', 'management', 'directors'), getProjectsHandler);
 app.get('/timesheets', requireRole('hr', 'management', 'directors'), getDetailedTimesheetsHandler);

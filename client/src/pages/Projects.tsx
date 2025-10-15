@@ -17,9 +17,21 @@ export function Projects({ me }: { me: { email: string; roles: string[] } }) {
     })()
   }, [])
 
-  const saveStatus = async (id: number, status: string) => {
-    await api.updateProjectStatus(id, status)
-    setRows(prev => prev.map(r => (r.id === id ? { ...r, status } : r)))
+  const saveOverrides = async ({ id, status, moneyCollected, isProspective }: { id: number; status: string; moneyCollected: number; isProspective: boolean }) => {
+    const saved = await api.updateProjectOverrides(id, { status, moneyCollected, isProspective })
+    // Update only the affected row from the server's response
+    setRows(prev => prev.map(r => (
+      r.id === id
+        ? {
+            ...r,
+            status: saved?.status ?? r.status,
+            moneyCollected: saved?.money_collected ?? r.moneyCollected,
+            isProspective: typeof saved?.is_prospective === 'number' ? saved.is_prospective === 1 : (saved?.is_prospective ?? r.isProspective),
+            createdByUserId: saved?.created_by_user_id ?? r.createdByUserId,
+          }
+        : r
+    )))
+    return saved
   }
 
   if (loading) return <div className="p-6">Loading projects…</div>
@@ -27,9 +39,8 @@ export function Projects({ me }: { me: { email: string; roles: string[] } }) {
   return (
     <div className="p-4 flex flex-col gap-4 min-h-[calc(100vh-64px)]">
       <div className="flex-1 flex flex-col min-h-0">
-        <ProjectsTable data={rows} canEdit={canEdit} onSaveStatus={saveStatus} defaultPageSize={20} />
+        <ProjectsTable data={rows} canEdit={canEdit} onSaveOverrides={saveOverrides} defaultPageSize={20} />
       </div>
     </div>
   )
 }
-

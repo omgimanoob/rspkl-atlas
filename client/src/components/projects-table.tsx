@@ -1,15 +1,17 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { type ColumnDef, useReactTable, getCoreRowModel, getPaginationRowModel, getSortedRowModel, flexRender, type SortingState } from '@tanstack/react-table'
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Columns3, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 
 export type ProjectRow = {
   id: number
@@ -35,24 +37,64 @@ export type ProjectRow = {
   createdByUserId?: number | null
 }
 
+function CommentCell({ text }: { text: string }) {
+  const MAX_CHARS = 120
+  const display = text.length > MAX_CHARS ? text.slice(0, MAX_CHARS) + '…' : text
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="truncate block w-full text-left"
+          title={text}
+        >
+          {display}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="max-w-[40ch] whitespace-pre-wrap break-words text-sm text-gray-800">
+        {text}
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 export function ProjectsTable({
   data,
   canEdit,
-  onSaveStatus,
+  onSaveOverrides,
   defaultPageSize = 10,
 }: {
   data: ProjectRow[]
   canEdit: boolean
-  onSaveStatus?: (id: number, status: string) => Promise<void>
+  onSaveOverrides?: (payload: { id: number; status: string; moneyCollected: number; isProspective: boolean }) => Promise<void>
   defaultPageSize?: number
 }) {
+  const DEBUG = true
+  const formatRM = (val: number | null | undefined) => {
+    const n = typeof val === 'number' ? val : 0
+    return `RM ${n.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  }
   const [q, setQ] = useState('')
   const [editOpen, setEditOpen] = useState(false)
   const [editing, setEditing] = useState<ProjectRow | null>(null)
   const [editStatus, setEditStatus] = useState<string>('Unassigned')
+  const [editMoney, setEditMoney] = useState<string>('0')
+  const [editProspective, setEditProspective] = useState<boolean>(false)
   const [rowSelection, setRowSelection] = useState({})
   const [columnVisibility, setColumnVisibility] = useState({})
   const [sorting, setSorting] = useState<SortingState>([])
+  const [isSaving, setIsSaving] = useState(false)
+
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isSaving) {
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [isSaving])
 
   const filtered = useMemo(() => {
     const needle = q.toLowerCase()
@@ -60,20 +102,51 @@ export function ProjectsTable({
   }, [data, q])
 
   const beginEdit = (row: ProjectRow) => {
+    if (DEBUG) console.debug('[ProjectsTable] beginEdit', { row })
     setEditing(row)
     setEditStatus(row.status || 'Unassigned')
+    setEditMoney(String(row.moneyCollected ?? '0'))
+    setEditProspective(!!row.isProspective)
     setEditOpen(true)
   }
+
+  const hasChanges = useMemo(() => {
+    if (!editing) return false
+    const originalStatus = editing.status ?? 'Unassigned'
+    const originalMoney = Number(editing.moneyCollected ?? 0)
+    const originalProspective = !!editing.isProspective
+    const editedMoney = Number(parseFloat(editMoney || '0')) || 0
+    return (
+      editStatus !== originalStatus ||
+      editedMoney !== originalMoney ||
+      (!!editProspective) !== originalProspective
+    )
+  }, [editing, editStatus, editMoney, editProspective])
 
   const saveEdit = async () => {
     if (!editing) return
     try {
-      if (onSaveStatus) await onSaveStatus(editing.id, editStatus)
-      toast.success(`Updated ${editing.name} → ${editStatus}`)
+      if (DEBUG) console.debug('[ProjectsTable] saveEdit payload', { id: editing.id, editStatus, editMoney, editProspective })
+      const money = Number(parseFloat(editMoney || '0')) || 0
+      if (!onSaveOverrides) {
+        if (DEBUG) console.warn('[ProjectsTable] onSaveOverrides not provided; skipping API call')
+        toast.warning('No save handler wired — changes not persisted')
+        return
+      }
+      setIsSaving(true)
+      const saved = await onSaveOverrides({ id: editing.id, status: editStatus, moneyCollected: money, isProspective: !!editProspective })
+      // Prefer server response for message if available
+      const finalStatus = saved?.status ?? editStatus
+      const finalPros = saved?.is_prospective ?? editProspective
+      const finalMoney = saved?.money_collected ?? money
+      toast.success(`Updated ${editing.name} → status: ${finalStatus}, prospective: ${finalPros ? 'Yes' : 'No'}, money: ${finalMoney}`)
       setEditOpen(false)
       setEditing(null)
     } catch (e: any) {
-      toast.error('Failed to update status')
+      if (DEBUG) console.debug('[ProjectsTable] saveEdit error', e)
+      toast.error('Failed to update project')
+    } finally {
+      setIsSaving(false)
     }
   }
 
@@ -102,6 +175,8 @@ export function ProjectsTable({
       enableHiding: false,
       size: 32,
     },
+    { accessorKey: 'id', header: 'ID' },
+    { accessorKey: 'customer_id', header: 'Customer ID' },
     {
       accessorKey: 'name',
       header: ({ column }) => (
@@ -111,6 +186,19 @@ export function ProjectsTable({
       ),
       cell: ({ row }) => <span>{row.original.name}</span>,
     },
+    { accessorKey: 'order_number', header: 'Order #' },
+    { accessorKey: 'visible', header: 'Visible', cell: ({ row }) => <span>{row.original.visible ? 'Yes' : 'No'}</span> },
+    { accessorKey: 'budget', header: 'Budget' },
+    { accessorKey: 'color', header: 'Color' },
+    { accessorKey: 'time_budget', header: 'Time Budget' },
+    { accessorKey: 'order_date', header: 'Order Date' },
+    { accessorKey: 'start', header: 'Start' },
+    { accessorKey: 'end', header: 'End' },
+    { accessorKey: 'timezone', header: 'Timezone' },
+    { accessorKey: 'budget_type', header: 'Budget Type' },
+    { accessorKey: 'billable', header: 'Billable', cell: ({ row }) => <span>{row.original.billable ? 'Yes' : 'No'}</span> },
+    { accessorKey: 'invoice_text', header: 'Invoice Text' },
+    { accessorKey: 'global_activities', header: 'Global Activities', cell: ({ row }) => <span>{row.original.global_activities ? 'Yes' : 'No'}</span> },
     {
       accessorKey: 'moneyCollected',
       header: ({ column }) => (
@@ -118,7 +206,15 @@ export function ProjectsTable({
           Money Collected {column.getIsSorted() === 'asc' ? <ArrowUp className="h-3 w-3" /> : column.getIsSorted() === 'desc' ? <ArrowDown className="h-3 w-3" /> : <ArrowUpDown className="h-3 w-3" />}
         </button>
       ),
-      cell: ({ row }) => <span>{row.original.moneyCollected || 0}</span>,
+      cell: ({ row }) => {
+        const amount = row.original.moneyCollected ?? 0
+        return (
+          <div className="w-[7.5em] max-w-[7.5em] tabular-nums flex items-center justify-between">
+            <span>RM</span>
+            <span>{amount.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          </div>
+        )
+      },
     },
     {
       accessorKey: 'status',
@@ -133,44 +229,24 @@ export function ProjectsTable({
         return <Badge variant={variant as any}>{s}</Badge>
       },
     },
+    { accessorKey: 'isProspective', header: () => (<div className="w-full text-center">Prospective</div>), cell: ({ row }) => (
+      <div className="flex justify-center">
+        <Checkbox checked={!!row.original.isProspective} disabled aria-label="Prospective" />
+      </div>
+    ) },
+    { accessorKey: 'comment', header: 'Comment', cell: ({ row }) => {
+      const c = row.original.comment || ''
+      if (!c) return <span className="text-gray-500">-</span>
+      return <CommentCell text={c} />
+    } },
+    { accessorKey: 'createdByUserId', header: 'Created By' },
     {
       id: 'actions',
       header: 'Actions',
       cell: ({ row }) => (
-        <Dialog open={editOpen && editing?.id === row.original.id} onOpenChange={(o) => { if (!o) { setEditOpen(false); setEditing(null) } }}>
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm" disabled={!canEdit} onClick={() => beginEdit(row.original)}>Edit</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Edit status</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <div className="text-sm text-gray-600">Project</div>
-                <div className="text-sm font-medium">{editing?.name}</div>
-              </div>
-              <div className="space-y-2">
-                <div className="text-sm text-gray-600">Status</div>
-                <Select value={editStatus} onValueChange={setEditStatus}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {['Unassigned','Schematic Design','Design Development','Tender','Under construction','Post construction','KIV','Others']
-                      .map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <DialogFooter>
-              <DialogClose asChild>
-                <Button variant="outline">Cancel</Button>
-              </DialogClose>
-              <Button onClick={saveEdit}>Save</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button variant="outline" size="sm" disabled={!canEdit} onClick={() => beginEdit(row.original)}>
+          Edit
+        </Button>
       ),
     },
   ]), [canEdit, editOpen, editing, editStatus])
@@ -181,12 +257,32 @@ export function ProjectsTable({
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    autoResetPageIndex: false,
     initialState: { pagination: { pageIndex: 0, pageSize: defaultPageSize } },
     state: { rowSelection, columnVisibility, sorting },
     onRowSelectionChange: setRowSelection,
     onColumnVisibilityChange: setColumnVisibility,
     onSortingChange: setSorting,
   })
+
+  // Default visible columns
+  const defaultVisible = new Set(['name','comment','status','moneyCollected','isProspective','actions'])
+  const initialVisibility = useMemo(() => {
+    const vis: Record<string, boolean> = {}
+    columns.forEach(col => {
+      const id = (col.id as string) || (col as any).accessorKey
+      if (!id) return
+      if (!defaultVisible.has(id)) vis[id] = false
+    })
+    return vis
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  const [initApplied, setInitApplied] = useState(false)
+  if (!initApplied && Object.keys(initialVisibility).length && Object.keys(columnVisibility).length === 0) {
+    // Apply once on first render to avoid flashing all columns
+    setColumnVisibility(initialVisibility)
+    setInitApplied(true)
+  }
 
   return (
     <div className="flex flex-col gap-2 min-h-[300px]">
@@ -210,7 +306,7 @@ export function ProjectsTable({
           )}
           <Button variant="outline" size="sm" onClick={() => {
             setQ('')
-            setColumnVisibility({})
+            setColumnVisibility(initialVisibility)
             setRowSelection({})
             setSorting([])
             table.setPageIndex(0)
@@ -242,12 +338,18 @@ export function ProjectsTable({
 
       <div className="flex-1 overflow-auto">
         <div className="overflow-hidden border rounded">
-          <Table>
+          <Table className="w-full">
             <TableHeader>
               {table.getHeaderGroups().map(hg => (
                 <TableRow key={hg.id} className="bg-gray-50">
                   {hg.headers.map(header => (
-                    <TableHead key={header.id} className="text-gray-700">
+                    <TableHead
+                      key={header.id}
+                      className={cn(
+                        'text-gray-700',
+                        header.column.id === 'comment' ? 'w-full' : 'whitespace-nowrap w-px'
+                      )}
+                    >
                       {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>
                   ))}
@@ -258,7 +360,10 @@ export function ProjectsTable({
               {table.getRowModel().rows.map(row => (
                 <TableRow key={row.id}>
                   {row.getVisibleCells().map(cell => (
-                    <TableCell key={cell.id}>
+                    <TableCell
+                      key={cell.id}
+                      className={cn(cell.column.id === 'comment' ? 'w-full' : 'whitespace-nowrap w-px')}
+                    >
                       {flexRender(cell.column.columnDef.cell ?? cell.column.columnDef.header, cell.getContext())}
                     </TableCell>
                   ))}
@@ -273,6 +378,83 @@ export function ProjectsTable({
           </Table>
         </div>
       </div>
+
+      {/* Centralized dialog to avoid per-row mount/unmount issues */}
+      <Dialog
+        open={editOpen}
+        onOpenChange={(o) => {
+          if (DEBUG) console.debug('[ProjectsTable] Central Dialog onOpenChange', { o, editingId: editing?.id })
+          if (!o && !isSaving) { setEditOpen(false); setEditing(null) }
+        }}
+      >
+        <DialogContent onInteractOutside={(e) => { if (isSaving) e.preventDefault() }} onEscapeKeyDown={(e) => { if (isSaving) e.preventDefault() }}>
+          <DialogHeader>
+            <DialogTitle>Edit Project</DialogTitle>
+            <DialogDescription>Update overrides: status, money and prospective visibility.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <div className="text-sm text-gray-600">Project</div>
+              <div className="text-sm font-medium">{editing?.name}</div>
+            </div>
+            <div className="space-y-1">
+              <div className="text-sm text-gray-600">Status</div>
+              <Select
+                value={editStatus}
+                onOpenChange={(open) => { if (DEBUG) console.debug('[ProjectsTable] Select onOpenChange', { open }) }}
+                onValueChange={(val) => { if (DEBUG) console.debug('[ProjectsTable] Select onValueChange', { val }); setEditStatus(val) }}
+              >
+                <SelectTrigger disabled={isSaving}>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {['Unassigned','Schematic Design','Design Development','Tender','Under construction','Post construction','KIV','Others']
+                    .map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <div className="text-sm text-gray-600">Money Collected</div>
+              <Input
+                type="text"
+                inputMode="decimal"
+                placeholder="0"
+                value={editMoney}
+                disabled={isSaving}
+                onKeyDown={(e) => { if (DEBUG) console.debug('[ProjectsTable] Money onKeyDown', { key: e.key, value: (e.target as HTMLInputElement).value }) }}
+                onChange={(e) => {
+                  const v = e.target.value
+                  const normalized = v.replace(/,/g, '.')
+                  if (/^\d*(\.)?\d*$/.test(normalized)) {
+                    if (DEBUG) console.debug('[ProjectsTable] Money onChange accepted', { normalized })
+                    setEditMoney(normalized)
+                  } else {
+                    if (DEBUG) console.debug('[ProjectsTable] Money onChange rejected', { v })
+                  }
+                }}
+              />
+            </div>
+            <div className="space-y-1">
+              <div className="text-sm text-gray-600">Prospective</div>
+              <div className="flex items-center gap-2">
+                <Checkbox id="prospective" checked={!!editProspective} disabled={isSaving} onCheckedChange={(v) => { if (DEBUG) console.debug('[ProjectsTable] Prospective onCheckedChange', { v }); setEditProspective(Boolean(v)) }} />
+                <label htmlFor="prospective" className="text-sm text-gray-700 select-none">Visible only to director</label>
+              </div>
+            </div>
+            {DEBUG && (
+              <pre className="bg-gray-50 text-xs p-2 rounded border overflow-auto max-h-40">
+                {JSON.stringify({ editOpen, editingId: editing?.id, editStatus, editMoney, editProspective }, null, 2)}
+              </pre>
+            )}
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="outline" disabled={isSaving}>Cancel</Button>
+            </DialogClose>
+            <Button onClick={saveEdit} disabled={isSaving || !hasChanges}>{isSaving ? 'Saving…' : 'Save'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="sticky bottom-0 bg-white border-t mt-2 flex items-center justify-between gap-2 py-3 px-2 z-10">
         <div className="text-sm text-gray-600">

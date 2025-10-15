@@ -37,8 +37,17 @@ export const api = {
   updateProjectStatus(id: number, status: string) {
     return http<{ message: string }>('/overrides/status', {
       method: 'PUT',
-      body: JSON.stringify({ kimai_project_id: id, status }),
+      body: JSON.stringify({ id, status }),
+    })
+  },
+  updateProjectOverrides(id: number, overrides: { status?: string; moneyCollected?: number; isProspective?: boolean }) {
+    const body: any = { id }
+    if (overrides.status !== undefined) body.status = overrides.status
+    if (overrides.moneyCollected !== undefined) body.money_collected = overrides.moneyCollected
+    if (overrides.isProspective !== undefined) body.is_prospective = overrides.isProspective
+    return http<any>('/overrides', {
+      method: 'PUT',
+      body: JSON.stringify(body),
     })
   },
 }
-

@@ -5,7 +5,22 @@ import { syncTimesheetsHandler } from './controllers/syncController';
 import { getSunburstHandler } from './controllers/biController';
 import { updateProjectStatusHandler, updateProjectOverridesHandler } from './controllers/projectOverridesController';
 import { authMiddleware, requireRoleUnlessPermitted } from './middleware/auth';
-import { requirePermission } from './middleware/permissions';
+import { requirePermission, enforcePermission } from './middleware/permissions';
+import {
+  listRoles,
+  createRole,
+  deleteRole,
+  listPermissions,
+  createPermission,
+  deletePermission,
+  addPermissionToRole,
+  removePermissionFromRole,
+  assignRoleToUser,
+  removeRoleFromUser,
+  listGrants,
+  createGrant,
+  deleteGrant,
+} from './controllers/rbacController';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { atlasPool, kimaiPool } from '../db';
@@ -13,7 +28,7 @@ import { loginHandler, logoutHandler, meHandler } from './controllers/authContro
 import { AuthService } from './services/authService';
 
 
-const app = express();
+export const app = express();
 const port = Number(process.env.PORT);
 if (!port) {
   throw new Error('PORT environment variable is required');
@@ -21,7 +36,7 @@ if (!port) {
 
 app.use(express.json());
 app.use(helmet());
-const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 10 });
+const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: process.env.NODE_ENV === 'test' ? 10000 : 10 });
 const writeLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 60 });
 app.use(authMiddleware);
 
@@ -67,6 +82,25 @@ app.get('/projects', requirePermission('project:read'), requireRoleUnlessPermitt
 app.get('/timesheets', requirePermission('timesheet:read'), requireRoleUnlessPermitted('hr', 'management', 'directors'), getDetailedTimesheetsHandler);
 app.post('/sync/timesheets', writeLimiter, requirePermission('sync:execute'), requireRoleUnlessPermitted('admins'), syncTimesheetsHandler);
 
+// Admin RBAC APIs (strict permission-only)
+app.get('/admin/rbac/roles', requirePermission('rbac:admin'), enforcePermission, listRoles);
+app.post('/admin/rbac/roles', writeLimiter, requirePermission('rbac:admin'), enforcePermission, createRole);
+app.delete('/admin/rbac/roles/:id', writeLimiter, requirePermission('rbac:admin'), enforcePermission, deleteRole);
+
+app.get('/admin/rbac/permissions', requirePermission('rbac:admin'), enforcePermission, listPermissions);
+app.post('/admin/rbac/permissions', writeLimiter, requirePermission('rbac:admin'), enforcePermission, createPermission);
+app.delete('/admin/rbac/permissions/:id', writeLimiter, requirePermission('rbac:admin'), enforcePermission, deletePermission);
+
+app.post('/admin/rbac/roles/:id/permissions/:perm', writeLimiter, requirePermission('rbac:admin'), enforcePermission, addPermissionToRole);
+app.delete('/admin/rbac/roles/:id/permissions/:perm', writeLimiter, requirePermission('rbac:admin'), enforcePermission, removePermissionFromRole);
+
+app.post('/admin/rbac/users/:id/roles/:role', writeLimiter, requirePermission('rbac:admin'), enforcePermission, assignRoleToUser);
+app.delete('/admin/rbac/users/:id/roles/:role', writeLimiter, requirePermission('rbac:admin'), enforcePermission, removeRoleFromUser);
+
+app.get('/admin/rbac/grants', requirePermission('rbac:admin'), enforcePermission, listGrants);
+app.post('/admin/rbac/grants', writeLimiter, requirePermission('rbac:admin'), enforcePermission, createGrant);
+app.delete('/admin/rbac/grants/:id', writeLimiter, requirePermission('rbac:admin'), enforcePermission, deleteGrant);
+
 // Error handler (last)
 app.use((err, _req, res, _next) => {
   console.error(err);
@@ -80,4 +114,6 @@ async function bootstrap() {
   });
 }
 
-bootstrap();
+if (process.env.NODE_ENV !== 'test') {
+  bootstrap();
+}

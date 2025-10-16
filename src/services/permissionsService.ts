@@ -78,6 +78,8 @@ export const PermissionsService = {
   async hasPermission(user: AuthUser | undefined, permission: string, resource?: ResourceContext): Promise<PermissionDecision> {
     if (!user) return { allow: false, reason: 'unauthenticated' };
     const { global, scoped } = await this.getUserPermissions(user);
+    // Wildcard: any permission allowed
+    if (global.has('*')) return { allow: true };
     // Global grant
     if (global.has(permission)) return { allow: true };
     // Scoped grant, if resource provided
@@ -91,4 +93,3 @@ export const PermissionsService = {
     return { allow: false, reason: 'no_grant' };
   },
 };
-

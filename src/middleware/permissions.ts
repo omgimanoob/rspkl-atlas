@@ -28,3 +28,8 @@ export function extractProjectResourceFromBody(req: any): ResourceContext | unde
   return undefined;
 }
 
+export function enforcePermission(req, res, next) {
+  if ((req as any).rbacAllowed) return next();
+  const reason = (req as any).rbacDeniedReason || 'forbidden';
+  return res.status(403).json({ error: 'Forbidden', reason });
+}

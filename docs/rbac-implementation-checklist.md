@@ -24,10 +24,9 @@ Actionable micro-tasks to execute the plan in `docs/rbac-implementation-plan.md`
 - [x] Implement `getUserPermissions(userId)` (merge role-derived, user-direct, active grants).
 - [x] Implement scope matcher (global vs resource-specific; equality on resource_type/resource_id; expiry respected).
 - [x] Implement `hasPermission(user, permission, resourceCtx?)` (deny-by-default, returns { allow, reason }).
-- [ ] Add simple in-memory cache (per-request) to avoid redundant DB calls.
 - [x] Add `requirePermission(permission, { resourceExtractor? })` middleware.
 - [x] Standardize reason codes (`unauthenticated`, `forbidden`, `no_grant`, `scope_mismatch`).
-- [ ] Refactor existing raw SQL usage in auth/RBAC services to ORM repositories.
+ - [x] Refactor existing raw SQL usage in auth/RBAC services to ORM repositories (AuthService, audit logs).
 - [x] Add `drizzle-kit` scripts to `package.json` (`db:generate`, `db:migrate`, `db:seed`).
 
 ## Phase 3 – Route Mapping
@@ -42,19 +41,19 @@ Actionable micro-tasks to execute the plan in `docs/rbac-implementation-plan.md`
 - [x] Keep existing checks via `requireRoleUnlessPermitted` (dual-gate) to remove later.
 
 ## Phase 4 – Admin RBAC APIs
-- [ ] Create `src/controllers/rbacController.ts`.
-- [ ] Implement roles CRUD: `GET/POST/DELETE /admin/rbac/roles`.
-- [ ] Implement role-permissions map: `POST/DELETE /admin/rbac/roles/:id/permissions/:perm`.
-- [ ] Implement permissions CRUD: `GET/POST/DELETE /admin/rbac/permissions`.
-- [ ] Implement user-role assign/revoke: `POST/DELETE /admin/rbac/users/:id/roles/:role`.
-- [ ] Implement scoped grants CRUD: `GET/POST/DELETE /admin/rbac/grants` (support `?dryRun=1`).
-- [ ] Add input validation and consistent error payloads.
-- [ ] Protect all endpoints with `requirePermission('rbac:admin')` and rate limits.
-- [ ] Add audit logging for all mutations.
- - [ ] Use ORM repositories in controllers (no inline SQL).
+- [x] Create `src/controllers/rbacController.ts`.
+- [x] Implement roles CRUD: `GET/POST/DELETE /admin/rbac/roles`.
+- [x] Implement role-permissions map: `POST/DELETE /admin/rbac/roles/:id/permissions/:perm`.
+- [x] Implement permissions CRUD: `GET/POST/DELETE /admin/rbac/permissions`.
+- [x] Implement user-role assign/revoke: `POST/DELETE /admin/rbac/users/:id/roles/:role`.
+- [x] Implement scoped grants CRUD: `GET/POST/DELETE /admin/rbac/grants` (support `?dryRun=1`).
+- [x] Add input validation and consistent error payloads (basic checks).
+- [x] Protect all endpoints with `requirePermission('rbac:admin')` and rate limits.
+ - [x] Add audit logging for all mutations (writes to `rbac_audit_logs`).
+ - [x] Use ORM repositories in controllers (no inline SQL).
 
 ## Phase 5 – Least-Privilege Tightening
-- [ ] Add wildcard support (grant `*` to admins via permissions rather than bypass).
+- [x] Add wildcard support (grant `*` to admins via permissions rather than bypass).
 - [ ] Instrument current admin bypass path to log usage (temporary).
 - [ ] Remove admin bypass from `requireRole` once permission path is verified.
 - [ ] (Optional) Split `overrides:update` into field-specific permissions if needed.
@@ -71,7 +70,7 @@ Actionable micro-tasks to execute the plan in `docs/rbac-implementation-plan.md`
 - [ ] Call `recordRbacDecision` from `requirePermission` on allow/deny.
 - [ ] Add lightweight in-memory counters for RBAC denials and privileged ops.
 - [ ] Expose a minimal metrics endpoint or integrate with existing telemetry (optional).
- - [ ] Migrate existing audit writes to ORM where applicable.
+ - [x] Migrate existing audit writes to ORM (recordAudit uses Drizzle).
 
 ## Phase 8 – Developer Ergonomics
 - [ ] Add `permit(permission, extractor?)` wrapper for routes to reduce boilerplate.
@@ -83,7 +82,7 @@ Actionable micro-tasks to execute the plan in `docs/rbac-implementation-plan.md`
 - [ ] Unit tests for `PermissionsService` (allow/deny/scoping/expiry/wildcard).
 - [ ] Middleware tests for `requirePermission` (401/403/200 + reasons).
 - [ ] Integration tests for key routes with different roles and grants.
-- [ ] Tests for admin RBAC APIs (CRUD + validation + audit entries).
+- [x] Tests for admin RBAC APIs (CRUD + validation).
 
 ## Phase 10 – Rollout & Cleanup
 - [ ] Add feature flags: `RBAC_SHADOW_EVAL`, `RBAC_ENFORCE_READS`, `RBAC_ENFORCE_WRITES` in `config`.
@@ -93,3 +92,63 @@ Actionable micro-tasks to execute the plan in `docs/rbac-implementation-plan.md`
 - [ ] Switch writes to permission-only; remove dual-gate and admin bypass.
 - [ ] Remove unused `requireRole` or keep as thin wrapper over permissions.
 - [ ] Final documentation pass and README links update.
+
+---
+
+## Testing Checklist (Phases 1–3 Implemented)
+
+Database & Seeds
+- [x] Migrations apply cleanly on test DB (`npm run db:migrate`).
+- [x] Seed script inserts baseline roles, permissions, and mappings (`npm run db:seed`).
+- [ ] Seed script is idempotent (re-run does not duplicate rows).
+
+AuthService (Drizzle)
+- [ ] `createUser` + `findUserByEmail` returns expected fields and respects `is_active`.
+- [ ] `ensureRole` creates (or no-ops) and returns role id.
+- [ ] `assignRole` is idempotent and `getUserRoles` returns correct roles.
+
+Audit Service (Drizzle)
+- [ ] `recordAudit` writes a row with user, route, method, status, payload hash, and IP.
+
+PermissionsService
+- [ ] Global allow via role-derived permission (e.g., `hr` → `project:read`).
+- [ ] Direct user permission allows access when granted.
+- [ ] Scoped allow when `{ resource_type: 'project', resource_id }` matches a grant.
+- [ ] Scoped deny when resource id mismatches.
+- [ ] Expired grant is not selected and results in deny.
+- [ ] Unknown permission results in deny.
+ - [x] Wildcard `*` permission allows any requested permission.
+
+Middleware
+- [ ] `authMiddleware` attaches `req.user` for valid JWT cookie; leaves undefined when invalid/missing.
+- [x] `requirePermission` allows and sets `req.rbacAllowed`.
+- [x] `requirePermission` 401 when unauthenticated (returns `{ error: 'Unauthorized', reason: 'unauthenticated' }`).
+ - [x] `requirePermission` denies and sets `req.rbacDeniedReason` (defers response for dual-gate).
+- [x] `requireRoleUnlessPermitted` skips role check when `req.rbacAllowed` is true; otherwise enforces roles (admin bypass intact).
+- [ ] Overrides resource extractor reads `body.id || body.kimai_project_id`.
+
+Integration (HTTP)
+- [x] POST `/auth/login` valid → 200, sets cookie.
+- [ ] POST `/auth/login` invalid → 401.
+- [x] POST `/auth/logout` clears cookie.
+- [x] GET `/me` with cookie → 200; without cookie → 401.
+- [x] GET `/projects` with `hr` cookie → 200; with `basic` → 403.
+- [x] GET `/timesheets` with `management` cookie → 200; with `basic` → 403.
+- [x] GET `/bi/sunburst` with `directors` cookie → 200; with `basic` → 403.
+- [x] PUT `/overrides/status` with scoped grant for project 123 → 200; for project 999 → 403.
+ - [x] PUT `/overrides` mirrors `/overrides/status` behaviors.
+- [x] POST `/sync/timesheets` → 200 for `admins`; 403 for others.
+- [x] Admin RBAC APIs CRUD and grants endpoints guarded by `rbac:admin`.
+ - [x] Admin with `*` wildcard can access endpoints requiring specific permissions.
+ - [x] Admin RBAC: non-admin access returns 403 for all endpoints.
+ - [x] Admin RBAC: validation errors return 400/404 as appropriate.
+ - [x] Admin RBAC: removal endpoints (role-permission, user-role) tested.
+ - [x] Admin RBAC: audit rows recorded for mutations.
+
+Edge Cases
+- [ ] Missing project id in overrides body → permission denies; role fallback may still allow (dual-gate) for `hr`/`directors` (assert current behavior).
+- [ ] No JWT on protected route → 401.
+- [ ] Malformed/unknown permission names → deny.
+
+Notes
+- Consider exporting `app` from `src/index.ts` for Supertest-based integration tests without binding a port.

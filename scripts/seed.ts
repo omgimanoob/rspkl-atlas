@@ -53,7 +53,7 @@ function chunked<T>(arr: T[], size: number): T[][] {
 
 async function main() {
   const roleNames = ['hr', 'management', 'directors', 'admins'];
-  const permNames = ['project:read', 'timesheet:read', 'bi:read', 'overrides:update', 'sync:execute', 'rbac:admin'];
+  const permNames = ['*', 'project:read', 'timesheet:read', 'bi:read', 'overrides:update', 'sync:execute', 'rbac:admin'];
 
   const roleMap = await upsertRoles(roleNames);
   const permMap = await upsertPermissions(permNames);
@@ -62,7 +62,7 @@ async function main() {
     hr: ['project:read', 'timesheet:read', 'bi:read', 'overrides:update'],
     management: ['project:read', 'timesheet:read', 'bi:read'],
     directors: ['project:read', 'timesheet:read', 'bi:read', 'overrides:update'],
-    admins: ['project:read', 'timesheet:read', 'bi:read', 'overrides:update', 'sync:execute', 'rbac:admin'],
+    admins: ['*'],
   };
 
   await mapRolePermissions(roleMap, permMap, grants);

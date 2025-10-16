@@ -45,3 +45,16 @@ export function requireRole(...allowed: string[]) {
     next();
   };
 }
+
+// Dual-gate helper: if a previous permission middleware already allowed, skip role checks.
+export function requireRoleUnlessPermitted(...allowed: string[]) {
+  return (req, res, next) => {
+    if ((req as any).rbacAllowed) return next();
+    const user: AuthUser | undefined = (req as any).user;
+    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+    if (user.roles?.includes('admins')) return next();
+    const has = user.roles?.some(r => allowed.includes(r));
+    if (!has) return res.status(403).json({ error: 'Forbidden' });
+    next();
+  };
+}

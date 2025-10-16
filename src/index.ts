@@ -4,7 +4,8 @@ import { getProjectsHandler, getDetailedTimesheetsHandler } from './controllers/
 import { syncTimesheetsHandler } from './controllers/syncController';
 import { getSunburstHandler } from './controllers/biController';
 import { updateProjectStatusHandler, updateProjectOverridesHandler } from './controllers/projectOverridesController';
-import { authMiddleware, requireRole } from './middleware/auth';
+import { authMiddleware, requireRoleUnlessPermitted } from './middleware/auth';
+import { requirePermission } from './middleware/permissions';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { atlasPool, kimaiPool } from '../db';
@@ -46,12 +47,25 @@ app.get('/healthz', async (_req, res) => {
 app.use(express.static('public'));
 
 // API routes with RBAC
-app.put('/overrides/status', writeLimiter, requireRole('hr', 'directors'), updateProjectStatusHandler);
-app.put('/overrides', writeLimiter, requireRole('hr', 'directors'), updateProjectOverridesHandler);
-app.get('/bi/sunburst', requireRole('hr', 'management', 'directors'), getSunburstHandler);
-app.get('/projects', requireRole('hr', 'management', 'directors'), getProjectsHandler);
-app.get('/timesheets', requireRole('hr', 'management', 'directors'), getDetailedTimesheetsHandler);
-app.post('/sync/timesheets', writeLimiter, requireRole('admins'), syncTimesheetsHandler);
+// Dual-gate: permissions OR legacy roles
+app.put(
+  '/overrides/status',
+  writeLimiter,
+  requirePermission('overrides:update', { resourceExtractor: (req) => ({ resource_type: 'project', resource_id: req.body?.id ?? req.body?.kimai_project_id }) }),
+  requireRoleUnlessPermitted('hr', 'directors'),
+  updateProjectStatusHandler
+);
+app.put(
+  '/overrides',
+  writeLimiter,
+  requirePermission('overrides:update', { resourceExtractor: (req) => ({ resource_type: 'project', resource_id: req.body?.id ?? req.body?.kimai_project_id }) }),
+  requireRoleUnlessPermitted('hr', 'directors'),
+  updateProjectOverridesHandler
+);
+app.get('/bi/sunburst', requirePermission('bi:read'), requireRoleUnlessPermitted('hr', 'management', 'directors'), getSunburstHandler);
+app.get('/projects', requirePermission('project:read'), requireRoleUnlessPermitted('hr', 'management', 'directors'), getProjectsHandler);
+app.get('/timesheets', requirePermission('timesheet:read'), requireRoleUnlessPermitted('hr', 'management', 'directors'), getDetailedTimesheetsHandler);
+app.post('/sync/timesheets', writeLimiter, requirePermission('sync:execute'), requireRoleUnlessPermitted('admins'), syncTimesheetsHandler);
 
 // Error handler (last)
 app.use((err, _req, res, _next) => {
@@ -60,7 +74,6 @@ app.use((err, _req, res, _next) => {
 });
 
 async function bootstrap() {
-  await AuthService.ensureAuthSchema();
   await AuthService.seedAdminIfConfigured();
   app.listen(port, () => {
     console.log(`RSPKL Atlas API listening at http://localhost:${port}`);

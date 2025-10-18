@@ -1,5 +1,5 @@
 import { config } from '../config';
-import { AuthService, AuthUser } from '../services/authService';
+import { AuthService } from '../services/authService';
 
 function parseCookies(cookieHeader?: string): Record<string, string> {
   const out: Record<string, string> = {};
@@ -34,27 +34,4 @@ export function requireAuth(req, res, next) {
   next();
 }
 
-export function requireRole(...allowed: string[]) {
-  return (req, res, next) => {
-    const user: AuthUser | undefined = (req as any).user;
-    if (!user) return res.status(401).json({ error: 'Unauthorized' });
-    // Admins bypass role checks
-    if (user.roles?.includes('admins')) return next();
-    const has = user.roles?.some(r => allowed.includes(r));
-    if (!has) return res.status(403).json({ error: 'Forbidden' });
-    next();
-  };
-}
-
-// Dual-gate helper: if a previous permission middleware already allowed, skip role checks.
-export function requireRoleUnlessPermitted(...allowed: string[]) {
-  return (req, res, next) => {
-    if ((req as any).rbacAllowed) return next();
-    const user: AuthUser | undefined = (req as any).user;
-    if (!user) return res.status(401).json({ error: 'Unauthorized' });
-    if (user.roles?.includes('admins')) return next();
-    const has = user.roles?.some(r => allowed.includes(r));
-    if (!has) return res.status(403).json({ error: 'Forbidden' });
-    next();
-  };
-}
+// Role gates have been replaced by permission gates. This file retains only auth parsing helpers.

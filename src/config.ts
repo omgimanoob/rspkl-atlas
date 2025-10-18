@@ -19,6 +19,11 @@ export const config = {
     cookieName: process.env.AUTH_COOKIE_NAME || 'atlas_token',
     tokenTtlSeconds: Number(process.env.AUTH_TOKEN_TTL_SECONDS || 60 * 60 * 8), // 8h
   },
+  rbac: {
+    shadowEval: /^(1|true)$/i.test(String(process.env.RBAC_SHADOW_EVAL || 'false')),
+    enforceReads: /^(1|true)$/i.test(String(process.env.RBAC_ENFORCE_READS || 'true')),
+    enforceWrites: /^(1|true)$/i.test(String(process.env.RBAC_ENFORCE_WRITES || 'true')),
+  },
   adminSeed: {
     email: process.env.ADMIN_EMAIL || '',
     password: process.env.ADMIN_PASSWORD || '',

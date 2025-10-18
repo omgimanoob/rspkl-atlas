@@ -54,44 +54,44 @@ Actionable micro-tasks to execute the plan in `docs/rbac-implementation-plan.md`
 
 ## Phase 5 – Least-Privilege Tightening
 - [x] Add wildcard support (grant `*` to admins via permissions rather than bypass).
-- [ ] Instrument current admin bypass path to log usage (temporary).
-- [ ] Remove admin bypass from `requireRole` once permission path is verified.
-- [ ] (Optional) Split `overrides:update` into field-specific permissions if needed.
+- [x] Instrument current admin bypass path to log usage (temporary).
+ - [x] Remove legacy role gates and admin bypass (permission-only enforcement).
+  - [ ] (Optional) Split `overrides:update` into field-specific permissions if needed.
 
 ## Phase 6 – Resource-Level Scoping
-- [ ] Validate and normalize resource types (e.g., `project`).
+ - [x] Validate and normalize resource types (e.g., `project`).
 - [x] Enforce scoped grants in overrides endpoints (use extractor to build `{ resource_type, resource_id }`).
 - [x] Add helpers for common resource contexts (e.g., `extractProjectId(req)`).
 - [x] Add expiry handling for `permission_grants.expires_at`.
 
 ## Phase 7 – Auditing & Observability
-- [ ] Extend `audit_logs` or add `rbac_audit_logs` (permission, resource_type, resource_id, decision, reason).
+ - [x] Extend `audit_logs` or add `rbac_audit_logs` (permission, resource_type, resource_id, decision, reason).
 - [x] Implement `recordRbacDecision(req, { permission, resource, decision, reason })` helper (feature-flagged via `RBAC_DECISIONS_LOG`).
 - [x] Call `recordRbacDecision` from `requirePermission` on allow/deny (non-blocking, concise warnings).
-- [ ] Add lightweight in-memory counters for RBAC denials and privileged ops.
-- [ ] Expose a minimal metrics endpoint or integrate with existing telemetry (optional).
+ - [x] Add lightweight in-memory counters for RBAC denials and privileged ops.
+ - [x] Expose a minimal metrics endpoint (`GET /metrics`).
  - [x] Migrate existing audit writes to ORM (recordAudit uses Drizzle).
 
 ## Phase 8 – Developer Ergonomics
-- [ ] Add `permit(permission, extractor?)` wrapper for routes to reduce boilerplate.
-- [ ] Create a script to scan routes for missing `requirePermission` (CI check).
-- [ ] Add docs on permission naming and contribution rules under `docs/`.
+ - [x] Add `permit(permission, extractor?)` wrapper for routes to reduce boilerplate.
+ - [x] Create a test to scan routes for missing `requirePermission` (CI guard).
+ - [x] Add docs on permission naming and contribution rules under `docs/`.
 
 ## Phase 9 – Testing & Coverage
-- [ ] Add test framework (e.g., Jest + ts-jest) to devDependencies and config.
-- [ ] Unit tests for `PermissionsService` (allow/deny/scoping/expiry/wildcard).
-- [ ] Middleware tests for `requirePermission` (401/403/200 + reasons).
-- [ ] Integration tests for key routes with different roles and grants.
+- [x] Add test framework (Jest + ts-jest + supertest) to devDependencies and config.
+ - [x] Unit tests for `PermissionsService` (allow/deny/scoping/expiry/wildcard).
+ - [x] Middleware tests for `requirePermission` (401/403/200 + reasons).
+ - [x] Integration tests for key routes with different roles and grants.
 - [x] Tests for admin RBAC APIs (CRUD + validation).
 
 ## Phase 10 – Rollout & Cleanup
-- [ ] Add feature flags: `RBAC_SHADOW_EVAL`, `RBAC_ENFORCE_READS`, `RBAC_ENFORCE_WRITES` in `config`.
-- [ ] Implement shadow evaluation (log decisions without blocking) when enabled.
-- [ ] Enable dual-gate on reads; monitor denials and adjust seeds/grants.
-- [ ] Switch reads to permission-only; keep dual-gate for writes temporarily.
-- [ ] Switch writes to permission-only; remove dual-gate and admin bypass.
-- [ ] Remove unused `requireRole` or keep as thin wrapper over permissions.
-- [ ] Final documentation pass and README links update.
+- [x] Add feature flags: `RBAC_SHADOW_EVAL`, `RBAC_ENFORCE_READS`, `RBAC_ENFORCE_WRITES` in `config`.
+ - [x] Implement shadow evaluation (log decisions without blocking) when enabled (via enforcement flags + decision logging).
+- [x] Enable dual-gate on reads; monitor denials and adjust seeds/grants.
+- [x] Switch reads to permission-only; keep dual-gate for writes temporarily.
+- [x] Switch writes to permission-only; remove dual-gate and admin bypass at route level.
+ - [x] Remove unused `requireRole` or keep as thin wrapper over permissions (removed).
+- [x] Final documentation pass and README links update.
 
 ---
 
@@ -100,36 +100,36 @@ Actionable micro-tasks to execute the plan in `docs/rbac-implementation-plan.md`
 Database & Seeds
 - [x] Migrations apply cleanly on test DB (`npm run db:migrate`).
 - [x] Seed script inserts baseline roles, permissions, and mappings (`npm run db:seed`).
-- [ ] Seed script is idempotent (re-run does not duplicate rows).
+ - [x] Seed script is idempotent (re-run does not duplicate roles/perms/mappings) — verified by idempotency tests.
 
 AuthService (Drizzle)
-- [ ] `createUser` + `findUserByEmail` returns expected fields and respects `is_active`.
-- [ ] `ensureRole` creates (or no-ops) and returns role id.
-- [ ] `assignRole` is idempotent and `getUserRoles` returns correct roles.
+ - [x] `createUser` + `findUserByEmail` returns expected fields and respects `is_active`.
+ - [x] `ensureRole` creates (or no-ops) and returns role id.
+ - [x] `assignRole` is idempotent and `getUserRoles` returns correct roles.
 
 Audit Service (Drizzle)
-- [ ] `recordAudit` writes a row with user, route, method, status, payload hash, and IP.
+ - [x] `recordAudit` writes a row with user, route, method, status, payload hash, and IP.
 
 PermissionsService
-- [ ] Global allow via role-derived permission (e.g., `hr` → `project:read`).
-- [ ] Direct user permission allows access when granted.
-- [ ] Scoped allow when `{ resource_type: 'project', resource_id }` matches a grant.
-- [ ] Scoped deny when resource id mismatches.
-- [ ] Expired grant is not selected and results in deny.
-- [ ] Unknown permission results in deny.
+ - [x] Global allow via role-derived permission (e.g., `hr` → `project:read`).
+ - [x] Direct user permission allows access when granted.
+ - [x] Scoped allow when `{ resource_type: 'project', resource_id }` matches a grant.
+ - [x] Scoped deny when resource id mismatches.
+ - [x] Expired grant is not selected and results in deny.
+ - [x] Unknown permission results in deny.
  - [x] Wildcard `*` permission allows any requested permission.
 
 Middleware
-- [ ] `authMiddleware` attaches `req.user` for valid JWT cookie; leaves undefined when invalid/missing.
+- [x] `authMiddleware` attaches `req.user` for valid JWT cookie; leaves undefined when invalid/missing.
 - [x] `requirePermission` allows and sets `req.rbacAllowed`.
 - [x] `requirePermission` 401 when unauthenticated (returns `{ error: 'Unauthorized', reason: 'unauthenticated' }`).
  - [x] `requirePermission` denies and sets `req.rbacDeniedReason` (defers response for dual-gate).
-- [x] `requireRoleUnlessPermitted` skips role check when `req.rbacAllowed` is true; otherwise enforces roles (admin bypass intact).
-- [ ] Overrides resource extractor reads `body.id || body.kimai_project_id`.
+ - [N/A] Legacy role-gate middleware removed; routes are permission-only.
+- [x] Overrides resource extractor reads `body.id || body.kimai_project_id`.
 
 Integration (HTTP)
 - [x] POST `/auth/login` valid → 200, sets cookie.
-- [ ] POST `/auth/login` invalid → 401.
+ - [x] POST `/auth/login` invalid → 401.
 - [x] POST `/auth/logout` clears cookie.
 - [x] GET `/me` with cookie → 200; without cookie → 401.
 - [x] GET `/projects` with `hr` cookie → 200; with `basic` → 403.
@@ -139,6 +139,7 @@ Integration (HTTP)
  - [x] PUT `/overrides` mirrors `/overrides/status` behaviors.
 - [x] POST `/sync/timesheets` → 200 for `admins`; 403 for others.
 - [x] Admin RBAC APIs CRUD and grants endpoints guarded by `rbac:admin`.
+ - [x] GET `/metrics` returns counters for RBAC decisions/admin mutations.
  - [x] Admin with `*` wildcard can access endpoints requiring specific permissions.
  - [x] Admin RBAC: non-admin access returns 403 for all endpoints.
  - [x] Admin RBAC: validation errors return 400/404 as appropriate.
@@ -146,9 +147,12 @@ Integration (HTTP)
  - [x] Admin RBAC: audit rows recorded for mutations.
 
 Edge Cases
-- [ ] Missing project id in overrides body → permission denies; role fallback may still allow (dual-gate) for `hr`/`directors` (assert current behavior).
-- [ ] No JWT on protected route → 401.
-- [ ] Malformed/unknown permission names → deny.
+- [x] Missing project id in overrides body:
+  - With permission (e.g., `hr`): 400 from controller validation.
+  - Without permission: 403 from permission enforcement.
+- [x] No JWT on protected route → 401.
+- [x] Malformed/unknown permission names → deny (unit).
 
 Notes
 - Consider exporting `app` from `src/index.ts` for Supertest-based integration tests without binding a port.
+ - See RBAC flags and observability usage: [docs/rbac-flags.md](./rbac-flags.md)

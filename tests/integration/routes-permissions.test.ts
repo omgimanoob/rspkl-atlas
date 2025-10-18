@@ -128,6 +128,11 @@ describe('Permission-protected routes (dual-gate)', () => {
     await agent.post('/auth/logout').expect(200);
   });
 
+  it('Unauthenticated: protected routes return 401', async () => {
+    // no login
+    await agent.get('/projects').expect(401);
+  });
+
   it('GET /timesheets: management allowed, basic denied', async () => {
     await login(agent, mgmtEmail, pwd);
     await agent.get('/timesheets').expect(200);

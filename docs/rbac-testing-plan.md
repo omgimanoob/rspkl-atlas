@@ -16,6 +16,14 @@ Plan to validate the RBAC implementation described in `docs/rbac-implementation-
   - Seed baseline RBAC data: `npm run db:seed`
 - App: run under `NODE_ENV=test` when executing integration tests.
 
+### RBAC Flags in Tests
+- Defaults enforce permissions; to shadow-evaluate in specific suites, you can temporarily override:
+  - `process.env.RBAC_ENFORCE_READS = 'false'`
+  - `process.env.RBAC_ENFORCE_WRITES = 'false'`
+- To capture decision logs during tests (optional), set:
+  - `process.env.RBAC_DECISIONS_LOG = 'true'`
+  - Ensure `rbac_audit_logs` exists (migrations applied).
+
 ## Test Data & Fixtures
 - Users:
   - `admin@example.com` → roles: `admins`
@@ -92,6 +100,7 @@ Edge/Negative Cases
   - `test:integration`: boot app in test mode and run HTTP suites
 - App export for tests:
   - Refactor `src/index.ts` to export `app` (and keep bootstrap). In tests, import `app` to avoid binding to a port.
+  - Flags: See `docs/rbac-flags.md` for staging shadow-eval vs enforced configurations.
 
 ## Data Isolation Strategy
 - Preferred: use a dedicated test DB and clean tables between suites:
@@ -106,8 +115,15 @@ Edge/Negative Cases
 - Seeds and migrations can set up a clean test DB from scratch.
 - No regressions in auth endpoints (`/auth/login`, `/me`, `/auth/logout`).
 
+## Edge Cases (Reference)
+- Missing project id in overrides body
+  - With permission (e.g., user has `overrides:update`): controller returns `400` (validation failure).
+  - Without permission: permission middleware enforces `403` (forbidden).
+- Unauthenticated access to protected routes → `401` (from permission middleware).
+- Unknown/malformed permission names → deny decision in `PermissionsService` (unit‑verified).
+- Admin endpoints are permission‑only and honor enforcement flags; no role fallback is present.
+
 ## Future Work (when Admin APIs exist)
 - Test role/permission CRUD and scoped grant CRUD:
   - Validation errors, idempotency, and audit entries.
   - Permissions enforced with `requirePermission('rbac:admin')`.
-

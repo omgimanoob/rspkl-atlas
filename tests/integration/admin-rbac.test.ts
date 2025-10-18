@@ -139,6 +139,19 @@ describe('Admin RBAC APIs', () => {
     expect(audits.some(a => a.route?.includes('/admin/rbac/grants') && a.method === 'DELETE')).toBe(true);
   });
 
+  it('rejects invalid resource_type/resource_id on grant creation', async () => {
+    // invalid resource_type
+    await adminAgent
+      .post('/admin/rbac/grants')
+      .send({ subject_type: 'user', subject_id: targetUserId, permission: 'overrides:update', resource_type: 'unknown', resource_id: 1 })
+      .expect(400);
+    // invalid resource_id
+    await adminAgent
+      .post('/admin/rbac/grants')
+      .send({ subject_type: 'user', subject_id: targetUserId, permission: 'overrides:update', resource_type: 'project', resource_id: 'abc' })
+      .expect(400);
+  });
+
   it('denies non-admin access to admin endpoints', async () => {
     await userAgent.get('/admin/rbac/roles').expect(403);
     await userAgent.post('/admin/rbac/roles').send({ name: 'nope' }).expect(403);

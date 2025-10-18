@@ -57,5 +57,9 @@ describe('Auth integration', () => {
     await agent.post('/auth/logout').expect(200);
     await agent.get('/me').expect(401);
   });
-});
 
+  it('invalid login returns 401', async () => {
+    const bad = request.agent(app);
+    await bad.post('/auth/login').send({ email: TEST_EMAIL, password: 'wrong' }).expect(401);
+  });
+});

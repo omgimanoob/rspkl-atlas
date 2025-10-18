@@ -4,8 +4,8 @@ import { getProjectsHandler, getDetailedTimesheetsHandler } from './controllers/
 import { syncTimesheetsHandler } from './controllers/syncController';
 import { getSunburstHandler } from './controllers/biController';
 import { updateProjectStatusHandler, updateProjectOverridesHandler } from './controllers/projectOverridesController';
-import { authMiddleware, requireRoleUnlessPermitted } from './middleware/auth';
-import { requirePermission, enforcePermission } from './middleware/permissions';
+import { authMiddleware } from './middleware/auth';
+import { requirePermission, enforceIfEnabled, permit } from './middleware/permissions';
 import {
   listRoles,
   createRole,
@@ -66,40 +66,44 @@ app.use(express.static('public'));
 app.put(
   '/overrides/status',
   writeLimiter,
-  requirePermission('overrides:update', { resourceExtractor: (req) => ({ resource_type: 'project', resource_id: req.body?.id ?? req.body?.kimai_project_id }) }),
-  requireRoleUnlessPermitted('hr', 'directors'),
+  ...permit('overrides:update', 'write', { resourceExtractor: (req) => ({ resource_type: 'project', resource_id: req.body?.id ?? req.body?.kimai_project_id }) }),
   updateProjectStatusHandler
 );
 app.put(
   '/overrides',
   writeLimiter,
-  requirePermission('overrides:update', { resourceExtractor: (req) => ({ resource_type: 'project', resource_id: req.body?.id ?? req.body?.kimai_project_id }) }),
-  requireRoleUnlessPermitted('hr', 'directors'),
+  ...permit('overrides:update', 'write', { resourceExtractor: (req) => ({ resource_type: 'project', resource_id: req.body?.id ?? req.body?.kimai_project_id }) }),
   updateProjectOverridesHandler
 );
-app.get('/bi/sunburst', requirePermission('bi:read'), requireRoleUnlessPermitted('hr', 'management', 'directors'), getSunburstHandler);
-app.get('/projects', requirePermission('project:read'), requireRoleUnlessPermitted('hr', 'management', 'directors'), getProjectsHandler);
-app.get('/timesheets', requirePermission('timesheet:read'), requireRoleUnlessPermitted('hr', 'management', 'directors'), getDetailedTimesheetsHandler);
-app.post('/sync/timesheets', writeLimiter, requirePermission('sync:execute'), requireRoleUnlessPermitted('admins'), syncTimesheetsHandler);
+app.get('/bi/sunburst', ...permit('bi:read', 'read'), getSunburstHandler);
+app.get('/projects', ...permit('project:read', 'read'), getProjectsHandler);
+app.get('/timesheets', ...permit('timesheet:read', 'read'), getDetailedTimesheetsHandler);
+app.post('/sync/timesheets', writeLimiter, ...permit('sync:execute', 'write'), syncTimesheetsHandler);
 
 // Admin RBAC APIs (strict permission-only)
-app.get('/admin/rbac/roles', requirePermission('rbac:admin'), enforcePermission, listRoles);
-app.post('/admin/rbac/roles', writeLimiter, requirePermission('rbac:admin'), enforcePermission, createRole);
-app.delete('/admin/rbac/roles/:id', writeLimiter, requirePermission('rbac:admin'), enforcePermission, deleteRole);
+app.get('/admin/rbac/roles', ...permit('rbac:admin', 'read'), listRoles);
+app.post('/admin/rbac/roles', writeLimiter, ...permit('rbac:admin', 'write'), createRole);
+app.delete('/admin/rbac/roles/:id', writeLimiter, ...permit('rbac:admin', 'write'), deleteRole);
 
-app.get('/admin/rbac/permissions', requirePermission('rbac:admin'), enforcePermission, listPermissions);
-app.post('/admin/rbac/permissions', writeLimiter, requirePermission('rbac:admin'), enforcePermission, createPermission);
-app.delete('/admin/rbac/permissions/:id', writeLimiter, requirePermission('rbac:admin'), enforcePermission, deletePermission);
+app.get('/admin/rbac/permissions', ...permit('rbac:admin', 'read'), listPermissions);
+app.post('/admin/rbac/permissions', writeLimiter, ...permit('rbac:admin', 'write'), createPermission);
+app.delete('/admin/rbac/permissions/:id', writeLimiter, ...permit('rbac:admin', 'write'), deletePermission);
 
-app.post('/admin/rbac/roles/:id/permissions/:perm', writeLimiter, requirePermission('rbac:admin'), enforcePermission, addPermissionToRole);
-app.delete('/admin/rbac/roles/:id/permissions/:perm', writeLimiter, requirePermission('rbac:admin'), enforcePermission, removePermissionFromRole);
+app.post('/admin/rbac/roles/:id/permissions/:perm', writeLimiter, ...permit('rbac:admin', 'write'), addPermissionToRole);
+app.delete('/admin/rbac/roles/:id/permissions/:perm', writeLimiter, ...permit('rbac:admin', 'write'), removePermissionFromRole);
 
-app.post('/admin/rbac/users/:id/roles/:role', writeLimiter, requirePermission('rbac:admin'), enforcePermission, assignRoleToUser);
-app.delete('/admin/rbac/users/:id/roles/:role', writeLimiter, requirePermission('rbac:admin'), enforcePermission, removeRoleFromUser);
+app.post('/admin/rbac/users/:id/roles/:role', writeLimiter, ...permit('rbac:admin', 'write'), assignRoleToUser);
+app.delete('/admin/rbac/users/:id/roles/:role', writeLimiter, ...permit('rbac:admin', 'write'), removeRoleFromUser);
 
-app.get('/admin/rbac/grants', requirePermission('rbac:admin'), enforcePermission, listGrants);
-app.post('/admin/rbac/grants', writeLimiter, requirePermission('rbac:admin'), enforcePermission, createGrant);
-app.delete('/admin/rbac/grants/:id', writeLimiter, requirePermission('rbac:admin'), enforcePermission, deleteGrant);
+app.get('/admin/rbac/grants', ...permit('rbac:admin', 'read'), listGrants);
+app.post('/admin/rbac/grants', writeLimiter, ...permit('rbac:admin', 'write'), createGrant);
+app.delete('/admin/rbac/grants/:id', writeLimiter, ...permit('rbac:admin', 'write'), deleteGrant);
+
+// Minimal metrics endpoint (no auth; safe aggregate counters only)
+import { metricsSnapshot } from './services/metrics';
+app.get('/metrics', (_req, res) => {
+  res.json(metricsSnapshot());
+});
 
 // Error handler (last)
 app.use((err, _req, res, _next) => {

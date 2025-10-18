@@ -26,6 +26,16 @@ import rateLimit from 'express-rate-limit';
 import { atlasPool, kimaiPool } from '../db';
 import { loginHandler, logoutHandler, meHandler } from './controllers/authController';
 import { AuthService } from './services/authService';
+import { updateMeHandler, changePasswordHandler, requestPasswordResetHandler, confirmPasswordResetHandler, selfWriteLimiter } from './controllers/selfController';
+import {
+  createUserHandler,
+  listUsersHandler,
+  getUserByIdHandler,
+  updateUserHandler,
+  activateUserHandler,
+  deactivateUserHandler,
+  deleteUserHandler,
+} from './controllers/usersController';
 
 
 export const app = express();
@@ -44,6 +54,10 @@ app.use(authMiddleware);
 app.post('/auth/login', loginLimiter, loginHandler);
 app.post('/auth/logout', logoutHandler);
 app.get('/me', meHandler);
+app.put('/me', selfWriteLimiter, updateMeHandler);
+app.post('/me/password', selfWriteLimiter, changePasswordHandler);
+app.post('/auth/password-reset/request', selfWriteLimiter, requestPasswordResetHandler);
+app.post('/auth/password-reset/confirm', selfWriteLimiter, confirmPasswordResetHandler);
 
 // Health endpoint
 app.get('/healthz', async (_req, res) => {
@@ -98,6 +112,15 @@ app.delete('/admin/rbac/users/:id/roles/:role', writeLimiter, ...permit('rbac:ad
 app.get('/admin/rbac/grants', ...permit('rbac:admin', 'read'), listGrants);
 app.post('/admin/rbac/grants', writeLimiter, ...permit('rbac:admin', 'write'), createGrant);
 app.delete('/admin/rbac/grants/:id', writeLimiter, ...permit('rbac:admin', 'write'), deleteGrant);
+
+// Admin Users APIs (permission-only)
+app.post('/admin/users', writeLimiter, ...permit('rbac:admin', 'write'), createUserHandler);
+app.get('/admin/users', ...permit('rbac:admin', 'read'), listUsersHandler);
+app.get('/admin/users/:id', ...permit('rbac:admin', 'read'), getUserByIdHandler);
+app.put('/admin/users/:id', writeLimiter, ...permit('rbac:admin', 'write'), updateUserHandler);
+app.post('/admin/users/:id/activate', writeLimiter, ...permit('rbac:admin', 'write'), activateUserHandler);
+app.post('/admin/users/:id/deactivate', writeLimiter, ...permit('rbac:admin', 'write'), deactivateUserHandler);
+app.delete('/admin/users/:id', writeLimiter, ...permit('rbac:admin', 'write'), deleteUserHandler);
 
 // Minimal metrics endpoint (no auth; safe aggregate counters only)
 import { metricsSnapshot } from './services/metrics';

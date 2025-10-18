@@ -122,3 +122,13 @@ export const auditLogs = mysqlTable('audit_logs', {
   ip: varchar('ip', { length: 64 }),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
+
+// Password reset tokens
+export const passwordResetTokens = mysqlTable('password_reset_tokens', {
+  id: bigint('id', { mode: 'number', unsigned: true }).primaryKey().autoincrement(),
+  userId: bigint('user_id', { mode: 'number', unsigned: true }).notNull(),
+  tokenHash: varchar('token_hash', { length: 128 }).notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
+  usedAt: timestamp('used_at'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});

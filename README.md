@@ -28,6 +28,55 @@ Link: [development-progress-tracking.md](./development-progress-tracking.md)
  - Drizzle Setup Guide: [docs/drizzle-setup.md](./docs/drizzle-setup.md)
  - RBAC Flags & Observability: [docs/rbac-flags.md](./docs/rbac-flags.md)
  - Permission Naming: [docs/rbac-permission-conventions.md](./docs/rbac-permission-conventions.md)
+  - Users Endpoints Checklist: [docs/users-endpoints-checklist.md](./docs/users-endpoints-checklist.md)
+  - Database Structure: [docs/database-structure.md](./docs/database-structure.md)
+  - Kimai Projects Schema: [docs/kimai2_projects-schema.md](./docs/kimai2_projects-schema.md)
+  - Kimai Timesheet Schema: [docs/kimai2_timesheet-schema.md](./docs/kimai2_timesheet-schema.md)
+  - Overrides Model: [docs/overrides-projects.md](./docs/overrides-projects.md)
+  - Taxonomy & Tags: [docs/taxonomy-tags.md](./docs/taxonomy-tags.md)
+  - Payments Design: [docs/payments-implementation.md](./docs/payments-implementation.md)
+  - Kimai Sync Plan: [docs/kimai-sync.md](./docs/kimai-sync.md)
+
+### Admin Users API
+- Requires `rbac:admin` and uses write rate limits.
+- Endpoints:
+  - `POST /admin/users` — create user
+  - `GET /admin/users` — list users (supports `?page=&pageSize=&search=&active=`)
+  - `GET /admin/users/:id` — fetch user by id
+  - `PUT /admin/users/:id` — update `display_name`, `is_active`, optionally `password`
+  - `POST /admin/users/:id/activate` — set active
+  - `POST /admin/users/:id/deactivate` — set inactive
+  - `DELETE /admin/users/:id` — soft delete (sets `is_active=false`)
+- Response shape: `{ id, email, display_name, is_active, created_at, updated_at }`
+- cURL examples: see [quick-sanity-tests.md](./quick-sanity-tests.md)
+
+### Self-Service
+- Endpoints:
+  - `GET /me` — returns authenticated user `{ id, email, roles }`.
+  - `PUT /me` — updates `display_name` only.
+  - `POST /me/password` — change password with `{ current_password, new_password }`.
+  - `POST /auth/password-reset/request` — request a password reset by email (always 200; no account enumeration).
+  - `POST /auth/password-reset/confirm` — confirm reset with `{ token, new_password }`.
+- Notes:
+  - `/me` routes require authentication.
+  - Write endpoints are rate-limited.
+  - Reset tokens are one-time and time-limited.
+- cURL examples: see [quick-sanity-tests.md](./quick-sanity-tests.md)
+
+### Email Service
+- Env vars:
+  - `MAILER_FROM` (e.g., `timesheet@rspkl.com` or `RSPKL Atlas <timesheet@rspkl.com>`)
+  - `MAILER_FROM_NAME` (optional; pairs with `MAILER_FROM` to form `Name <address>`)
+  - `MAILER_URL` (SMTP URL or special values)
+    - SMTP: `smtp://user:pass@host:port?verify_peer=0|1` (percent-encode `@` in user as `%40`)
+    - Dev log: `dev://log` (logs instead of sending)
+    - Disable: `null://null` (no-op)
+  - `DEVELOPER_EMAIL` (for test sends)
+  - `APP_BASE_URL` (base URL of the web app used in links, e.g., `https://app.rspkl.com` or `http://localhost:5173`)
+  - `RESET_PATH` (path on the web app that handles password resets, default `/reset`)
+- Test send:
+  - `npm run mail:test` (sends to `DEVELOPER_EMAIL` if SMTP is enabled; logs URL with password redacted)
+- More details: [docs/email-service-checklist.md](./docs/email-service-checklist.md)
 
 Admin RBAC API (requires `rbac:admin` or `*`)
 - List roles: `GET /admin/rbac/roles`

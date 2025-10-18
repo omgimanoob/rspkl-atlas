@@ -7,7 +7,12 @@
     "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
     "db:migrate": "ts-node scripts/migrate.ts",
     "db:seed": "ts-node scripts/seed.ts",
-    "test": "jest"
+    "test": "jest",
+    "mail:test": "ts-node scripts/mail-test.ts",
+    "mail:reset:test": "ts-node scripts/password-reset-mail-test.ts",
+    "kimai:check": "ts-node scripts/kimai-check.ts",
+    "kimai:describe": "ts-node scripts/kimai-describe.ts",
+    "kimai:dump:schemas": "ts-node scripts/kimai-dump-schemas.ts"
   },
   "keywords": [],
   "author": "",
@@ -22,6 +27,7 @@
     "express-rate-limit": "^7.4.0",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^6.9.13",
     "mysql2": "^3.15.2"
   },
   "devDependencies": {

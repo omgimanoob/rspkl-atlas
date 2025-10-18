@@ -19,6 +19,16 @@ export const config = {
     cookieName: process.env.AUTH_COOKIE_NAME || 'atlas_token',
     tokenTtlSeconds: Number(process.env.AUTH_TOKEN_TTL_SECONDS || 60 * 60 * 8), // 8h
   },
+  web: {
+    // Base URL for links sent to users (e.g., password reset)
+    // Examples: https://app.rspkl.com or http://localhost:5173
+    baseUrl:
+      process.env.APP_BASE_URL ||
+      process.env.WEB_APP_URL ||
+      (process.env.NODE_ENV === 'production' ? 'https://app.rspkl.com' : 'http://localhost:5173'),
+    // Path on the web app that handles password reset and accepts ?token=
+    resetPath: process.env.RESET_PATH || '/reset',
+  },
   rbac: {
     shadowEval: /^(1|true)$/i.test(String(process.env.RBAC_SHADOW_EVAL || 'false')),
     enforceReads: /^(1|true)$/i.test(String(process.env.RBAC_ENFORCE_READS || 'true')),

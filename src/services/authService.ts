@@ -1,9 +1,12 @@
 import { db } from '../db/client';
-import { users, roles, userRoles } from '../db/schema';
+import { users, roles, userRoles, passwordResetTokens } from '../db/schema';
 import { and, eq } from 'drizzle-orm';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { config } from '../config';
+import crypto from 'crypto';
+import { atlasPool } from '../../db';
+import { createMailerFromEnv } from './mailer';
 
 export type UserRecord = {
   id: number;
@@ -20,6 +23,17 @@ export type AuthUser = {
 };
 
 export const AuthService = {
+  async ensurePasswordResetSchema() {
+    // Create table if missing to support tests without running migrations
+    await atlasPool.query(`CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      user_id BIGINT UNSIGNED NOT NULL,
+      token_hash VARCHAR(128) NOT NULL,
+      expires_at TIMESTAMP NOT NULL,
+      used_at TIMESTAMP NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`);
+  },
 
   async findUserByEmail(email: string): Promise<UserRecord | null> {
     const row = await db
@@ -103,5 +117,68 @@ export const AuthService = {
 
   async verifyPassword(password: string, hash: string): Promise<boolean> {
     return bcrypt.compare(password, hash);
+  },
+
+  async changePassword(userId: number, currentPassword: string, newPassword: string): Promise<boolean> {
+    const row = await db.select().from(users).where(and(eq(users.id, userId), eq(users.isActive, 1))).limit(1).then(r => r[0]);
+    if (!row) return false;
+    const ok = await bcrypt.compare(currentPassword, row.passwordHash);
+    if (!ok) throw new Error('invalid_current_password');
+    if (!newPassword || newPassword.length < 8) throw new Error('weak_password');
+    const hash = await bcrypt.hash(newPassword, 12);
+    await db.update(users).set({ passwordHash: hash }).where(eq(users.id, userId));
+    return true;
+  },
+
+  async requestPasswordReset(email: string): Promise<{ ok: true; debugToken?: string }> {
+    await this.ensurePasswordResetSchema();
+    const user = await this.findUserByEmail(email);
+    if (!user) {
+      return { ok: true };
+    }
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+    await db.insert(passwordResetTokens).values({ userId: user.id, tokenHash, expiresAt });
+    const resp: any = { ok: true };
+    if (process.env.NODE_ENV === 'test') resp.debugToken = token;
+    // Dev logging: surface reset link for local testing
+    if (process.env.NODE_ENV !== 'production') {
+      const base = String(config.web.baseUrl || '').replace(/\/$/, '');
+      const path = String(config.web.resetPath || '/reset');
+      const link = `${base}${path.startsWith('/') ? path : '/' + path}?token=${token}`;
+      console.log(`[auth] Password reset link for ${email}: ${link}`);
+    }
+    try {
+      const mailer = createMailerFromEnv();
+      const from = process.env.MAILER_FROM_NAME && process.env.MAILER_FROM
+        ? `${process.env.MAILER_FROM_NAME} <${process.env.MAILER_FROM}>`
+        : process.env.MAILER_FROM || 'no-reply@localhost';
+      const base = String(config.web.baseUrl || '').replace(/\/$/, '');
+      const path = String(config.web.resetPath || '/reset');
+      const link = `${base}${path.startsWith('/') ? path : '/' + path}?token=${token}`;
+      await mailer.send({ to: email, from, subject: 'Reset your RSPKL Atlas password', text: `Use this link to reset your password: ${link}` });
+    } catch {}
+    return resp;
+  },
+
+  async confirmPasswordReset(token: string, newPassword: string): Promise<boolean> {
+    await this.ensurePasswordResetSchema();
+    if (!token || !newPassword) throw new Error('invalid_input');
+    if (newPassword.length < 8) throw new Error('weak_password');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const rows = await db.select().from(passwordResetTokens).where(eq(passwordResetTokens.tokenHash, tokenHash)).limit(1).then(r => r[0]);
+    if (!rows) throw new Error('invalid_token');
+    const prt: any = rows;
+    if (prt.usedAt) throw new Error('token_used');
+    if (prt.expiresAt && new Date(prt.expiresAt).getTime() < Date.now()) throw new Error('token_expired');
+    // Rotate password
+    const userRow = await db.select().from(users).where(eq(users.id, prt.userId)).limit(1).then(r => r[0]);
+    if (!userRow || userRow.isActive !== 1) throw new Error('invalid_user');
+    const hash = await bcrypt.hash(newPassword, 12);
+    await db.update(users).set({ passwordHash: hash }).where(eq(users.id, prt.userId));
+    // Mark token used
+    await db.update(passwordResetTokens).set({ usedAt: new Date() }).where(eq(passwordResetTokens.id, prt.id));
+    return true;
   },
 };

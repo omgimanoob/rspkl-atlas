@@ -43,6 +43,11 @@ This document summarizes environment flags and observability controls for RBAC, 
   - `rbac.decisions.allow`
   - `rbac.decisions.deny`
   - `rbac.adminMutations`
+  - `auth.passwordChange.success`
+  - `auth.passwordChange.fail`
+  - `auth.passwordReset.request`
+  - `auth.passwordReset.confirmSuccess`
+  - `auth.passwordReset.confirmFail`
 
 ## Notes
 

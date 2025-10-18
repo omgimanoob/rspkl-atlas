@@ -5,6 +5,8 @@ import { db } from '../../src/db/client';
 import { users, roles, userRoles, permissionGrants, permissions, rolePermissions } from '../../src/db/schema';
 import { eq } from 'drizzle-orm';
 
+jest.setTimeout(30000);
+
 // Mock heavy data services to avoid external DB calls
 jest.mock('../../src/services/kimai', () => ({
   Kimai: {

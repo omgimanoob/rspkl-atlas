@@ -1,7 +1,8 @@
 import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
 
-dotenv.config();
+// Suppress dotenv info logs during tests and normal runs
+dotenv.config({ quiet: true });
 
 export const kimaiPool = mysql.createPool({
   host: process.env.KIMAI_DB_HOST,

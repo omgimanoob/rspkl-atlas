@@ -91,5 +91,26 @@ Admin RBAC API (requires `rbac:admin` or `*`)
 - Remove role from user: `DELETE /admin/rbac/users/:id/roles/:role`
 - Grants: `GET /admin/rbac/grants`, `POST /admin/rbac/grants` (supports `?dryRun=1`), `DELETE /admin/rbac/grants/:id`
 
+### Admin Project Statuses
+- Purpose: Lookup table powering `status_id` on project overrides.
+- Endpoints (require `rbac:admin`):
+  - `GET /admin/statuses` — list statuses
+  - `POST /admin/statuses` — create `{ name, code?, is_active?, sort_order? }`
+  - `PUT /admin/statuses/:id` — update any fields above
+  - `DELETE /admin/statuses/:id` — remove a status
+- Using `status_id` in overrides:
+  - `PUT /overrides` body may include `status_id`; API writes both `status` (denormalized name) and `status_id`.
+  - `PUT /overrides/status` also accepts `status_id` as an alternative to `status`.
+
 Metrics
 - `GET /metrics` returns in-memory counters for RBAC decisions and admin mutations
+
+Sync (Kimai → Atlas)
+- Endpoints (require `sync:execute` permission):
+  - `POST /sync/projects` — refresh projects (staging-and-swap)
+  - `POST /sync/timesheets` — incremental sync of timesheets
+  - `GET /sync/health` — last-run state and replica counts
+- CLI:
+  - `npm run sync:all` — runs all syncs in sequence
+  - `npm run sync:verify` — compares Kimai vs replicas (totals, recent window), with per-day breakdown
+  - `npm run sync:materialize` — builds snapshot tables `mat_projects` and `mat_timesheet_facts` for BI performance

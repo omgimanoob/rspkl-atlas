@@ -141,13 +141,19 @@ export const AuthService = {
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000);
     await db.insert(passwordResetTokens).values({ userId: user.id, tokenHash, expiresAt });
     const resp: any = { ok: true };
-    if (process.env.NODE_ENV === 'test') resp.debugToken = token;
-    // Dev logging: surface reset link for local testing
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env.NODE_ENV === 'test') {
+      resp.debugToken = token;
+    }
+    // Dev logging only: avoid noisy output during tests
+    if (process.env.NODE_ENV === 'development') {
       const base = String(config.web.baseUrl || '').replace(/\/$/, '');
       const path = String(config.web.resetPath || '/reset');
       const link = `${base}${path.startsWith('/') ? path : '/' + path}?token=${token}`;
       console.log(`[auth] Password reset link for ${email}: ${link}`);
+    }
+    // Avoid SMTP sends in test to keep tests fast and deterministic
+    if (process.env.NODE_ENV === 'test') {
+      return resp;
     }
     try {
       const mailer = createMailerFromEnv();

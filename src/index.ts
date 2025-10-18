@@ -27,6 +27,10 @@ import { atlasPool, kimaiPool } from '../db';
 import { loginHandler, logoutHandler, meHandler } from './controllers/authController';
 import { AuthService } from './services/authService';
 import { updateMeHandler, changePasswordHandler, requestPasswordResetHandler, confirmPasswordResetHandler, selfWriteLimiter } from './controllers/selfController';
+import { syncProjectsHandler } from './controllers/syncController';
+import { syncHealthHandler } from './controllers/syncHealthController';
+import { createProspectiveHandler, listProspectiveHandler, linkProspectiveHandler } from './controllers/prospectiveProjectsController';
+import { listStatusesHandler, createStatusHandler, updateStatusHandler, deleteStatusHandler } from './controllers/statusesController';
 import {
   createUserHandler,
   listUsersHandler,
@@ -93,6 +97,13 @@ app.get('/bi/sunburst', ...permit('bi:read', 'read'), getSunburstHandler);
 app.get('/projects', ...permit('project:read', 'read'), getProjectsHandler);
 app.get('/timesheets', ...permit('timesheet:read', 'read'), getDetailedTimesheetsHandler);
 app.post('/sync/timesheets', writeLimiter, ...permit('sync:execute', 'write'), syncTimesheetsHandler);
+app.post('/sync/projects', writeLimiter, ...permit('sync:execute', 'write'), syncProjectsHandler);
+app.get('/sync/health', ...permit('sync:execute', 'read'), syncHealthHandler);
+
+// Prospective projects (admin-only for now)
+app.post('/admin/prospective', writeLimiter, ...permit('rbac:admin', 'write'), createProspectiveHandler);
+app.get('/admin/prospective', ...permit('rbac:admin', 'read'), listProspectiveHandler);
+app.post('/admin/prospective/:id/link', writeLimiter, ...permit('rbac:admin', 'write'), linkProspectiveHandler);
 
 // Admin RBAC APIs (strict permission-only)
 app.get('/admin/rbac/roles', ...permit('rbac:admin', 'read'), listRoles);
@@ -113,6 +124,12 @@ app.get('/admin/rbac/grants', ...permit('rbac:admin', 'read'), listGrants);
 app.post('/admin/rbac/grants', writeLimiter, ...permit('rbac:admin', 'write'), createGrant);
 app.delete('/admin/rbac/grants/:id', writeLimiter, ...permit('rbac:admin', 'write'), deleteGrant);
 
+// Admin Project Statuses (lookup table)
+app.get('/admin/statuses', ...permit('rbac:admin', 'read'), listStatusesHandler);
+app.post('/admin/statuses', writeLimiter, ...permit('rbac:admin', 'write'), createStatusHandler);
+app.put('/admin/statuses/:id', writeLimiter, ...permit('rbac:admin', 'write'), updateStatusHandler);
+app.delete('/admin/statuses/:id', writeLimiter, ...permit('rbac:admin', 'write'), deleteStatusHandler);
+
 // Admin Users APIs (permission-only)
 app.post('/admin/users', writeLimiter, ...permit('rbac:admin', 'write'), createUserHandler);
 app.get('/admin/users', ...permit('rbac:admin', 'read'), listUsersHandler);
@@ -123,9 +140,16 @@ app.post('/admin/users/:id/deactivate', writeLimiter, ...permit('rbac:admin', 'w
 app.delete('/admin/users/:id', writeLimiter, ...permit('rbac:admin', 'write'), deleteUserHandler);
 
 // Minimal metrics endpoint (no auth; safe aggregate counters only)
-import { metricsSnapshot } from './services/metrics';
-app.get('/metrics', (_req, res) => {
-  res.json(metricsSnapshot());
+import { metricsSnapshot, syncMetrics } from './services/metrics';
+app.get('/metrics', async (_req, res) => {
+  try {
+    const base = metricsSnapshot();
+    const sync = await syncMetrics();
+    res.json({ ...base, sync });
+  } catch (e: any) {
+    // Fall back to base metrics if sync query fails
+    res.json(metricsSnapshot());
+  }
 });
 
 // Error handler (last)

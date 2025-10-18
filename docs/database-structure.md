@@ -64,3 +64,9 @@ Notes
 - Taxonomy/Tags: `docs/taxonomy-tags.md`
 - Payments design: `docs/payments-implementation.md`
 - Kimai projects schema: `docs/kimai2_projects-schema.md`
+ - Kimai timesheet schema: `docs/kimai2_timesheet-schema.md`
+ - Kimai sync plan: `docs/kimai-sync.md`
+
+## Views (Analytics)
+- `vw_projects` — replica projects + overrides (status, is_prospective, money_collected cached)
+- `vw_timesheet_facts` — replica timesheets + users/activities/projects + aggregated timesheet tags

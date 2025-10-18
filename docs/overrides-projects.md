@@ -24,7 +24,8 @@ Columns
 - `id` bigint unsigned PK auto‑increment
 - `kimai_project_id` bigint unsigned null — Kimai project identifier (no FK across DBs); null allowed for Prospective Projects not in Kimai yet
 - `money_collected` decimal(12,2) null — cached/denormalized sum of confirmed payments received for the project; can be manually overridden here
-- `status` varchar(32) null — e.g., `active`, `on_hold`, `archived`, `lost`
+- `status_id` int null — FK to `project_statuses.id`
+- `status` varchar(32) null — denormalized snapshot of the status name (derived from lookup)
 - `is_prospective` tinyint(1) null — 1/0 for boolean override
 - `notes` varchar(1024) null — optional operator notes for context
 - `source` varchar(64) null — e.g., `manual`, `import:csv`, `api`
@@ -86,8 +87,10 @@ export const overridesProjects = mysqlTable('overrides_projects', {
 - `PUT /overrides/status` — update `status` and/or `is_prospective` for a project
   - Resource extractor uses `body.id` or `body.kimai_project_id`
   - Permission: `overrides:update` (project‑scoped)
+  - Input: requires `status_id` referencing `project_statuses.id`
 - `PUT /overrides` — upsert multiple override fields, including `money_collected`
   - Same resource extraction and permissioning
+  - Input: supports `status_id`; raw `status` input is rejected
 
 Both endpoints should:
 - Validate `kimai_project_id` (numeric)

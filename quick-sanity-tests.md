@@ -118,6 +118,51 @@ Expected: 200; `is_active` becomes false
 
 ---
 
+### Admin Project Statuses (requires rbac:admin)
+
+Manage the project status lookup used by overrides.
+
+##### List statuses
+```bash
+curl -i http://localhost:$PORT/admin/statuses -b cookies.txt
+```
+
+##### Create a status
+```bash
+curl -i -X POST http://localhost:$PORT/admin/statuses \
+  -H "Content-Type: application/json" \
+  -b cookies.txt \
+  -d '{"name":"Tender","code":"tender","sort_order":30}'
+```
+Expected: 201 with `{ id, name, code, is_active, sort_order }`
+
+##### Update a status
+```bash
+STATUS_ID=1 # replace
+curl -i -X PUT http://localhost:$PORT/admin/statuses/$STATUS_ID \
+  -H "Content-Type: application/json" \
+  -b cookies.txt \
+  -d '{"name":"Under construction","is_active":true}'
+```
+
+##### Delete a status
+```bash
+curl -i -X DELETE http://localhost:$PORT/admin/statuses/$STATUS_ID -b cookies.txt
+```
+
+##### Use status_id in overrides upsert
+```bash
+PROJECT_ID=123
+STATUS_ID=1
+curl -i -X PUT http://localhost:$PORT/overrides \
+  -H "Content-Type: application/json" \
+  -b cookies.txt \
+  -d '{"id":'$PROJECT_ID',"status_id":'$STATUS_ID',"money_collected":1000}'
+```
+Expected: 200; DB row has both `status` (resolved name) and `status_id` set
+
+---
+
 ### Self-Service (Profile & Password)
 
 These require an authenticated user cookie (login first as that user).
@@ -205,3 +250,30 @@ curl -s -X POST "http://localhost:$PORT/auth/password-reset/request" \
 Expected:
 - Email arrives with link `${APP_BASE_URL}${RESET_PATH}?token=...`
 - Logs show redacted SMTP URL in CLI helpers
+
+---
+
+### Kimai Sync (Admins)
+
+Requires a user with `sync:execute` (admins have `*`).
+
+Trigger syncs via API (replace cookie with an admin session):
+
+```bash
+curl -i -X POST http://localhost:$PORT/sync/projects -b cookies.txt
+curl -i -X POST http://localhost:$PORT/sync/timesheets -b cookies.txt
+```
+
+Check sync health (requires `sync:execute`):
+
+```bash
+curl -s http://localhost:$PORT/sync/health -b cookies.txt | jq
+```
+
+Or use CLI helpers:
+
+```bash
+npm run sync:all
+npm run sync:verify
+npm run sync:materialize
+```

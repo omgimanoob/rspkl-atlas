@@ -31,7 +31,14 @@ jest.mock('../../src/services/projectOverrides', () => ({
   ProjectOverrides: {
     getAll: jest.fn().mockResolvedValue([]),
     updateStatus: jest.fn().mockResolvedValue(undefined),
+    updateStatusAndId: jest.fn().mockResolvedValue(undefined),
     upsertOverrides: jest.fn().mockResolvedValue({}),
+  },
+}));
+jest.mock('../../src/services/statusService', () => ({
+  StatusService: {
+    getById: jest.fn().mockResolvedValue({ id: 1001, name: 'Tender', is_active: 1 }),
+    ensureSchema: jest.fn().mockResolvedValue(undefined),
   },
 }));
 
@@ -159,11 +166,11 @@ describe('Permission-protected routes (dual-gate)', () => {
     await login(agent, scopedEmail, pwd);
     await agent
       .put('/overrides/status')
-      .send({ id: 123, status: 'active' })
+      .send({ id: 123, status_id: 1001 })
       .expect(200);
     await agent
       .put('/overrides/status')
-      .send({ id: 999, status: 'active' })
+      .send({ id: 999, status_id: 1001 })
       .expect(403);
     await agent.post('/auth/logout').expect(200);
   });
@@ -172,11 +179,11 @@ describe('Permission-protected routes (dual-gate)', () => {
     await login(agent, scopedEmail, pwd);
     await agent
       .put('/overrides')
-      .send({ id: 123, status: 'active' })
+      .send({ id: 123, status_id: 1001 })
       .expect(200);
     await agent
       .put('/overrides')
-      .send({ id: 999, status: 'active' })
+      .send({ id: 999, status_id: 1001 })
       .expect(403);
 // Increase timeout due to endpoints that include artificial delays
 jest.setTimeout(30000);

@@ -1,4 +1,5 @@
 import { atlasPool } from '../../db';
+import { StatusService } from './statusService';
 
 export class ProjectOverrides {
   static async getAll() {
@@ -10,6 +11,14 @@ export class ProjectOverrides {
     await atlasPool.query(
       `UPDATE overrides_projects SET status = ? WHERE kimai_project_id = ?`,
       [status, kimai_project_id]
+    );
+  }
+
+  static async updateStatusAndId(kimai_project_id: number, status: string, status_id?: number | null) {
+    await StatusService.ensureSchema();
+    await atlasPool.query(
+      `UPDATE overrides_projects SET status = ?, status_id = ? WHERE kimai_project_id = ?`,
+      [status, status_id ?? null, kimai_project_id]
     );
   }
 
@@ -26,6 +35,7 @@ export class ProjectOverrides {
   static async upsertOverrides(payload: {
     kimai_project_id: number,
     status?: string | null,
+    status_id?: number | null,
     money_collected?: number | null,
     is_prospective?: boolean | number | null,
     created_by_user_id?: number | null,
@@ -43,6 +53,11 @@ export class ProjectOverrides {
     if (payload.money_collected !== undefined) {
       fields.push('money_collected = ?');
       values.push(payload.money_collected);
+    }
+    if (payload.status_id !== undefined) {
+      await StatusService.ensureSchema();
+      fields.push('status_id = ?');
+      values.push(payload.status_id);
     }
     if (payload.is_prospective !== undefined) {
       const prospective = payload.is_prospective ? 1 : 0;
@@ -66,6 +81,7 @@ export class ProjectOverrides {
       const insertVals: any[] = [id];
       if (payload.status !== undefined) { cols.push('status'); qs.push('?'); insertVals.push(payload.status); }
       if (payload.money_collected !== undefined) { cols.push('money_collected'); qs.push('?'); insertVals.push(payload.money_collected); }
+      if (payload.status_id !== undefined) { await StatusService.ensureSchema(); cols.push('status_id'); qs.push('?'); insertVals.push(payload.status_id); }
       if (payload.is_prospective !== undefined) { cols.push('is_prospective'); qs.push('?'); insertVals.push(payload.is_prospective ? 1 : 0); }
       if (payload.created_by_user_id !== undefined) { cols.push('created_by_user_id'); qs.push('?'); insertVals.push(payload.created_by_user_id); }
       const sql = `INSERT INTO overrides_projects (${cols.join(',')}) VALUES (${qs.join(',')})`;

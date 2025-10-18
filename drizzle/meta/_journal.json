@@ -15,6 +15,20 @@
       "when": 1760810293399,
       "tag": "0001_daffy_lady_vermin",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1760824328310,
+      "tag": "0002_third_naoko",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1760828031353,
+      "tag": "0003_broken_albert_cleary",
+      "breakpoints": true
     }
   ]
 }

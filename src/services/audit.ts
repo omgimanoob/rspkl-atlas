@@ -58,3 +58,40 @@ export async function recordRbacAdmin(req: any, action: string, resourceType?: s
     }
   }
 }
+
+export async function recordRbacDecision(
+  req: any,
+  permission: string,
+  resource?: { resource_type?: string | null; resource_id?: number | null },
+  decision?: 'allow' | 'deny',
+  reason?: string
+) {
+  // Feature flag: enable via RBAC_DECISIONS_LOG=1|true
+  const enabled = String(process.env.RBAC_DECISIONS_LOG || '').toLowerCase();
+  if (!(enabled === '1' || enabled === 'true')) return;
+  try {
+    const user = req.user;
+    const userId = user?.id ?? null;
+    const route = req.path || req.originalUrl || '';
+    const method = req.method || '';
+    const ip = (req.headers['x-forwarded-for'] as string) || req.ip || (req.socket && req.socket.remoteAddress) || '';
+    await db.insert(rbacAuditLogs).values({
+      userId: userId ?? null,
+      permission,
+      resourceType: resource?.resource_type || null,
+      resourceId: resource?.resource_id ?? null,
+      decision: decision || 'deny',
+      reason: reason ? reason.slice(0, 120) : null,
+      route,
+      method,
+      ip: String(ip || ''),
+    });
+  } catch (e: any) {
+    if (auditWarnCount < 3) {
+      const code = e?.cause?.code || e?.code || 'ERR';
+      const msg = e?.cause?.sqlMessage || e?.message || '';
+      console.warn(`[audit] rbac decision write failed: ${code}${msg ? ` - ${msg}` : ''}`);
+      auditWarnCount++;
+    }
+  }
+}

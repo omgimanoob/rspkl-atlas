@@ -66,8 +66,8 @@ Actionable micro-tasks to execute the plan in `docs/rbac-implementation-plan.md`
 
 ## Phase 7 – Auditing & Observability
 - [ ] Extend `audit_logs` or add `rbac_audit_logs` (permission, resource_type, resource_id, decision, reason).
-- [ ] Implement `recordRbacDecision(req, { permission, resource, decision, reason })` helper.
-- [ ] Call `recordRbacDecision` from `requirePermission` on allow/deny.
+- [x] Implement `recordRbacDecision(req, { permission, resource, decision, reason })` helper (feature-flagged via `RBAC_DECISIONS_LOG`).
+- [x] Call `recordRbacDecision` from `requirePermission` on allow/deny (non-blocking, concise warnings).
 - [ ] Add lightweight in-memory counters for RBAC denials and privileged ops.
 - [ ] Expose a minimal metrics endpoint or integrate with existing telemetry (optional).
  - [x] Migrate existing audit writes to ORM (recordAudit uses Drizzle).

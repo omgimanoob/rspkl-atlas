@@ -1,5 +1,8 @@
 import { config } from '../config';
 import { AuthService } from '../services/authService';
+import { db } from '../db/client';
+import { users } from '../db/schema';
+import { eq } from 'drizzle-orm';
 
 function setCookie(res, name: string, value: string, maxAgeSeconds: number) {
   const parts = [
@@ -39,6 +42,12 @@ export async function logoutHandler(_req, res) {
 export async function meHandler(req, res) {
   const u = (req as any).user;
   if (!u) return res.status(401).json({ error: 'Unauthorized' });
-  res.json(u);
+  try {
+    const row = await db.select().from(users).where(eq(users.id, u.id)).limit(1).then(r => r[0]);
+    const display_name = row?.displayName ?? null;
+    res.json({ ...u, display_name });
+  } catch {
+    // Fallback to auth payload if DB lookup fails
+    res.json(u);
+  }
 }
-

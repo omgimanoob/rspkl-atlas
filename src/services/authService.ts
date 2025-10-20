@@ -7,6 +7,7 @@ import { config } from '../config';
 import crypto from 'crypto';
 import { atlasPool } from '../../db';
 import { createMailerFromEnv } from './mailer';
+import { validatePasswordStrength } from './passwordPolicy';
 
 export type UserRecord = {
   id: number;
@@ -124,7 +125,7 @@ export const AuthService = {
     if (!row) return false;
     const ok = await bcrypt.compare(currentPassword, row.passwordHash);
     if (!ok) throw new Error('invalid_current_password');
-    if (!newPassword || newPassword.length < 8) throw new Error('weak_password');
+    if (!newPassword || validatePasswordStrength(newPassword).ok === false) throw new Error('weak_password');
     const hash = await bcrypt.hash(newPassword, 12);
     await db.update(users).set({ passwordHash: hash }).where(eq(users.id, userId));
     return true;
@@ -171,7 +172,7 @@ export const AuthService = {
   async confirmPasswordReset(token: string, newPassword: string): Promise<boolean> {
     await this.ensurePasswordResetSchema();
     if (!token || !newPassword) throw new Error('invalid_input');
-    if (newPassword.length < 8) throw new Error('weak_password');
+    if (validatePasswordStrength(newPassword).ok === false) throw new Error('weak_password');
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     const rows = await db.select().from(passwordResetTokens).where(eq(passwordResetTokens.tokenHash, tokenHash)).limit(1).then(r => r[0]);
     if (!rows) throw new Error('invalid_token');

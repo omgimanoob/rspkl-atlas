@@ -22,10 +22,23 @@ export const config = {
   web: {
     // Base URL for links sent to users (e.g., password reset)
     // Examples: https://app.rspkl.com or http://localhost:5173
-    baseUrl:
-      process.env.APP_BASE_URL ||
-      process.env.WEB_APP_URL ||
-      (process.env.NODE_ENV === 'production' ? 'https://app.rspkl.com' : 'http://localhost:5173'),
+    baseUrl: (() => {
+      const raw =
+        process.env.APP_BASE_URL ||
+        process.env.WEB_APP_URL ||
+        (process.env.NODE_ENV === 'production' ? 'https://app.rspkl.com' : 'http://localhost:5173');
+      // In non-production, auto-downgrade https://localhost to http://localhost to avoid dev TLS issues
+      if (process.env.NODE_ENV !== 'production') {
+        try {
+          const u = new URL(raw);
+          if ((u.hostname === 'localhost' || u.hostname === '127.0.0.1') && u.protocol === 'https:') {
+            u.protocol = 'http:';
+            return u.toString().replace(/\/$/, '');
+          }
+        } catch {}
+      }
+      return String(raw).replace(/\/$/, '');
+    })(),
     // Path on the web app that handles password reset and accepts ?token=
     resetPath: process.env.RESET_PATH || '/reset',
   },

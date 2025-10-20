@@ -77,13 +77,25 @@ const data = {
 export function AppSidebar({ me, onLogout, ...props }: React.ComponentProps<typeof Sidebar> & { me: { email: string; roles: string[]; displayName?: string }, onLogout?: () => void }) {
   const displayName = me.displayName || me.email.split('@')[0]
   const user = { name: displayName, email: me.email, avatar: '' }
+  const admin = me.roles.includes('admins')
+  const nav = [...data.navMain] as any[]
+  if (admin) {
+    nav.push({
+      title: 'Admin',
+      url: '#',
+      icon: Settings2,
+      items: [
+        { title: 'Users', url: '/console/users' },
+      ],
+    })
+  }
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
         <TeamSwitcher teams={data.teams} orgName={import.meta.env.VITE_ORG_NAME} subtitle={import.meta.env.VITE_SYSTEM_NAME || 'Atlas'} />
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={data.navMain} />
+        <NavMain items={nav} />
         <NavProjects projects={data.projects} />
       </SidebarContent>
       <SidebarFooter>

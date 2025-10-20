@@ -180,7 +180,9 @@ curl -i -X PUT http://localhost:$PORT/me \
   -b cookies.txt \
   -d '{"display_name":"New Name"}'
 ```
-Expected: 200 with updated `{ display_name }`
+Expected: 200 with updated `{ display_name }`.
+Notes:
+- Provide a non-empty `display_name`. Sending an empty or missing value may result in no update and a 404.
 
 ##### Change password
 ```bash

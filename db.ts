@@ -10,6 +10,7 @@ export const kimaiPool = mysql.createPool({
   password: process.env.KIMAI_DB_PASSWORD,
   database: process.env.KIMAI_DB_DATABASE,
   port: Number(process.env.KIMAI_DB_PORT),
+  timezone: 'Z',
 });
 
 export const atlasPool = mysql.createPool({
@@ -18,4 +19,14 @@ export const atlasPool = mysql.createPool({
   password: process.env.ATLAS_DB_PASSWORD,
   database: process.env.ATLAS_DB_DATABASE,
   port: Number(process.env.ATLAS_DB_PORT),
+  timezone: 'Z',
+});
+
+// Ensure each session uses UTC timezone to avoid server/DB drift
+// mysql2 pools emit a 'connection' event for newly established connections
+;(kimaiPool as any).on?.('connection', (conn: any) => {
+  try { conn.query("SET time_zone = '+00:00'"); } catch {}
+});
+;(atlasPool as any).on?.('connection', (conn: any) => {
+  try { conn.query("SET time_zone = '+00:00'"); } catch {}
 });

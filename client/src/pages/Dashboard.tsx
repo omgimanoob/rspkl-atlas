@@ -15,13 +15,14 @@ export function Dashboard({ me }: { me: { email: string; roles: string[] } }) {
     })()
   }, [])
 
-  const saveOverrides = async ({ id, status, moneyCollected, isProspective }: { id: number; status: string; moneyCollected: number; isProspective: boolean }) => {
-    const saved = await api.updateProjectOverrides(id, { status, moneyCollected, isProspective })
+  const saveOverrides = async ({ id, statusId, moneyCollected, isProspective }: { id: number; statusId?: number; moneyCollected: number; isProspective: boolean }) => {
+    const saved = await api.updateProjectOverridesById(id, { statusId, moneyCollected, isProspective })
     setRows(prev => prev.map(r => (
       r.id === id
         ? {
             ...r,
             status: saved?.status ?? r.status,
+            statusId: statusId ?? r.statusId,
             moneyCollected: saved?.money_collected ?? r.moneyCollected,
             isProspective: typeof saved?.is_prospective === 'number' ? saved.is_prospective === 1 : (saved?.is_prospective ?? r.isProspective),
             createdByUserId: saved?.created_by_user_id ?? r.createdByUserId,

@@ -1,9 +1,12 @@
 import { useState } from 'react'
 import { api } from '../lib/api'
-import { Input } from '../components/ui/input'
-import { Button } from '../components/ui/button'
+import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
 
-export function Login({ onLoggedIn }: { onLoggedIn: (u: any) => void }) {
+export function Login({ onLoggedIn, className, ...props }: { onLoggedIn: (u: any) => void } & React.ComponentProps<'div'>) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -17,27 +20,49 @@ export function Login({ onLoggedIn }: { onLoggedIn: (u: any) => void }) {
       const res = await api.login(email, password)
       onLoggedIn(res)
     } catch (e: any) {
-      setError('Login failed')
+      setError('Invalid email or password')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-full grid place-items-center p-6">
-      <form onSubmit={submit} className="w-full max-w-sm space-y-4 border rounded p-6">
-        <h1 className="text-xl font-semibold">Atlas Login</h1>
-        {error && <div className="text-red-600 text-sm">{error}</div>}
-        <div>
-          <label className="block text-sm mb-1">Email</label>
-          <Input type="email" value={email} onChange={e => setEmail(e.target.value)} />
-        </div>
-        <div>
-          <label className="block text-sm mb-1">Password</label>
-          <Input type="password" value={password} onChange={e => setPassword(e.target.value)} />
-        </div>
-        <Button disabled={loading}>{loading ? 'Signing in…' : 'Sign in'}</Button>
-      </form>
+    <div className={cn('flex flex-col gap-6 min-h-full p-6 items-center justify-center', className)} {...props}>
+      <Card className="w-full max-w-sm">
+        <CardHeader className="pb-0">
+          <CardTitle>Login to your account</CardTitle>
+          <CardDescription>Enter your email below to login to your account</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={submit}>
+            <FieldGroup>
+              {error && (
+                <FieldDescription className="text-red-600">{error}</FieldDescription>
+              )}
+              <Field>
+                <FieldLabel htmlFor="email">Email</FieldLabel>
+                <Input id="email" type="email" name="email" autoComplete="email" placeholder="m@example.com" required value={email} onChange={(e) => setEmail(e.target.value)} />
+              </Field>
+              <Field>
+                <div className="flex items-center w-full">
+                  <FieldLabel htmlFor="password">Password</FieldLabel>
+                  <a href="/reset/request" className="ml-auto inline-block text-sm underline-offset-4 hover:underline font-medium">
+                    Forgot your password?
+                  </a>
+                </div>
+                <Input id="password" type="password" name="current-password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+              </Field>
+              <Field>
+                <div className="flex gap-2">
+                  <Button type="submit" className="w-full" disabled={loading}>{loading ? 'Signing in…' : 'Login'}</Button>
+                  {/* Optional SSO button placeholder; non-functional */}
+                  {/* <Button variant="outline" type="button">Login with Google</Button> */}
+                </div>
+              </Field>
+            </FieldGroup>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   )
 }

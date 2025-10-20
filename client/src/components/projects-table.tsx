@@ -12,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { api } from '@/lib/api'
 
 export type ProjectRow = {
   id: number
@@ -32,6 +33,7 @@ export type ProjectRow = {
   invoice_text: string | null
   global_activities: number
   status?: string | null
+  statusId?: number | null
   moneyCollected?: number | null
   isProspective?: boolean | null
   createdByUserId?: number | null
@@ -66,7 +68,7 @@ export function ProjectsTable({
 }: {
   data: ProjectRow[]
   canEdit: boolean
-  onSaveOverrides?: (payload: { id: number; status: string; moneyCollected: number; isProspective: boolean }) => Promise<void>
+  onSaveOverrides?: (payload: { id: number; statusId?: number; moneyCollected: number; isProspective: boolean }) => Promise<any>
   defaultPageSize?: number
 }) {
   const DEBUG = true
@@ -77,11 +79,22 @@ export function ProjectsTable({
   const [q, setQ] = useState('')
   const [editOpen, setEditOpen] = useState(false)
   const [editing, setEditing] = useState<ProjectRow | null>(null)
-  const [editStatus, setEditStatus] = useState<string>('Unassigned')
+  const [statuses, setStatuses] = useState<Array<{ id: number; name: string; is_active: number }>>([])
+  const [editStatusId, setEditStatusId] = useState<number | undefined>(undefined)
   const [editMoney, setEditMoney] = useState<string>('0')
   const [editProspective, setEditProspective] = useState<boolean>(false)
   const [rowSelection, setRowSelection] = useState({})
-  const [columnVisibility, setColumnVisibility] = useState({})
+  const STORAGE_KEY_COLS = 'projects.table.colVis'
+  const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY_COLS)
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (parsed && typeof parsed === 'object') return parsed
+      }
+    } catch {}
+    return {}
+  })
   const [sorting, setSorting] = useState<SortingState>([])
   const [isSaving, setIsSaving] = useState(false)
 
@@ -101,10 +114,29 @@ export function ProjectsTable({
     return (data || []).filter(r => (r.name || '').toLowerCase().includes(needle))
   }, [data, q])
 
+  // Load statuses list
+  useEffect(() => {
+    (async () => {
+      try {
+        const list = await api.listStatuses()
+        const active = list.filter(s => Number(s.is_active) === 1).map(s => ({ id: s.id, name: s.name, is_active: s.is_active }))
+        setStatuses(active)
+      } catch {
+        setStatuses([])
+      }
+    })()
+  }, [])
+
   const beginEdit = (row: ProjectRow) => {
     if (DEBUG) console.debug('[ProjectsTable] beginEdit', { row })
     setEditing(row)
-    setEditStatus(row.status || 'Unassigned')
+    // Default to provided statusId or infer by matching status name
+    let sid: number | undefined = (row.statusId ?? undefined) as any
+    if ((sid == null) && row.status) {
+      const m = statuses.find(s => s.name.toLowerCase() === String(row.status).toLowerCase())
+      if (m) sid = m.id
+    }
+    setEditStatusId(sid)
     setEditMoney(String(row.moneyCollected ?? '0'))
     setEditProspective(!!row.isProspective)
     setEditOpen(true)
@@ -112,21 +144,25 @@ export function ProjectsTable({
 
   const hasChanges = useMemo(() => {
     if (!editing) return false
-    const originalStatus = editing.status ?? 'Unassigned'
+    const originalStatusId = (editing.statusId ?? (() => {
+      if (!editing.status) return undefined
+      const m = statuses.find(s => s.name.toLowerCase() === String(editing.status).toLowerCase())
+      return m?.id
+    })()) as number | undefined
     const originalMoney = Number(editing.moneyCollected ?? 0)
     const originalProspective = !!editing.isProspective
     const editedMoney = Number(parseFloat(editMoney || '0')) || 0
     return (
-      editStatus !== originalStatus ||
+      editStatusId !== originalStatusId ||
       editedMoney !== originalMoney ||
       (!!editProspective) !== originalProspective
     )
-  }, [editing, editStatus, editMoney, editProspective])
+  }, [editing, editStatusId, editMoney, editProspective, statuses])
 
   const saveEdit = async () => {
     if (!editing) return
     try {
-      if (DEBUG) console.debug('[ProjectsTable] saveEdit payload', { id: editing.id, editStatus, editMoney, editProspective })
+      if (DEBUG) console.debug('[ProjectsTable] saveEdit payload', { id: editing.id, editStatusId, editMoney, editProspective })
       const money = Number(parseFloat(editMoney || '0')) || 0
       if (!onSaveOverrides) {
         if (DEBUG) console.warn('[ProjectsTable] onSaveOverrides not provided; skipping API call')
@@ -134,9 +170,9 @@ export function ProjectsTable({
         return
       }
       setIsSaving(true)
-      const saved = await onSaveOverrides({ id: editing.id, status: editStatus, moneyCollected: money, isProspective: !!editProspective })
+      const saved = await onSaveOverrides({ id: editing.id, statusId: editStatusId, moneyCollected: money, isProspective: !!editProspective })
       // Prefer server response for message if available
-      const finalStatus = saved?.status ?? editStatus
+      const finalStatus = saved?.status ?? (statuses.find(s => s.id === editStatusId)?.name || '')
       const finalPros = saved?.is_prospective ?? editProspective
       const finalMoney = saved?.money_collected ?? money
       toast.success(`Updated ${editing.name} → status: ${finalStatus}, prospective: ${finalPros ? 'Yes' : 'No'}, money: ${finalMoney}`)
@@ -249,7 +285,7 @@ export function ProjectsTable({
         </Button>
       ),
     },
-  ]), [canEdit, editOpen, editing, editStatus])
+  ]), [canEdit, editOpen, editing])
 
   const table = useReactTable({
     data: filtered,
@@ -283,6 +319,10 @@ export function ProjectsTable({
     setColumnVisibility(initialVisibility)
     setInitApplied(true)
   }
+
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY_COLS, JSON.stringify(columnVisibility)) } catch {}
+  }, [columnVisibility])
 
   return (
     <div className="flex flex-col gap-2 min-h-[300px]">
@@ -400,16 +440,17 @@ export function ProjectsTable({
             <div className="space-y-1">
               <div className="text-sm text-gray-600">Status</div>
               <Select
-                value={editStatus}
+                value={editStatusId != null ? String(editStatusId) : ''}
                 onOpenChange={(open) => { if (DEBUG) console.debug('[ProjectsTable] Select onOpenChange', { open }) }}
-                onValueChange={(val) => { if (DEBUG) console.debug('[ProjectsTable] Select onValueChange', { val }); setEditStatus(val) }}
+                onValueChange={(val) => { if (DEBUG) console.debug('[ProjectsTable] Select onValueChange', { val }); setEditStatusId(val ? Number(val) : undefined) }}
               >
-                <SelectTrigger disabled={isSaving}>
-                  <SelectValue placeholder="Select status" />
+                <SelectTrigger disabled={isSaving || statuses.length === 0}>
+                  <SelectValue placeholder={statuses.length ? 'Select status' : 'Statuses unavailable'} />
                 </SelectTrigger>
                 <SelectContent>
-                  {['Unassigned','Schematic Design','Design Development','Tender','Under construction','Post construction','KIV','Others']
-                    .map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  {statuses.map(s => (
+                    <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -443,7 +484,7 @@ export function ProjectsTable({
             </div>
             {DEBUG && (
               <pre className="bg-gray-50 text-xs p-2 rounded border overflow-auto max-h-40">
-                {JSON.stringify({ editOpen, editingId: editing?.id, editStatus, editMoney, editProspective }, null, 2)}
+                {JSON.stringify({ editOpen, editingId: editing?.id, editStatusId, editMoney, editProspective }, null, 2)}
               </pre>
             )}
           </div>

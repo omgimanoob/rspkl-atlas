@@ -63,6 +63,10 @@ Link: [development-progress-tracking.md](./development-progress-tracking.md)
   - Reset tokens are one-time and time-limited.
 - cURL examples: see [quick-sanity-tests.md](./quick-sanity-tests.md)
 
+SPA Hosting
+- For SPA deep links (e.g., `/reset`, `/account`) configure history fallback so routes resolve to `index.html`.
+- See client docs: client/docs/spa-history-fallback.md
+
 ### Email Service
 - Env vars:
   - `MAILER_FROM` (e.g., `timesheet@rspkl.com` or `RSPKL Atlas <timesheet@rspkl.com>`)

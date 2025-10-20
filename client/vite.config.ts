@@ -8,12 +8,9 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const target = env.VITE_API_TARGET
 
-  const proxyRoutes = ['/auth', '/me', '/projects', '/timesheets', '/bi', '/overrides', '/sync', '/healthz']
   const proxy: Record<string, any> = {}
   if (target) {
-    proxyRoutes.forEach((p) => {
-      proxy[p] = { target, changeOrigin: true }
-    })
+    proxy['/api'] = { target, changeOrigin: true, rewrite: (path: string) => path.replace(/^\/api/, '') }
   } else {
     // No proxy configured; requests must be same-origin in dev
     console.warn('[client] VITE_API_TARGET not set. Dev requests must hit same origin.')

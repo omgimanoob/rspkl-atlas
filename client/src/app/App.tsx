@@ -8,32 +8,71 @@ import { AppSidebar } from '@/components/app-sidebar'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { PageHeader } from '@/components/page-header'
 import { createBrowserRouter, RouterProvider, Navigate, Outlet } from 'react-router-dom'
+import { ErrorPage } from '@/pages/ErrorPage'
+import { NotFound } from '@/pages/NotFound'
+import { RequireRoles } from '@/components/Guard'
+import { setStatusAnnouncer, setAlertAnnouncer } from '@/lib/a11y'
+import { setOnUnauthorized } from '@/lib/auth'
+import { ResetRequest } from '@/pages/ResetRequest'
+import { ResetConfirm } from '@/pages/ResetConfirm'
+import { Profile } from '@/pages/Profile'
+import { AdminUsers } from '@/pages/admin/Users'
 
 export default function App() {
-  const [me, setMe] = useState<{ email: string; roles: string[] } | null>(null)
+  // Normalize path to avoid double-slash routing misses (e.g., //reset/request)
+  if (typeof window !== 'undefined') {
+    const { pathname, search, hash } = window.location
+    const normalized = pathname.replace(/\/+/, '/').replace(/\/{2,}/g, '/').replace(/\/$/, '') || '/'
+    if (normalized !== pathname) {
+      window.history.replaceState(null, '', normalized + search + hash)
+    }
+  }
+  const [me, setMe] = useState<{ id: number; email: string; roles: string[]; displayName?: string } | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     (async () => {
       try {
         const u = await api.me()
-        setMe(u)
+        setMe({ id: u.id, email: u.email, roles: u.roles, displayName: u.display_name || undefined })
       } catch {
         setMe(null)
       } finally {
         setLoading(false)
       }
     })()
+    // Centralized 401 handler: reset auth state
+    setOnUnauthorized(() => setMe(null))
+    return () => setOnUnauthorized(null)
+  }, [])
+
+  const [liveStatus, setLiveStatus] = useState('')
+  const [liveAlert, setLiveAlert] = useState('')
+
+  useEffect(() => {
+    setStatusAnnouncer((msg) => setLiveStatus(msg))
+    setAlertAnnouncer((msg) => setLiveAlert(msg))
+    return () => { setStatusAnnouncer(null); setAlertAnnouncer(null) }
   }, [])
 
   if (loading) return <div className="p-6">Loading...</div>
 
-  if (!me) return (
-    <>
-      <Toaster richColors />
-      <Login onLoggedIn={setMe} />
-    </>
-  )
+  if (!me) {
+    // Public routes: reset request/confirm; fallback to Login
+    const publicRouter = createBrowserRouter([
+      { path: '/reset', element: <ResetConfirm />, errorElement: <ErrorPage /> },
+      { path: '/reset/request', element: <ResetRequest />, errorElement: <ErrorPage /> },
+      // For any other route while logged out, show Login for a smoother experience
+      { path: '*', element: <><Toaster richColors /><Login onLoggedIn={setMe} /></>, errorElement: <ErrorPage /> },
+    ])
+    return (
+      <>
+        <div className="sr-only" role="status" aria-live="polite">{liveStatus}</div>
+        <div className="sr-only" role="alert" aria-live="assertive">{liveAlert}</div>
+        <RouterProvider router={publicRouter} future={{ v7_startTransition: true }} />
+      </>
+    )
+  }
 
   const RootLayout = () => (
     <SidebarProvider>
@@ -46,9 +85,12 @@ export default function App() {
   )
 
   const router = createBrowserRouter([
+    { path: '/reset', element: <ResetConfirm />, errorElement: <ErrorPage /> },
+    { path: '/reset/request', element: <ResetRequest />, errorElement: <ErrorPage /> },
     {
       path: '/',
       element: <RootLayout />,
+      errorElement: <ErrorPage />,
       children: [
         {
           index: true,
@@ -68,10 +110,37 @@ export default function App() {
             </>
           ),
         },
-        { path: '*', element: <Navigate to="/" replace /> },
+        {
+          path: 'account',
+          element: (
+            <>
+              <PageHeader trail={[{ label: 'Home', href: '/' }, { label: 'Account', current: true }]} />
+              <Profile />
+            </>
+          ),
+        },
+        // Admin routes (show Forbidden when lacking permission)
+        {
+          path: 'console/users',
+          element: (
+            <>
+              <PageHeader trail={[{ label: 'Home', href: '/' }, { label: 'Admin', href: '/console/users' }, { label: 'Users', current: true }]} />
+              <RequireRoles me={me!} anyOf={['admins']}>
+                <AdminUsers currentUserId={me!.id} />
+              </RequireRoles>
+            </>
+          ),
+        },
+        { path: '*', element: <NotFound /> },
       ],
     },
   ])
 
-  return <RouterProvider router={router} future={{ v7_startTransition: true }} />
+  return (
+    <>
+      <div className="sr-only" role="status" aria-live="polite">{liveStatus}</div>
+      <div className="sr-only" role="alert" aria-live="assertive">{liveAlert}</div>
+      <RouterProvider router={router} future={{ v7_startTransition: true }} />
+    </>
+  )
 }

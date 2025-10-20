@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { TableSkeletonRows } from '@/components/TableSkeletonRows'
+import { TablePlaceholder } from '@/components/TablePlaceholder'
 import { toast } from 'sonner'
 
 export function AdminRoles() {
+  const tableRef = useRef<HTMLTableElement | null>(null)
   const [rows, setRows] = useState<Array<{ id: number; code: string; name: string }>>([])
   const [loading, setLoading] = useState(true)
   const [code, setCode] = useState('')
@@ -43,16 +44,13 @@ export function AdminRoles() {
         <Button size="sm" onClick={async () => { const payload = { code: code.trim(), name: name.trim() }; if (!payload.code || !payload.name) return; try { const r = await api.adminCreateRole(payload); toast.success('Role created'); setRows(prev => [...prev, r]); setCode(''); setName('') } catch { toast.error('Failed to create role') } }}>Add</Button>
       </div>
       <div className="overflow-hidden border rounded">
-        <Table className="w-full">
+        <Table ref={tableRef as any} className="w-full">
           <TableHeader>
             <TableRow className="bg-gray-50"><TableHead>ID</TableHead><TableHead>Name</TableHead><TableHead>Code</TableHead><TableHead>Permissions</TableHead><TableHead>Actions</TableHead></TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
-              <TableSkeletonRows rows={5} columns={['id','name','code','permissions','actions']} wide={['permissions','name']} />
-            ) : rows.length === 0 ? (
-              <TableRow><TableCell colSpan={5} className="text-center py-6 text-sm text-gray-500">No roles</TableCell></TableRow>
-            ) : rows.map(r => (
+            <TablePlaceholder loading={loading} hasRows={rows.length > 0} columns={['id','name','code','permissions','actions']} skeletonRows={5} emptyMessage="No roles" wide={['permissions','name']} tableRef={tableRef as any} storageKey="tblsizes:admin_roles" />
+            {rows.length > 0 && rows.map(r => (
               <TableRow key={r.id}>
                 <TableCell>{r.id}</TableCell>
                 <TableCell>{r.name}</TableCell>

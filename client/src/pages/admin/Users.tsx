@@ -1,9 +1,9 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { api } from '@/lib/api'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { TableSkeletonRows } from '@/components/TableSkeletonRows'
+import { TablePlaceholder } from '@/components/TablePlaceholder'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -25,6 +25,7 @@ type UserRow = {
 }
 
 export function AdminUsers({ currentUserId }: { currentUserId: number }) {
+  const tableRef = useRef<HTMLTableElement | null>(null)
   const [q, setQ] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
@@ -198,7 +199,7 @@ export function AdminUsers({ currentUserId }: { currentUserId: number }) {
       </div>
 
       <div className="overflow-hidden border rounded">
-        <Table className="w-full">
+        <Table ref={(el) => { (tableRef as any).current = el }} className="w-full">
           <TableHeader>
             <TableRow className="bg-gray-50">
               {colVis.id && (
@@ -252,15 +253,17 @@ export function AdminUsers({ currentUserId }: { currentUserId: number }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
-              <TableSkeletonRows
-                rows={pageSize}
-                columns={allCols.filter(c => colVis[c]).map(String)}
-                wide={['email','display_name']}
-              />
-            ) : rows.length === 0 ? (
-              <TableRow><TableCell colSpan={visibleCount} className="py-6 text-center text-sm text-gray-500">No users</TableCell></TableRow>
-            ) : sortedRows.map(r => (
+            <TablePlaceholder
+              loading={loading}
+              hasRows={rows.length > 0}
+              columns={allCols.filter(c => colVis[c]).map(String)}
+              skeletonRows={pageSize}
+              emptyMessage="No users"
+              wide={['email','display_name']}
+              tableRef={tableRef}
+              storageKey="tblsizes:admin_users"
+            />
+            {rows.length > 0 && sortedRows.map(r => (
               <>
                 <TableRow key={r.id}>
                   {colVis.id && <TableCell>{r.id}</TableCell>}

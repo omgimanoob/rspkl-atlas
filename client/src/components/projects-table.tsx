@@ -1,6 +1,6 @@
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo, useState, useEffect, useRef } from 'react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { TableSkeletonRows } from '@/components/TableSkeletonRows'
+import { TablePlaceholder } from '@/components/TablePlaceholder'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -75,9 +75,9 @@ export function ProjectsTable({
   loading?: boolean
 }) {
   const DEBUG = true
-  const formatRM = (val: number | null | undefined) => {
-    const n = typeof val === 'number' ? val : 0
-    return `RM ${n.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  const formatAmount = (val: number | null | undefined) => {
+    const n = typeof val === 'number' ? val : Number(val || 0)
+    return n.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   }
   const [q, setQ] = useState('')
   const [editOpen, setEditOpen] = useState(false)
@@ -145,6 +145,18 @@ export function ProjectsTable({
     setEditOpen(true)
   }
 
+  // Ensure the status selector reflects current value when statuses arrive after dialog opens
+  useEffect(() => {
+    if (!editOpen || !editing) return
+    if (editStatusId != null) return
+    let sid: number | undefined = (editing.statusId ?? undefined) as any
+    if ((sid == null) && editing.status) {
+      const m = statuses.find(s => s.name.toLowerCase() === String(editing.status).toLowerCase())
+      if (m) sid = m.id
+    }
+    if (sid != null) setEditStatusId(sid)
+  }, [editOpen, editing, statuses])
+
   const hasChanges = useMemo(() => {
     if (!editing) return false
     const originalStatusId = (editing.statusId ?? (() => {
@@ -178,7 +190,8 @@ export function ProjectsTable({
       const finalStatus = saved?.status ?? (statuses.find(s => s.id === editStatusId)?.name || '')
       const finalPros = saved?.is_prospective ?? editProspective
       const finalMoney = saved?.money_collected ?? money
-      toast.success(`Updated ${editing.name} → status: ${finalStatus}, prospective: ${finalPros ? 'Yes' : 'No'}, money: ${finalMoney}`)
+      const finalMoneyText = `RM ${(Number(finalMoney) || 0).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      toast.success(`Updated ${editing.name} → status: ${finalStatus}, prospective: ${finalPros ? 'Yes' : 'No'}, money: ${finalMoneyText}`)
       setEditOpen(false)
       setEditing(null)
     } catch (e: any) {
@@ -241,19 +254,19 @@ export function ProjectsTable({
     {
       accessorKey: 'moneyCollected',
       header: ({ column }) => (
-        <button className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-gray-600" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+        <button className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-gray-600 ml-auto" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
           Money Collected {column.getIsSorted() === 'asc' ? <ArrowUp className="h-3 w-3" /> : column.getIsSorted() === 'desc' ? <ArrowDown className="h-3 w-3" /> : <ArrowUpDown className="h-3 w-3" />}
         </button>
       ),
-      cell: ({ row }) => {
-        const amount = row.original.moneyCollected ?? 0
-        return (
-          <div className="w-[7.5em] max-w-[7.5em] tabular-nums flex items-center justify-between">
-            <span>RM</span>
-            <span>{amount.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-          </div>
-        )
-      },
+      cell: ({ row }) => (
+        // Align currency label (RM) on the left and numeric amount on the right
+        // to improve readability; keeps digits right-aligned while preserving a
+        // consistent left anchor for the currency label.
+        <div className="tabular-nums flex items-baseline justify-between gap-2">
+          <span className="text-xs text-gray-700">RM</span>
+          <span className="text-right">{formatAmount(row.original.moneyCollected)}</span>
+        </div>
+      ),
     },
     {
       accessorKey: 'status',
@@ -290,6 +303,7 @@ export function ProjectsTable({
     },
   ]), [canEdit, editOpen, editing])
 
+  const tableRef = useRef<HTMLTableElement>(null)
   const table = useReactTable({
     data: filtered,
     columns,
@@ -381,7 +395,7 @@ export function ProjectsTable({
 
       <div className="flex-1 overflow-auto">
         <div className="overflow-hidden border rounded">
-          <Table className="w-full">
+          <Table ref={tableRef} className="w-full">
             <TableHeader>
               {table.getHeaderGroups().map(hg => (
                 <TableRow key={hg.id} className="bg-gray-50">
@@ -412,19 +426,16 @@ export function ProjectsTable({
                   ))}
                 </TableRow>
               ))}
-              {table.getRowModel().rows.length === 0 && (
-                loading ? (
-                  <TableSkeletonRows
-                    rows={table.getState().pagination.pageSize || 5}
-                    columns={table.getAllLeafColumns().filter(c => c.getIsVisible()).map(c => c.id)}
-                    wide={['comment']}
-                  />
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={columns.length} className="text-center py-6 text-sm text-gray-500">No results</TableCell>
-                  </TableRow>
-                )
-              )}
+              <TablePlaceholder
+                loading={loading}
+                hasRows={table.getRowModel().rows.length > 0}
+                columns={table.getAllLeafColumns().filter(c => c.getIsVisible()).map(c => c.id)}
+                skeletonRows={table.getState().pagination.pageSize || 5}
+                emptyMessage="No results"
+                wide={['comment']}
+                tableRef={tableRef as any}
+                storageKey="tblsizes:projects"
+              />
             </TableBody>
           </Table>
         </div>

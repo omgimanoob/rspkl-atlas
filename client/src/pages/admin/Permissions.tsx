@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { TableSkeletonRows } from '@/components/TableSkeletonRows'
+import { TablePlaceholder } from '@/components/TablePlaceholder'
 import { toast } from 'sonner'
 
 export function AdminPermissions() {
+  const tableRef = useRef<HTMLTableElement | null>(null)
   const [rows, setRows] = useState<Array<{ id: number; name: string }>>([])
   const [loading, setLoading] = useState(true)
   const [name, setName] = useState('')
@@ -19,16 +20,13 @@ export function AdminPermissions() {
         <Button size="sm" onClick={async () => { try { const r = await api.adminCreatePermission(name.trim()); toast.success('Permission created'); setRows(prev => [...prev, r]); setName('') } catch { toast.error('Failed to create permission') } }}>Add</Button>
       </div>
       <div className="overflow-hidden border rounded">
-        <Table className="w-full">
+        <Table ref={tableRef as any} className="w-full">
           <TableHeader>
             <TableRow className="bg-gray-50"><TableHead>ID</TableHead><TableHead>Name</TableHead><TableHead>Actions</TableHead></TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
-              <TableSkeletonRows rows={5} columns={['id','name','actions']} wide={['name']} />
-            ) : rows.length === 0 ? (
-              <TableRow><TableCell colSpan={3} className="text-center py-6 text-sm text-gray-500">No permissions</TableCell></TableRow>
-            ) : rows.map(r => (
+            <TablePlaceholder loading={loading} hasRows={rows.length > 0} columns={['id','name','actions']} skeletonRows={5} emptyMessage="No permissions" wide={['name']} tableRef={tableRef as any} storageKey="tblsizes:admin_permissions" />
+            {rows.length > 0 && rows.map(r => (
               <TableRow key={r.id}>
                 <TableCell>{r.id}</TableCell>
                 <TableCell>{r.name}</TableCell>

@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { api } from '@/lib/api'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { TableSkeletonRows } from '@/components/TableSkeletonRows'
+import { TablePlaceholder } from '@/components/TablePlaceholder'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
@@ -11,6 +11,7 @@ import { toast } from 'sonner'
 type StatusRow = { id: number; name: string; code: string | null; is_active: number; sort_order: number | null }
 
 export function AdminStatuses() {
+  const tableRef = useRef<HTMLTableElement | null>(null)
   const [rows, setRows] = useState<StatusRow[]>([])
   const [loading, setLoading] = useState(true)
   const [name, setName] = useState('')
@@ -82,16 +83,13 @@ export function AdminStatuses() {
         <Button size="sm" onClick={onCreate}>Add</Button>
       </div>
       <div className="overflow-hidden border rounded">
-        <Table className="w-full">
+        <Table ref={tableRef as any} className="w-full">
           <TableHeader>
             <TableRow className="bg-gray-50"><TableHead>ID</TableHead><TableHead>Name</TableHead><TableHead>Code</TableHead><TableHead>Active</TableHead><TableHead>Sort</TableHead><TableHead>Actions</TableHead></TableRow>
           </TableHeader>
           <TableBody>
-            {loading ? (
-              <TableSkeletonRows rows={5} columns={['id','name','code','active','sort','actions']} wide={['name']} />
-            ) : rows.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="py-6 text-center text-sm text-gray-500">No statuses</TableCell></TableRow>
-            ) : rows.map(r => (
+            <TablePlaceholder loading={loading} hasRows={rows.length > 0} columns={['id','name','code','active','sort','actions']} skeletonRows={5} emptyMessage="No statuses" wide={['name']} tableRef={tableRef as any} storageKey="tblsizes:admin_statuses" />
+            {rows.length > 0 && rows.map(r => (
               <TableRow key={r.id}>
                 <TableCell>{r.id}</TableCell>
                 <TableCell>{editingId === r.id ? <Input value={editName} onChange={e => setEditName(e.target.value)} className="max-w-xs" /> : r.name}</TableCell>

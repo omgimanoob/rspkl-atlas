@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from 'react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { TableSkeletonRows } from '@/components/TableSkeletonRows'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose, DialogDescription } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -412,9 +413,17 @@ export function ProjectsTable({
                 </TableRow>
               ))}
               {table.getRowModel().rows.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={columns.length} className="text-center py-6 text-sm text-gray-500">{loading ? 'Loading…' : 'No results'}</TableCell>
-                </TableRow>
+                loading ? (
+                  <TableSkeletonRows
+                    rows={table.getState().pagination.pageSize || 5}
+                    columns={table.getAllLeafColumns().filter(c => c.getIsVisible()).map(c => c.id)}
+                    wide={['comment']}
+                  />
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={columns.length} className="text-center py-6 text-sm text-gray-500">No results</TableCell>
+                  </TableRow>
+                )
               )}
             </TableBody>
           </Table>

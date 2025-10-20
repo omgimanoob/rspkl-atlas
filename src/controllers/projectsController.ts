@@ -4,6 +4,8 @@ import { ProjectOverrides } from '../services/projectOverrides';
 import { DataEnricher } from '../services/DataEnricher';
 
 export async function getProjectsHandler(_req: Request, res: Response) {
+    // Simulate latency for UI skeletons / loading states
+    // await new Promise((resolve) => setTimeout(resolve, 2000));
     const projects = await Kimai.getProjects();
     const overrides = await ProjectOverrides.getAll();
     const enriched = DataEnricher.enrichProjects(projects, overrides);

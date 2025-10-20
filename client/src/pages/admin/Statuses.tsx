@@ -3,6 +3,7 @@ import { api } from '@/lib/api'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { TableSkeletonRows } from '@/components/TableSkeletonRows'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
@@ -87,7 +88,7 @@ export function AdminStatuses() {
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow><TableCell colSpan={6} className="py-6 text-center text-sm text-gray-500">Loading…</TableCell></TableRow>
+              <TableSkeletonRows rows={5} columns={['id','name','code','active','sort','actions']} wide={['name']} />
             ) : rows.length === 0 ? (
               <TableRow><TableCell colSpan={6} className="py-6 text-center text-sm text-gray-500">No statuses</TableCell></TableRow>
             ) : rows.map(r => (
@@ -124,4 +125,3 @@ export function AdminStatuses() {
     </div>
   )
 }
-

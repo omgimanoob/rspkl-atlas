@@ -3,12 +3,14 @@ import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { TableSkeletonRows } from '@/components/TableSkeletonRows'
 import { toast } from 'sonner'
 
 export function AdminGrants() {
   const [rows, setRows] = useState<Array<any>>([])
+  const [loading, setLoading] = useState(true)
   const [payload, setPayload] = useState<any>({ subject_type: 'user', subject_id: '', permission: '', resource_type: '', resource_id: '' })
-  const load = async () => { setRows(await api.adminListGrants()) }
+  const load = async () => { try { setRows(await api.adminListGrants()) } finally { setLoading(false) } }
   useEffect(() => { load() }, [])
   return (
     <div className="p-4 space-y-3">
@@ -53,7 +55,11 @@ export function AdminGrants() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((r: any) => (
+            {loading ? (
+              <TableSkeletonRows rows={5} columns={['id','subject','permission','resource','actions']} wide={['subject','resource']} />
+            ) : rows.length === 0 ? (
+              <TableRow><TableCell colSpan={5} className="text-center py-6 text-sm text-gray-500">No grants</TableCell></TableRow>
+            ) : rows.map((r: any) => (
               <TableRow key={r.id}>
                 <TableCell>{r.id}</TableCell>
                 <TableCell>{r.subjectType} #{r.subjectId}</TableCell>

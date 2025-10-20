@@ -3,6 +3,7 @@ import { api } from '@/lib/api'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { TableSkeletonRows } from '@/components/TableSkeletonRows'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -252,7 +253,11 @@ export function AdminUsers({ currentUserId }: { currentUserId: number }) {
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow><TableCell colSpan={visibleCount} className="py-6 text-center text-sm text-gray-500">Loading…</TableCell></TableRow>
+              <TableSkeletonRows
+                rows={pageSize}
+                columns={allCols.filter(c => colVis[c]).map(String)}
+                wide={['email','display_name']}
+              />
             ) : rows.length === 0 ? (
               <TableRow><TableCell colSpan={visibleCount} className="py-6 text-center text-sm text-gray-500">No users</TableCell></TableRow>
             ) : sortedRows.map(r => (

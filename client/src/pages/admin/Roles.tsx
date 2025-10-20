@@ -3,13 +3,15 @@ import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { TableSkeletonRows } from '@/components/TableSkeletonRows'
 import { toast } from 'sonner'
 
 export function AdminRoles() {
   const [rows, setRows] = useState<Array<{ id: number; code: string; name: string }>>([])
+  const [loading, setLoading] = useState(true)
   const [code, setCode] = useState('')
   const [name, setName] = useState('')
-  const load = async () => { setRows(await api.adminListRoles()) }
+  const load = async () => { try { setRows(await api.adminListRoles()) } finally { setLoading(false) } }
   useEffect(() => { load() }, [])
   const [permsMap, setPermsMap] = useState<Record<number, string[]>>({})
   const [allPerms, setAllPerms] = useState<string[]>([])
@@ -46,7 +48,11 @@ export function AdminRoles() {
             <TableRow className="bg-gray-50"><TableHead>ID</TableHead><TableHead>Name</TableHead><TableHead>Code</TableHead><TableHead>Permissions</TableHead><TableHead>Actions</TableHead></TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map(r => (
+            {loading ? (
+              <TableSkeletonRows rows={5} columns={['id','name','code','permissions','actions']} wide={['permissions','name']} />
+            ) : rows.length === 0 ? (
+              <TableRow><TableCell colSpan={5} className="text-center py-6 text-sm text-gray-500">No roles</TableCell></TableRow>
+            ) : rows.map(r => (
               <TableRow key={r.id}>
                 <TableCell>{r.id}</TableCell>
                 <TableCell>{r.name}</TableCell>

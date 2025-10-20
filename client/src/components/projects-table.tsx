@@ -65,11 +65,13 @@ export function ProjectsTable({
   canEdit,
   onSaveOverrides,
   defaultPageSize = 10,
+  loading = false,
 }: {
   data: ProjectRow[]
   canEdit: boolean
   onSaveOverrides?: (payload: { id: number; statusId?: number; moneyCollected: number; isProspective: boolean }) => Promise<any>
   defaultPageSize?: number
+  loading?: boolean
 }) {
   const DEBUG = true
   const formatRM = (val: number | null | undefined) => {
@@ -411,7 +413,7 @@ export function ProjectsTable({
               ))}
               {table.getRowModel().rows.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={columns.length} className="text-center py-6 text-sm text-gray-500">No results</TableCell>
+                  <TableCell colSpan={columns.length} className="text-center py-6 text-sm text-gray-500">{loading ? 'Loading…' : 'No results'}</TableCell>
                 </TableRow>
               )}
             </TableBody>

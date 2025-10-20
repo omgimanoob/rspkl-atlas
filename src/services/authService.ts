@@ -55,11 +55,11 @@ export const AuthService = {
 
   async getUserRoles(userId: number): Promise<string[]> {
     const rows = await db
-      .select({ name: roles.name })
+      .select({ code: roles.code })
       .from(userRoles)
       .innerJoin(roles, eq(userRoles.roleId, roles.id))
       .where(eq(userRoles.userId, userId));
-    return rows.map(r => r.name);
+    return rows.map(r => r.code);
   },
 
   async createUser(email: string, password: string, displayName?: string): Promise<number> {
@@ -69,14 +69,15 @@ export const AuthService = {
     return row?.id as number;
   },
 
-  async ensureRole(name: string): Promise<number> {
-    await db.insert(roles).values({ name }).onDuplicateKeyUpdate({ set: { name } });
-    const row = await db.select({ id: roles.id }).from(roles).where(eq(roles.name, name)).limit(1).then(r => r[0]);
+  async ensureRole(code: string, name?: string): Promise<number> {
+    const display = name || code;
+    await db.insert(roles).values({ code, name: display }).onDuplicateKeyUpdate({ set: { name: display } });
+    const row = await db.select({ id: roles.id }).from(roles).where(eq(roles.code, code)).limit(1).then(r => r[0]);
     return row?.id as number;
   },
 
-  async assignRole(userId: number, roleName: string) {
-    const roleId = await this.ensureRole(roleName);
+  async assignRole(userId: number, roleCode: string, roleName?: string) {
+    const roleId = await this.ensureRole(roleCode, roleName);
     await db
       .insert(userRoles)
       .values({ userId, roleId })

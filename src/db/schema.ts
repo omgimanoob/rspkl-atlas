@@ -32,9 +32,13 @@ export const roles = mysqlTable(
   'roles',
   {
     id: int('id').primaryKey().autoincrement(),
-    name: varchar('name', { length: 32 }).notNull(),
+    code: varchar('code', { length: 64 }).notNull(),
+    name: varchar('name', { length: 128 }).notNull(),
   },
-  (t) => ({ nameUx: uniqueIndex('ux_roles_name').on(t.name) })
+  (t) => ({
+    codeUx: uniqueIndex('ux_roles_code').on(t.code),
+    nameUx: uniqueIndex('ux_roles_name').on(t.name),
+  })
 );
 
 export const permissions = mysqlTable(

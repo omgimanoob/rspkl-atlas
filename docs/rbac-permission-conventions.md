@@ -32,6 +32,9 @@ This document defines conventions for naming permissions, scoping rules, and con
   - `directors`: `project:read`, `timesheet:read`, `bi:read`, `overrides:update`
   - `admins`: `*`
 
+Note on role identifiers
+- Roles have a stable `code` (machine identifier used in JWT and APIs) and a human‑friendly `name` for display. Keep codes lowercase and descriptive (e.g., `admins`, `hr`). Names can evolve without breaking API contracts.
+
 ## Patterns to avoid
 - Overlapping synonyms (e.g., `project:view` and `project:read` in parallel). Pick one and stick to it.
 - Long chains of qualifiers. Consider a new permission if complexity grows beyond two colons.

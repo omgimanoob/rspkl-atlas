@@ -20,7 +20,8 @@ Utilities
 
 Auth & RBAC
 - `users` — local user identities (email, password_hash, display_name, is_active, timestamps)
-- `roles`, `permissions` — RBAC catalogs
+- `roles` — RBAC catalog with `code` (unique, machine identifier) and `name` (human label)
+- `permissions` — permission catalog (`name` unique)
 - `user_roles`, `role_permissions`, `user_permissions` — mappings and direct grants
 - `permission_grants` — scoped permission grants (e.g., per-project overrides)
 - `audit_logs` — request-level audits (who/route/method/status/ip)

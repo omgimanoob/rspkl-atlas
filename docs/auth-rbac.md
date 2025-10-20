@@ -16,7 +16,7 @@ Sources reviewed:
   - Cookie name: `config.auth.cookieName` (default: `atlas_token`).
   - Flags: `HttpOnly; SameSite=Strict; Path=/; Max-Age={TTL}` and `Secure` in production.
   - TTL: `config.auth.tokenTtlSeconds` (default: 8 hours).
-- JWT payload: `{ sub: string (user id), email: string, roles: string[] }`.
+- JWT payload: `{ sub: string (user id), email: string, roles: string[] }` where `roles` contains role codes (e.g., `['admins','hr']`).
 - JWT signing: `HS256` via `jsonwebtoken` using `config.auth.jwtSecret`.
 - Passwords: `bcryptjs` with 12 rounds (see `createUser` and `verifyPassword`).
 - Middleware:
@@ -29,13 +29,13 @@ Sources reviewed:
 Created idempotently by `AuthService.ensureAuthSchema()` at startup:
 
 - `users` — columns: `id`, `email` (unique), `password_hash`, `display_name`, `is_active`, timestamps.
-- `roles` — columns: `id`, `name` (unique). Seeded values: `hr`, `management`, `directors`, `admins`.
+- `roles` — columns: `id`, `code` (unique), `name` (display label; unique). Seeded codes: `hr`, `management`, `directors`, `admins` with names `Human Resource`, `Management`, `Directors`, `Administrator`.
 - `user_roles` — mapping table with PK `(user_id, role_id)`.
 - `audit_logs` — columns: `id`, `user_id`, `email`, `route`, `method`, `status_code`, `payload_hash`, `ip`, `created_at`.
 
 ### Admin Seeding
 
-- If `ADMIN_EMAIL` and `ADMIN_PASSWORD` are set, an admin user is auto‑created and assigned the `admins` role on boot. Display name is `ADMIN_DISPLAY_NAME` or "Administrator".
+- If `ADMIN_EMAIL` and `ADMIN_PASSWORD` are set, an admin user is auto‑created and assigned the `admins` role code on boot. Display name is `ADMIN_DISPLAY_NAME` or "Administrator".
 
 ## Auth Endpoints & Flow
 

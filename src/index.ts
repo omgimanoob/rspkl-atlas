@@ -20,6 +20,8 @@ import {
   listGrants,
   createGrant,
   deleteGrant,
+  listRolePermissions,
+  listUserRoles,
 } from './controllers/rbacController';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -116,9 +118,11 @@ app.delete('/admin/rbac/permissions/:id', writeLimiter, ...permit('rbac:admin', 
 
 app.post('/admin/rbac/roles/:id/permissions/:perm', writeLimiter, ...permit('rbac:admin', 'write'), addPermissionToRole);
 app.delete('/admin/rbac/roles/:id/permissions/:perm', writeLimiter, ...permit('rbac:admin', 'write'), removePermissionFromRole);
+app.get('/admin/rbac/roles/:id/permissions', ...permit('rbac:admin', 'read'), listRolePermissions);
 
 app.post('/admin/rbac/users/:id/roles/:role', writeLimiter, ...permit('rbac:admin', 'write'), assignRoleToUser);
 app.delete('/admin/rbac/users/:id/roles/:role', writeLimiter, ...permit('rbac:admin', 'write'), removeRoleFromUser);
+app.get('/admin/rbac/users/:id/roles', ...permit('rbac:admin', 'read'), listUserRoles);
 
 app.get('/admin/rbac/grants', ...permit('rbac:admin', 'read'), listGrants);
 app.post('/admin/rbac/grants', writeLimiter, ...permit('rbac:admin', 'write'), createGrant);

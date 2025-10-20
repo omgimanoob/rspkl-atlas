@@ -42,10 +42,10 @@ Actionable micro-tasks to execute the plan in `docs/rbac-implementation-plan.md`
 
 ## Phase 4 – Admin RBAC APIs
 - [x] Create `src/controllers/rbacController.ts`.
-- [x] Implement roles CRUD: `GET/POST/DELETE /admin/rbac/roles`.
+- [x] Implement roles CRUD: `GET/POST/DELETE /admin/rbac/roles` (POST body `{ code, name }`).
 - [x] Implement role-permissions map: `POST/DELETE /admin/rbac/roles/:id/permissions/:perm`.
 - [x] Implement permissions CRUD: `GET/POST/DELETE /admin/rbac/permissions`.
-- [x] Implement user-role assign/revoke: `POST/DELETE /admin/rbac/users/:id/roles/:role`.
+- [x] Implement user-role assign/revoke: `POST/DELETE /admin/rbac/users/:id/roles/:role` (role param is the role code).
 - [x] Implement scoped grants CRUD: `GET/POST/DELETE /admin/rbac/grants` (support `?dryRun=1`).
 - [x] Add input validation and consistent error payloads (basic checks).
 - [x] Protect all endpoints with `requirePermission('rbac:admin')` and rate limits.

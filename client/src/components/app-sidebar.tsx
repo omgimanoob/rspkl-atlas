@@ -86,6 +86,10 @@ export function AppSidebar({ me, onLogout, ...props }: React.ComponentProps<type
       icon: Settings2,
       items: [
         { title: 'Users', url: '/console/users' },
+        { title: 'Roles', url: '/console/roles' },
+        { title: 'Permissions', url: '/console/permissions' },
+        { title: 'Statuses', url: '/console/statuses' },
+        { title: 'Grants', url: '/console/grants' },
       ],
     })
   }

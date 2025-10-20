@@ -17,6 +17,10 @@ import { ResetRequest } from '@/pages/ResetRequest'
 import { ResetConfirm } from '@/pages/ResetConfirm'
 import { Profile } from '@/pages/Profile'
 import { AdminUsers } from '@/pages/admin/Users'
+import { AdminRoles } from '@/pages/admin/Roles'
+import { AdminPermissions } from '@/pages/admin/Permissions'
+import { AdminGrants } from '@/pages/admin/Grants'
+import { AdminStatuses } from '@/pages/admin/Statuses'
 
 export default function App() {
   // Normalize path to avoid double-slash routing misses (e.g., //reset/request)
@@ -127,6 +131,50 @@ export default function App() {
               <PageHeader trail={[{ label: 'Home', href: '/' }, { label: 'Admin', href: '/console/users' }, { label: 'Users', current: true }]} />
               <RequireRoles me={me!} anyOf={['admins']}>
                 <AdminUsers currentUserId={me!.id} />
+              </RequireRoles>
+            </>
+          ),
+        },
+        {
+          path: 'console/roles',
+          element: (
+            <>
+              <PageHeader trail={[{ label: 'Home', href: '/' }, { label: 'Admin', href: '/console/roles' }, { label: 'Roles', current: true }]} />
+              <RequireRoles me={me!} anyOf={['admins']}>
+                <AdminRoles />
+              </RequireRoles>
+            </>
+          ),
+        },
+        {
+          path: 'console/permissions',
+          element: (
+            <>
+              <PageHeader trail={[{ label: 'Home', href: '/' }, { label: 'Admin', href: '/console/permissions' }, { label: 'Permissions', current: true }]} />
+              <RequireRoles me={me!} anyOf={['admins']}>
+                <AdminPermissions />
+              </RequireRoles>
+            </>
+          ),
+        },
+        {
+          path: 'console/statuses',
+          element: (
+            <>
+              <PageHeader trail={[{ label: 'Home', href: '/' }, { label: 'Admin', href: '/console/statuses' }, { label: 'Statuses', current: true }]} />
+              <RequireRoles me={me!} anyOf={['admins']}>
+                <AdminStatuses />
+              </RequireRoles>
+            </>
+          ),
+        },
+        {
+          path: 'console/grants',
+          element: (
+            <>
+              <PageHeader trail={[{ label: 'Home', href: '/' }, { label: 'Admin', href: '/console/grants' }, { label: 'Grants', current: true }]} />
+              <RequireRoles me={me!} anyOf={['admins']}>
+                <AdminGrants />
               </RequireRoles>
             </>
           ),

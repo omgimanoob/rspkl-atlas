@@ -14,9 +14,9 @@ describe('AuthService (Drizzle)', () => {
       await db.delete(userRoles).where(eq(userRoles.userId, row.id));
       await db.delete(users).where(eq(users.id, row.id));
     }
-    // Clean up test role if exists
-    const rname = 'qa_role_unit';
-    const r = await db.select().from(roles).where(eq(roles.name, rname)).limit(1).then(x => x[0]);
+    // Clean up test role if exists (by code)
+    const rcode = 'qa_role_unit';
+    const r = await db.select().from(roles).where(eq(roles.code, rcode)).limit(1).then(x => x[0]);
     if (r) {
       await db.delete(userRoles).where(eq(userRoles.roleId, r.id));
       // Do not delete the role itself to avoid affecting other tests that may reuse names
@@ -48,4 +48,3 @@ describe('AuthService (Drizzle)', () => {
     expect(rolesList.includes(rname)).toBe(true);
   });
 });
-

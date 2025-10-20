@@ -7,9 +7,9 @@ import { eq } from 'drizzle-orm';
 
 jest.setTimeout(30000);
 
-async function ensureRole(name: string) {
-  await db.insert(roles).values({ name }).onDuplicateKeyUpdate({ set: { name } });
-  return db.select({ id: roles.id, name: roles.name }).from(roles).where(eq(roles.name, name)).limit(1).then(r => r[0]);
+async function ensureRole(code: string, displayName?: string) {
+  await db.insert(roles).values({ code, name: displayName || code }).onDuplicateKeyUpdate({ set: { name: displayName || code } });
+  return db.select({ id: roles.id, code: roles.code, name: roles.name }).from(roles).where(eq(roles.code, code)).limit(1).then(r => r[0]);
 }
 
 async function ensurePermission(name: string) {

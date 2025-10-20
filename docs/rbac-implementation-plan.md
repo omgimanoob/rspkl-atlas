@@ -35,8 +35,9 @@ ORM Decision: Drizzle ORM + drizzle-kit with `mysql2`. Place schema in `src/db/s
 ## Phase 4: Admin RBAC APIs
 - Under `/admin/rbac` guarded by `requirePermission('rbac:admin')`:
   - Roles: `GET/POST/DELETE /roles`, `POST/DELETE /roles/:id/permissions/:perm`
+    - `POST /roles` body: `{ code: string; name: string }`
   - Permissions: `GET/POST/DELETE /permissions`
-  - Role assignment: `POST/DELETE /users/:id/roles/:role`
+  - Role assignment: `POST/DELETE /users/:id/roles/:role` where `:role` is the role code (e.g., `admins`)
   - Scoped grants: `POST/DELETE /grants` (supports `?dryRun=1`), list `GET /grants`
 - Validate inputs, ensure idempotency, and return clear error reasons.
 

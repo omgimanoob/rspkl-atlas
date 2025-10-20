@@ -51,9 +51,9 @@ jest.mock('../../src/controllers/projectOverridesController', () => {
   };
 });
 
-async function ensureRole(roleName: string) {
-  await db.insert(roles).values({ name: roleName }).onDuplicateKeyUpdate({ set: { name: roleName } });
-  return db.select({ id: roles.id }).from(roles).where(eq(roles.name, roleName)).limit(1).then(r => r[0]);
+async function ensureRole(roleCode: string, displayName?: string) {
+  await db.insert(roles).values({ code: roleCode, name: displayName || roleCode }).onDuplicateKeyUpdate({ set: { name: displayName || roleCode } });
+  return db.select({ id: roles.id }).from(roles).where(eq(roles.code, roleCode)).limit(1).then(r => r[0]);
 }
 
 async function ensurePermission(name: string) {

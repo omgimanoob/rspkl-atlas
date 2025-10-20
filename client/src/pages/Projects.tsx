@@ -35,12 +35,10 @@ export function Projects({ me }: { me: { email: string; roles: string[] } }) {
     return saved
   }
 
-  if (loading) return <div className="p-6">Loading projects…</div>
-
   return (
     <div className="p-4 flex flex-col gap-4 min-h-[calc(100vh-64px)]">
       <div className="flex-1 flex flex-col min-h-0">
-        <ProjectsTable data={rows} canEdit={canEdit} onSaveOverrides={saveOverrides} defaultPageSize={20} />
+        <ProjectsTable data={rows} canEdit={canEdit} onSaveOverrides={saveOverrides} defaultPageSize={20} loading={loading} />
       </div>
     </div>
   )

@@ -13,8 +13,10 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS roles (
   id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  name VARCHAR(32) NOT NULL UNIQUE,
-  PRIMARY KEY (id)
+  code VARCHAR(64) NOT NULL UNIQUE,
+  name VARCHAR(128) NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY ux_roles_name (name)
 );
 
 CREATE TABLE IF NOT EXISTS user_roles (
@@ -40,9 +42,8 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 );
 
 -- Seed core roles (idempotent)
-INSERT IGNORE INTO roles (name) VALUES
-  ('hr'),
-  ('management'),
-  ('directors'),
-  ('admins');
-
+INSERT IGNORE INTO roles (code, name) VALUES
+  ('hr', 'Human Resource'),
+  ('management', 'Management'),
+  ('directors', 'Directors'),
+  ('admins', 'Administrator');

@@ -7,9 +7,9 @@ import { eq } from 'drizzle-orm';
 
 jest.setTimeout(30000);
 
-async function ensureRole(name: string) {
-  await db.insert(roles).values({ name }).onDuplicateKeyUpdate({ set: { name } });
-  return db.select({ id: roles.id, name: roles.name }).from(roles).where(eq(roles.name, name)).limit(1).then(r => r[0]);
+async function ensureRole(code: string, displayName?: string) {
+  await db.insert(roles).values({ code, name: displayName || code }).onDuplicateKeyUpdate({ set: { name: displayName || code } });
+  return db.select({ id: roles.id, code: roles.code, name: roles.name }).from(roles).where(eq(roles.code, code)).limit(1).then(r => r[0]);
 }
 
 async function ensurePermission(name: string) {
@@ -82,12 +82,14 @@ describe('Admin RBAC APIs', () => {
   });
 
   it('creates and lists roles', async () => {
-    const roleName = `qa_${Date.now()}`;
-    const create = await adminAgent.post('/admin/rbac/roles').send({ name: roleName }).expect(201);
+    const roleCode = `qa_${Date.now()}`;
+    const roleName = `QA ${Date.now()}`;
+    const create = await adminAgent.post('/admin/rbac/roles').send({ code: roleCode, name: roleName }).expect(201);
+    expect(create.body.code).toBe(roleCode);
     expect(create.body.name).toBe(roleName);
     createdRoleId = create.body.id;
     const list = await adminAgent.get('/admin/rbac/roles').expect(200);
-    expect(list.body.some((r: any) => r.name === roleName)).toBe(true);
+    expect(list.body.some((r: any) => r.code === roleCode && r.name === roleName)).toBe(true);
     // Audit log exists for mutation
     const audits = await db.select().from(rbacAuditLogs).then(r => r);
     expect(audits.some(a => a.route?.includes('/admin/rbac/roles') && a.method === 'POST')).toBe(true);
@@ -110,8 +112,8 @@ describe('Admin RBAC APIs', () => {
   it('assigns role to a user', async () => {
     const target = await createUser(`rbac.user.${Date.now()}@example.com`, pwd, []);
     targetUserId = target.id;
-    const role = await db.select({ name: roles.name }).from(roles).where(eq(roles.id, createdRoleId)).limit(1).then(r => r[0]);
-    await adminAgent.post(`/admin/rbac/users/${targetUserId}/roles/${role.name}`).expect(200);
+    const role = await db.select({ code: roles.code }).from(roles).where(eq(roles.id, createdRoleId)).limit(1).then(r => r[0]);
+    await adminAgent.post(`/admin/rbac/users/${targetUserId}/roles/${role.code}`).expect(200);
   });
 
   it('creates, lists and deletes a scoped grant', async () => {
@@ -173,8 +175,8 @@ describe('Admin RBAC APIs', () => {
     await adminAgent.post(`/admin/rbac/roles/${createdRoleId}/permissions/${tempName}`).expect(200);
     await adminAgent.delete(`/admin/rbac/roles/${createdRoleId}/permissions/${tempName}`).expect(200);
 
-    const role = await db.select({ name: roles.name }).from(roles).where(eq(roles.id, createdRoleId)).limit(1).then(r => r[0]);
-    await adminAgent.delete(`/admin/rbac/users/${targetUserId}/roles/${role.name}`).expect(200);
+    const role = await db.select({ code: roles.code }).from(roles).where(eq(roles.id, createdRoleId)).limit(1).then(r => r[0]);
+    await adminAgent.delete(`/admin/rbac/users/${targetUserId}/roles/${role.code}`).expect(200);
 
     const audits = await db.select().from(rbacAuditLogs).then(r => r);
     expect(audits.some(a => a.route?.includes('/admin/rbac/roles') && a.method === 'DELETE')).toBe(true);

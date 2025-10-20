@@ -6,9 +6,9 @@ import { users, roles, userRoles } from '../../src/db/schema';
 import { eq } from 'drizzle-orm';
 import { atlasPool } from '../../db';
 
-async function ensureRole(name: string) {
-  await db.insert(roles).values({ name }).onDuplicateKeyUpdate({ set: { name } });
-  return db.select({ id: roles.id }).from(roles).where(eq(roles.name, name)).limit(1).then(r => r[0]);
+async function ensureRole(code: string, displayName?: string) {
+  await db.insert(roles).values({ code, name: displayName || code }).onDuplicateKeyUpdate({ set: { name: displayName || code } });
+  return db.select({ id: roles.id }).from(roles).where(eq(roles.code, code)).limit(1).then(r => r[0]);
 }
 
 async function createAdmin(email: string, password: string) {

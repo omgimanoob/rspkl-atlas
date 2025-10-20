@@ -8,11 +8,11 @@ import { eq } from 'drizzle-orm';
 const TEST_EMAIL = 'itest.user@example.com';
 const TEST_PASSWORD = 'Secret123!';
 
-async function seedUserWithRole(email: string, password: string, roleName: string) {
+async function seedUserWithRole(email: string, password: string, roleCode: string, roleName?: string) {
   const hash = await bcrypt.hash(password, 12);
   // Ensure role exists
-  await db.insert(roles).values({ name: roleName }).onDuplicateKeyUpdate({ set: { name: roleName } });
-  const role = await db.select({ id: roles.id }).from(roles).where(eq(roles.name, roleName)).limit(1).then(r => r[0]);
+  await db.insert(roles).values({ code: roleCode, name: roleName || roleCode }).onDuplicateKeyUpdate({ set: { name: roleName || roleCode } });
+  const role = await db.select({ id: roles.id }).from(roles).where(eq(roles.code, roleCode)).limit(1).then(r => r[0]);
   // Ensure user exists
   await db.insert(users).values({ email, passwordHash: hash, displayName: 'ITest User', isActive: 1 }).onDuplicateKeyUpdate({ set: { email } });
   const user = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1).then(r => r[0]);
@@ -32,7 +32,7 @@ describe('Auth integration', () => {
   const agent = request.agent(app);
 
   beforeAll(async () => {
-    await seedUserWithRole(TEST_EMAIL, TEST_PASSWORD, 'hr');
+    await seedUserWithRole(TEST_EMAIL, TEST_PASSWORD, 'hr', 'Human Resource');
   });
 
   afterAll(async () => {

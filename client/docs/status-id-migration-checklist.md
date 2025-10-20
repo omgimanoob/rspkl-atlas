@@ -44,6 +44,14 @@ Goal: Move the client from free-text `status` updates to using `status_id` from 
 - [ ] Update README/quick-sanity docs to mention UI now uses lookup for status.
 - [ ] Optional: centralize statuses in a small client store/context for reuse and future admin screen.
 
+## Phase 9 — Admin UI for Statuses
+- [x] Add Admin Statuses page at `/console/statuses` for admins.
+  - [x] List existing statuses with columns: ID, Name, Code, Active, Sort.
+  - [x] Create new status (name, optional code/sort, active toggle).
+  - [x] Edit inline per row (name, code, sort, active) and Save/Cancel.
+  - [x] Delete status.
+- [x] Add sidebar link under Admin.
+
 Notes
 - Server denormalizes `status` (name) from `status_id`. The client should treat `status` as display-only and always send `status_id` on writes.
 - If later we expose more status metadata (color, category), extend the selector UI accordingly.

@@ -73,8 +73,8 @@ describe('PermissionsService (DB-backed cases)', () => {
     const pname = 'project:read';
     // ensure permission and a test role; map and assign to user
     const pid = await ensurePermission(pname);
-    await db.insert(roles).values({ name: 'perm_test_role' }).onDuplicateKeyUpdate({ set: { name: 'perm_test_role' } });
-    const role = await db.select({ id: roles.id }).from(roles).where(eq(roles.name, 'perm_test_role')).limit(1).then(r => r[0]);
+    await db.insert(roles).values({ code: 'perm_test_role', name: 'Permission Test Role' }).onDuplicateKeyUpdate({ set: { name: 'Permission Test Role' } });
+    const role = await db.select({ id: roles.id }).from(roles).where(eq(roles.code, 'perm_test_role')).limit(1).then(r => r[0]);
     await db.insert(rolePermissions).values({ roleId: role.id, permissionId: pid }).onDuplicateKeyUpdate({ set: { roleId: role.id, permissionId: pid } });
     await db.insert(userRoles).values({ userId, roleId: role.id }).onDuplicateKeyUpdate({ set: { userId, roleId: role.id } });
     const decision = await PermissionsService.hasPermission({ id: userId, email, roles: ['perm_test_role'] }, pname);

@@ -14,9 +14,9 @@ export type PermissionDecision = {
 };
 
 export const PermissionsService = {
-  async getRoleIdsByName(names: string[]): Promise<number[]> {
-    if (!names.length) return [];
-    const rows = await db.select({ id: roles.id, name: roles.name }).from(roles).where(inArray(roles.name, names));
+  async getRoleIdsByCode(codes: string[]): Promise<number[]> {
+    if (!codes.length) return [];
+    const rows = await db.select({ id: roles.id, code: roles.code }).from(roles).where(inArray(roles.code, codes));
     return rows.map(r => r.id);
   },
 
@@ -65,7 +65,7 @@ export const PermissionsService = {
   },
 
   async getUserPermissions(user: AuthUser) {
-    const roleIds = await this.getRoleIdsByName(user.roles || []);
+    const roleIds = await this.getRoleIdsByCode(user.roles || []);
     const [rolePerms, directPerms, scoped] = await Promise.all([
       this.getPermissionsForRoles(roleIds),
       this.getDirectUserPermissions(user.id),

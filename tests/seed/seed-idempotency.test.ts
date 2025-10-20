@@ -2,9 +2,9 @@ import { db } from '../../src/db/client';
 import { roles, permissions, rolePermissions } from '../../src/db/schema';
 import { eq, inArray } from 'drizzle-orm';
 
-async function upsertRoles(names: string[]) {
-  for (const name of names) {
-    await db.insert(roles).values({ name }).onDuplicateKeyUpdate({ set: { name } });
+async function upsertRoles(codes: string[]) {
+  for (const code of codes) {
+    await db.insert(roles).values({ code, name: code }).onDuplicateKeyUpdate({ set: { name: code } });
   }
 }
 
@@ -19,13 +19,13 @@ describe('Seed idempotency (subset)', () => {
   const permNames = ['*', 'project:read', 'timesheet:read', 'bi:read', 'overrides:update', 'sync:execute', 'rbac:admin'];
 
   it('roles and permissions upserts do not create duplicates', async () => {
-    const beforeRoles = await db.select().from(roles).where(inArray(roles.name, roleNames));
+    const beforeRoles = await db.select().from(roles).where(inArray(roles.code, roleNames));
     const beforePerms = await db.select().from(permissions).where(inArray(permissions.name, permNames));
 
     await upsertRoles(roleNames);
     await upsertPermissions(permNames);
 
-    const afterRoles = await db.select().from(roles).where(inArray(roles.name, roleNames));
+    const afterRoles = await db.select().from(roles).where(inArray(roles.code, roleNames));
     const afterPerms = await db.select().from(permissions).where(inArray(permissions.name, permNames));
 
     expect(afterRoles.length).toBeGreaterThanOrEqual(beforeRoles.length);
@@ -36,7 +36,7 @@ describe('Seed idempotency (subset)', () => {
 
   it('role-permission mapping upserts are idempotent for admins → *', async () => {
     // Find ids
-    const admins = await db.select().from(roles).where(eq(roles.name, 'admins')).limit(1).then(r => r[0]);
+    const admins = await db.select().from(roles).where(eq(roles.code, 'admins')).limit(1).then(r => r[0]);
     const star = await db.select().from(permissions).where(eq(permissions.name, '*')).limit(1).then(r => r[0]);
     const before = await db.select().from(rolePermissions).where(eq(rolePermissions.roleId, admins.id));
 
@@ -49,4 +49,3 @@ describe('Seed idempotency (subset)', () => {
     expect(matches.length).toBe(1);
   });
 });
-

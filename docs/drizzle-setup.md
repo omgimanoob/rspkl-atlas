@@ -62,8 +62,12 @@ export const users = mysqlTable('users', {
 // Roles & Permissions
 export const roles = mysqlTable('roles', {
   id: int('id').primaryKey().autoincrement(),
-  name: varchar('name', { length: 32 }).notNull(),
-}, (t) => ({ nameUx: uniqueIndex('ux_roles_name').on(t.name) }));
+  code: varchar('code', { length: 64 }).notNull(), // stable identifier, e.g., 'admins', 'hr'
+  name: varchar('name', { length: 128 }).notNull(), // human label, e.g., 'Administrator', 'Human Resource'
+}, (t) => ({
+  codeUx: uniqueIndex('ux_roles_code').on(t.code),
+  nameUx: uniqueIndex('ux_roles_name').on(t.name),
+}));
 
 export const permissions = mysqlTable('permissions', {
   id: int('id').primaryKey().autoincrement(),
@@ -74,7 +78,7 @@ export const permissions = mysqlTable('permissions', {
 export const userRoles = mysqlTable('user_roles', {
   userId: bigint('user_id', { mode: 'number', unsigned: true }).notNull(),
   roleId: int('role_id').notNull(),
-}, (t) => ({ pk: index('pk_user_roles').on(t.userId, t.roleId) }));
+}, (t) => ({ pk: uniqueIndex('pk_user_roles').on(t.userId, t.roleId) }));
 
 export const rolePermissions = mysqlTable('role_permissions', {
   roleId: int('role_id').notNull(),
@@ -160,7 +164,11 @@ main().catch((e) => {
 ```
 
 ## Seeding (outline)
-- Insert baseline roles: `hr`, `management`, `directors`, `admins`.
+- Insert baseline roles (code → name):
+  - `hr` → `Human Resource`
+  - `management` → `Management`
+  - `directors` → `Directors`
+  - `admins` → `Administrator`
 - Insert baseline permissions: `project:read`, `timesheet:read`, `bi:read`, `overrides:update`, `sync:execute`, `rbac:admin`.
 - Map roles → permissions to mirror current behavior.
 - Optionally create an admin user and assign `admins` role (align with existing admin seed).
@@ -168,4 +176,3 @@ main().catch((e) => {
 ## Notes
 - `@types/mysql2` is not required (and not published) — `mysql2` includes its own types.
 - You may see `npm audit` advisories; address as needed (`npm audit fix`), but they are unrelated to Drizzle.
-

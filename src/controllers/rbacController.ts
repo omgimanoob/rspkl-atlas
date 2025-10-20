@@ -11,10 +11,12 @@ export const listRoles = async (_req, res) => {
 };
 
 export const createRole = async (req, res) => {
+  const code: string | undefined = req.body?.code;
   const name: string | undefined = req.body?.name;
+  if (!code || typeof code !== 'string') return res.status(400).json({ error: 'Invalid role code' });
   if (!name || typeof name !== 'string') return res.status(400).json({ error: 'Invalid role name' });
-  await db.insert(roles).values({ name }).onDuplicateKeyUpdate({ set: { name } });
-  const row = await db.select().from(roles).where(eq(roles.name, name)).limit(1).then(r => r[0]);
+  await db.insert(roles).values({ code, name }).onDuplicateKeyUpdate({ set: { name } });
+  const row = await db.select().from(roles).where(eq(roles.code, code)).limit(1).then(r => r[0]);
   await recordRbacAdmin(req, 'role.create', 'role', row?.id);
   incAdminMutation();
   res.status(201).json(row);
@@ -80,11 +82,22 @@ export const removePermissionFromRole = async (req, res) => {
   res.json({ ok: true });
 };
 
+export const listRolePermissions = async (req, res) => {
+  const roleId = Number(req.params.id);
+  if (!Number.isFinite(roleId)) return res.status(400).json({ error: 'Invalid role id' });
+  const rows = await db
+    .select({ name: permissions.name })
+    .from(rolePermissions)
+    .innerJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
+    .where(eq(rolePermissions.roleId, roleId));
+  res.json(rows.map(r => r.name));
+};
+
 export const assignRoleToUser = async (req, res) => {
   const userId = Number(req.params.id);
-  const roleName = String(req.params.role || '');
-  if (!Number.isFinite(userId) || !roleName) return res.status(400).json({ error: 'Invalid user id or role name' });
-  const role = await db.select().from(roles).where(eq(roles.name, roleName)).limit(1).then(r => r[0]);
+  const roleCode = String(req.params.role || '');
+  if (!Number.isFinite(userId) || !roleCode) return res.status(400).json({ error: 'Invalid user id or role code' });
+  const role = await db.select().from(roles).where(eq(roles.code, roleCode)).limit(1).then(r => r[0]);
   if (!role) return res.status(404).json({ error: 'Role not found' });
   await db.insert(userRoles).values({ userId, roleId: role.id }).onDuplicateKeyUpdate({ set: { userId, roleId: role.id } });
   await recordRbacAdmin(req, 'user_role.add', 'user', userId);
@@ -94,14 +107,25 @@ export const assignRoleToUser = async (req, res) => {
 
 export const removeRoleFromUser = async (req, res) => {
   const userId = Number(req.params.id);
-  const roleName = String(req.params.role || '');
-  if (!Number.isFinite(userId) || !roleName) return res.status(400).json({ error: 'Invalid user id or role name' });
-  const role = await db.select().from(roles).where(eq(roles.name, roleName)).limit(1).then(r => r[0]);
+  const roleCode = String(req.params.role || '');
+  if (!Number.isFinite(userId) || !roleCode) return res.status(400).json({ error: 'Invalid user id or role code' });
+  const role = await db.select().from(roles).where(eq(roles.code, roleCode)).limit(1).then(r => r[0]);
   if (!role) return res.status(404).json({ error: 'Role not found' });
   await db.delete(userRoles).where(and(eq(userRoles.userId, userId), eq(userRoles.roleId, role.id)));
   await recordRbacAdmin(req, 'user_role.remove', 'user', userId);
   incAdminMutation();
   res.json({ ok: true });
+};
+
+export const listUserRoles = async (req, res) => {
+  const userId = Number(req.params.id);
+  if (!Number.isFinite(userId)) return res.status(400).json({ error: 'Invalid user id' });
+  const rows = await db
+    .select({ code: roles.code })
+    .from(userRoles)
+    .innerJoin(roles, eq(userRoles.roleId, roles.id))
+    .where(eq(userRoles.userId, userId));
+  res.json(rows.map(r => r.code));
 };
 
 export const listGrants = async (_req, res) => {

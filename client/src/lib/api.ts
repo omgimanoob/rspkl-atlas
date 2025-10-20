@@ -50,13 +50,45 @@ export function extractApiReason(e: any): string | undefined {
 }
 
 export const api = {
+  // Admin RBAC
+  adminListRoles() { return http<Array<{ id: number; code: string; name: string }>>('/api/admin/rbac/roles') },
+  adminCreateRole(payload: { code: string; name: string }) { return http<{ id: number; code: string; name: string }>(
+    '/api/admin/rbac/roles', { method: 'POST', body: JSON.stringify(payload) }
+  ) },
+  adminDeleteRole(id: number) { return http<{ ok: boolean }>(`/api/admin/rbac/roles/${id}`, { method: 'DELETE' }) },
+  adminListPermissions() { return http<Array<{ id: number; name: string }>>('/api/admin/rbac/permissions') },
+  adminCreatePermission(name: string) { return http<{ id: number; name: string }>(
+    '/api/admin/rbac/permissions', { method: 'POST', body: JSON.stringify({ name }) }
+  ) },
+  adminDeletePermission(id: number) { return http<{ ok: boolean }>(`/api/admin/rbac/permissions/${id}`, { method: 'DELETE' }) },
+  adminListGrants() { return http<Array<any>>('/api/admin/rbac/grants') },
+  adminCreateGrant(payload: any, dryRun?: boolean) { return http<{ ok: boolean; dryRun?: boolean }>(
+    `/api/admin/rbac/grants${dryRun ? '?dryRun=1' : ''}`, { method: 'POST', body: JSON.stringify(payload) }
+  ) },
+  adminDeleteGrant(id: number) { return http<{ ok: boolean }>(`/api/admin/rbac/grants/${id}`, { method: 'DELETE' }) },
+  adminAddPermissionToRole(roleId: number, permName: string) {
+    return http<{ ok: boolean }>(`/api/admin/rbac/roles/${roleId}/permissions/${encodeURIComponent(permName)}`, { method: 'POST' })
+  },
+  adminRemovePermissionFromRole(roleId: number, permName: string) {
+    return http<{ ok: boolean }>(`/api/admin/rbac/roles/${roleId}/permissions/${encodeURIComponent(permName)}`, { method: 'DELETE' })
+  },
+  adminListRolePermissions(roleId: number) { return http<string[]>(`/api/admin/rbac/roles/${roleId}/permissions`) },
+  adminAssignRoleToUser(userId: number, roleName: string) {
+    return http<{ ok: boolean }>(`/api/admin/rbac/users/${userId}/roles/${encodeURIComponent(roleName)}`, { method: 'POST' })
+  },
+  adminRemoveRoleFromUser(userId: number, roleName: string) {
+    return http<{ ok: boolean }>(`/api/admin/rbac/users/${userId}/roles/${encodeURIComponent(roleName)}`, { method: 'DELETE' })
+  },
+  adminListUserRoles(userId: number) { return http<string[]>(`/api/admin/rbac/users/${userId}/roles`) },
   // Admin: Users
-  adminListUsers(params: { page?: number; pageSize?: number; search?: string; active?: boolean } = {}) {
+  adminListUsers(params: { page?: number; pageSize?: number; search?: string; active?: boolean; sortKey?: string; sortDir?: 'asc' | 'desc' } = {}) {
     const qs = new URLSearchParams()
     if (params.page) qs.set('page', String(params.page))
     if (params.pageSize) qs.set('pageSize', String(params.pageSize))
     if (params.search) qs.set('search', params.search)
     if (typeof params.active === 'boolean') qs.set('active', params.active ? '1' : '0')
+    if (params.sortKey) qs.set('sortKey', params.sortKey)
+    if (params.sortDir) qs.set('sortDir', params.sortDir)
     const query = qs.toString()
     return http<{ items: Array<{ id: number; email: string; display_name: string | null; is_active: boolean; created_at: string; updated_at: string }>; total: number; page: number; pageSize: number }>(`/api/admin/users${query ? '?' + query : ''}`)
   },
@@ -93,6 +125,19 @@ export const api = {
   // Statuses lookup (admin read endpoint; consider exposing read-only for editors)
   listStatuses() {
     return http<Array<{ id: number; name: string; code: string | null; is_active: number; sort_order: number | null }>>('/api/admin/statuses')
+  },
+  adminCreateStatus(payload: { name: string; code?: string | null; is_active?: boolean; sort_order?: number | null }) {
+    return http<{ id: number; name: string; code: string | null; is_active: number; sort_order: number | null }>(
+      '/api/admin/statuses', { method: 'POST', body: JSON.stringify(payload) }
+    )
+  },
+  adminUpdateStatus(id: number, payload: { name?: string; code?: string | null; is_active?: boolean; sort_order?: number | null }) {
+    return http<{ id: number; name: string; code: string | null; is_active: number; sort_order: number | null }>(
+      `/api/admin/statuses/${id}`, { method: 'PUT', body: JSON.stringify(payload) }
+    )
+  },
+  adminDeleteStatus(id: number) {
+    return http<{ ok: boolean }>(`/api/admin/statuses/${id}`, { method: 'DELETE' })
   },
   login(email: string, password: string) {
     return http<{ email: string; roles: string[] }>('/api/auth/login', {

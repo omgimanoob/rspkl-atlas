@@ -36,12 +36,16 @@ describe('Prospective projects admin API', () => {
   });
 
   afterAll(async () => {
-    // Best effort cleanup happens via schema; no extra deletes required.
+    // Best effort cleanup of the created prospective row
+    if (createdId) {
+      try { await atlasPool.query('DELETE FROM overrides_projects WHERE id = ?', [createdId]); } catch {}
+    }
   });
 
   it('creates and lists a prospective project', async () => {
-    const create = await agent.post('/admin/prospective').send({ name: 'Prospect A', status: 'Unassigned', notes: 'tbd' }).expect(201);
+    const create = await agent.post('/admin/prospective').send({ name: 'Prospect A', notes: 'tbd' }).expect(201);
     createdId = create.body.id;
+    // By new rule, atlas-native rows have is_prospective = 1 (true)
     expect(create.body.is_prospective).toBe(true);
     const list = await agent.get('/admin/prospective').expect(200);
     expect(list.body.some((r: any) => r.id === createdId && r.name === 'Prospect A')).toBe(true);

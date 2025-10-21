@@ -33,11 +33,13 @@ export type ProjectRow = {
   billable: number
   invoice_text: string | null
   global_activities: number
-  status?: string | null
   statusId?: number | null
   moneyCollected?: number | null
   isProspective?: boolean | null
   createdByUserId?: number | null
+  origin?: 'kimai' | 'atlas'
+  createdAt?: string | null
+  updatedAt?: string | null
 }
 
 function CommentCell({ text }: { text: string }) {
@@ -238,6 +240,20 @@ export function ProjectsTable({
       ),
       cell: ({ row }) => <span>{row.original.name}</span>,
     },
+    {
+      accessorKey: 'origin',
+      header: ({ column }) => (
+        <button className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-gray-600" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+          Origin {column.getIsSorted() === 'asc' ? <ArrowUp className="h-3 w-3" /> : column.getIsSorted() === 'desc' ? <ArrowDown className="h-3 w-3" /> : <ArrowUpDown className="h-3 w-3" />}
+        </button>
+      ),
+      cell: ({ row }) => {
+        const o = row.original.origin
+        const label = o === 'atlas' ? 'Prospective' : 'Kimai'
+        const variant = o === 'atlas' ? 'secondary' : 'outline'
+        return <Badge variant={variant as any}>{label}</Badge>
+      },
+    },
     { accessorKey: 'order_number', header: 'Order #' },
     { accessorKey: 'visible', header: 'Visible', cell: ({ row }) => <span>{row.original.visible ? 'Yes' : 'No'}</span> },
     { accessorKey: 'budget', header: 'Budget' },
@@ -251,6 +267,28 @@ export function ProjectsTable({
     { accessorKey: 'billable', header: 'Billable', cell: ({ row }) => <span>{row.original.billable ? 'Yes' : 'No'}</span> },
     { accessorKey: 'invoice_text', header: 'Invoice Text' },
     { accessorKey: 'global_activities', header: 'Global Activities', cell: ({ row }) => <span>{row.original.global_activities ? 'Yes' : 'No'}</span> },
+    {
+      accessorKey: 'createdAt',
+      header: ({ column }) => (
+        <button className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-gray-600" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+          Created At {column.getIsSorted() === 'asc' ? <ArrowUp className="h-3 w-3" /> : column.getIsSorted() === 'desc' ? <ArrowDown className="h-3 w-3" /> : <ArrowUpDown className="h-3 w-3" />}
+        </button>
+      ),
+      cell: ({ row }) => (
+        <span>{row.original.createdAt ? new Date(row.original.createdAt).toLocaleString() : '-'}</span>
+      ),
+    },
+    {
+      accessorKey: 'updatedAt',
+      header: ({ column }) => (
+        <button className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-gray-600" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+          Updated At {column.getIsSorted() === 'asc' ? <ArrowUp className="h-3 w-3" /> : column.getIsSorted() === 'desc' ? <ArrowDown className="h-3 w-3" /> : <ArrowUpDown className="h-3 w-3" />}
+        </button>
+      ),
+      cell: ({ row }) => (
+        <span>{row.original.updatedAt ? new Date(row.original.updatedAt).toLocaleString() : '-'}</span>
+      ),
+    },
     {
       accessorKey: 'moneyCollected',
       header: ({ column }) => (
@@ -269,23 +307,32 @@ export function ProjectsTable({
       ),
     },
     {
-      accessorKey: 'status',
+      accessorKey: 'statusId',
       header: ({ column }) => (
         <button className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-gray-600" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
           Status {column.getIsSorted() === 'asc' ? <ArrowUp className="h-3 w-3" /> : column.getIsSorted() === 'desc' ? <ArrowDown className="h-3 w-3" /> : <ArrowUpDown className="h-3 w-3" />}
         </button>
       ),
       cell: ({ row }) => {
-        const s = row.original.status || 'Unassigned'
-        const variant = s === 'Under construction' ? 'warning' : s === 'Post construction' ? 'success' : s === 'KIV' ? 'danger' : s === 'Tender' ? 'info' : 'outline'
-        return <Badge variant={variant as any}>{s}</Badge>
+        const sid = row.original.statusId
+        const name = statuses.find(s => s.id === sid)?.name || 'Unassigned'
+        const variant = name === 'Under construction' ? 'warning' : name === 'Post construction' ? 'success' : name === 'KIV' ? 'danger' : name === 'Tender' ? 'info' : 'outline'
+        return <Badge variant={variant as any}>{name}</Badge>
       },
     },
-    { accessorKey: 'isProspective', header: () => (<div className="w-full text-center">Prospective</div>), cell: ({ row }) => (
-      <div className="flex justify-center">
-        <Checkbox checked={!!row.original.isProspective} disabled aria-label="Prospective" />
-      </div>
-    ) },
+    {
+      accessorKey: 'isProspective',
+      header: ({ column }) => (
+        <button className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-gray-600" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
+          Prospective {column.getIsSorted() === 'asc' ? <ArrowUp className="h-3 w-3" /> : column.getIsSorted() === 'desc' ? <ArrowDown className="h-3 w-3" /> : <ArrowUpDown className="h-3 w-3" />}
+        </button>
+      ),
+      cell: ({ row }) => (
+        <div className="flex justify-center">
+          <Checkbox checked={!!row.original.isProspective} disabled aria-label="Prospective" />
+        </div>
+      ),
+    },
     { accessorKey: 'comment', header: 'Comment', cell: ({ row }) => {
       const c = row.original.comment || ''
       if (!c) return <span className="text-gray-500">-</span>
@@ -295,13 +342,17 @@ export function ProjectsTable({
     {
       id: 'actions',
       header: 'Actions',
-      cell: ({ row }) => (
-        <Button variant="outline" size="sm" disabled={!canEdit} onClick={() => beginEdit(row.original)}>
-          Edit
-        </Button>
-      ),
+      cell: ({ row }) => {
+        const r = row.original
+        const disabled = !canEdit || r.origin === 'atlas'
+        return (
+          <Button variant="outline" size="sm" disabled={disabled} onClick={() => beginEdit(r)}>
+            Edit
+          </Button>
+        )
+      },
     },
-  ]), [canEdit, editOpen, editing])
+  ]), [canEdit, editOpen, editing, statuses])
 
   const tableRef = useRef<HTMLTableElement>(null)
   const table = useReactTable({
@@ -319,7 +370,7 @@ export function ProjectsTable({
   })
 
   // Default visible columns
-  const defaultVisible = new Set(['name','comment','status','moneyCollected','isProspective','actions'])
+  const defaultVisible = new Set(['name','origin','comment','status','moneyCollected','isProspective','actions'])
   const initialVisibility = useMemo(() => {
     const vis: Record<string, boolean> = {}
     columns.forEach(col => {

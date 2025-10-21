@@ -28,7 +28,7 @@ Auth & RBAC
 - `rbac_audit_logs` — RBAC decision/mutation logs (allow/deny/mutate/reason)
 
 Overrides & Projects
-- `overrides_projects` — overlay fields missing from Kimai: `money_collected` (cached), `status`, `is_prospective`, notes, source, updated_by, timestamps, extras JSON
+- `overrides_projects` — overlay fields missing from Kimai: `money_collected` (cached), `status_id`, `is_prospective`, notes, source, updated_by, timestamps, extras JSON
   - Design and schema: see `docs/overrides-projects.md`
 
 Taxonomy & Tags
@@ -46,6 +46,7 @@ Payments (optional/planned)
 ## Kimai DB – Referenced Tables (read-only)
 
 - `kimai2_projects` — projects (reference: `docs/kimai2_projects-schema.md`)
+  - Used by linking validation: before linking a Prospective row, verify the target `kimai_project_id` exists in this table; reject otherwise.
 - `kimai2_timesheet` — timesheets (not fully documented here; used via services)
 - `kimai2_customers` — customers (not fully documented here; used via services)
 
@@ -69,5 +70,5 @@ Notes
  - Kimai sync plan: `docs/kimai-sync.md`
 
 ## Views (Analytics)
-- `vw_projects` — replica projects + overrides (status, is_prospective, money_collected cached)
+- `vw_projects` — replica projects + overrides (`status_id`, `is_prospective`, `money_collected` cached)
 - `vw_timesheet_facts` — replica timesheets + users/activities/projects + aggregated timesheet tags

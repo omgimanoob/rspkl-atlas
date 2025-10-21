@@ -261,7 +261,6 @@ export const overridesProjects = mysqlTable(
     id: bigint('id', { mode: 'number', unsigned: true }).primaryKey().autoincrement(),
     kimaiProjectId: bigint('kimai_project_id', { mode: 'number', unsigned: true }),
     moneyCollected: varchar('money_collected', { length: 64 }),
-    status: varchar('status', { length: 32 }),
     statusId: int('status_id'),
     isProspective: tinyint('is_prospective'),
     notes: varchar('notes', { length: 1024 }),
@@ -274,7 +273,6 @@ export const overridesProjects = mysqlTable(
   },
   (t) => ({
     uxProject: uniqueIndex('ux_overrides_projects_kimai_project').on(t.kimaiProjectId),
-    ixStatus: index('ix_overrides_projects_status').on(t.status),
     ixProspective: index('ix_overrides_projects_prospective').on(t.isProspective),
   })
 );

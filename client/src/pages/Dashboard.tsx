@@ -21,7 +21,6 @@ export function Dashboard({ me }: { me: { email: string; roles: string[] } }) {
       r.id === id
         ? {
             ...r,
-            status: saved?.status ?? r.status,
             statusId: statusId ?? r.statusId,
             moneyCollected: saved?.money_collected ?? r.moneyCollected,
             isProspective: typeof saved?.is_prospective === 'number' ? saved.is_prospective === 1 : (saved?.is_prospective ?? r.isProspective),

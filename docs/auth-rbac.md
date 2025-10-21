@@ -57,12 +57,17 @@ Admins always permitted via bypass in `requireRole`.
 - `GET /bi/sunburst` — roles: `hr`, `management`, `directors`.
 - `PUT /overrides/status` — roles: `hr`, `directors`.
 - `PUT /overrides` — roles: `hr`, `directors`.
+- `GET /statuses` — roles: `hr`, `management`, `directors` (read-only lookup).
+- `POST /prospective` — roles: `hr`, `directors` (via `prospective:create`).
+- `POST /prospective/:id/link` — restricted (via `prospective:link` or admins initially).
+- `POST /prospective/:id/kimai-create-link` — restricted to operators (via `kimai:project:create`).
 - `POST /sync/timesheets` — roles: `admins` only.
 - `GET /healthz` — public.
 - Static assets under `public/` — public.
 
 Notes:
 - `controllers/projectsController.updateProjectStatusHandler` exists but is not routed in `src/index.ts`. The routed status update uses `projectOverridesController.updateProjectStatusHandler`.
+ - Linking Prospective projects must validate the target Kimai project id exists before mutating Atlas.
 
 ## Audit Logging
 

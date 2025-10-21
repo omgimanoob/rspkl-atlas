@@ -50,6 +50,12 @@ Link: [development-progress-tracking.md](./development-progress-tracking.md)
 - Response shape: `{ id, email, display_name, is_active, created_at, updated_at }`
 - cURL examples: see [quick-sanity-tests.md](./quick-sanity-tests.md)
 
+Seeding an Admin User
+- Optionally seed an admin user via env vars (no PII in code):
+  - Set `ADMIN_EMAIL`, `ADMIN_PASSWORD` (and optional `ADMIN_DISPLAY_NAME`).
+  - Run: `npm run db:seed:admin`.
+  - The script calls the same logic used at app startup and assigns the `admins` role.
+
 ### Self-Service
 - Endpoints:
   - `GET /me` — returns authenticated user `{ id, email, roles }`.
@@ -103,8 +109,13 @@ Admin RBAC API (requires `rbac:admin` or `*`)
   - `PUT /admin/statuses/:id` — update any fields above
   - `DELETE /admin/statuses/:id` — remove a status
 - Using `status_id` in overrides:
-  - `PUT /overrides` body may include `status_id`; API writes both `status` (denormalized name) and `status_id`.
-  - `PUT /overrides/status` also accepts `status_id` as an alternative to `status`.
+  - `PUT /overrides` body may include `status_id`; API persists `status_id` only (UI resolves name from lookup).
+  - `PUT /overrides/status` accepts `status_id`.
+ - DB constraints and inference:
+   - `project_statuses.code` and `project_statuses.sort_order` are NOT NULL (see migration `drizzle/0007_statuses_require_code_sort.sql`).
+   - When API callers omit `code`, the service infers it by slugifying `name` (lowercase, spaces→dashes, alnum only).
+   - When API callers omit `sort_order`, the service sets it to `MAX(sort_order) + 10`.
+   - The migration backfills code/sort_order for existing rows and then enforces NOT NULL.
 
 Metrics
 - `GET /metrics` returns in-memory counters for RBAC decisions and admin mutations

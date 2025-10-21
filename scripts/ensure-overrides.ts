@@ -6,7 +6,6 @@ async function main() {
     \`id\` bigint unsigned NOT NULL AUTO_INCREMENT,
     \`kimai_project_id\` bigint unsigned NULL,
     \`money_collected\` decimal(12,2) NULL,
-    \`status\` varchar(32) NULL,
     \`is_prospective\` tinyint(1) NULL,
     \`notes\` varchar(1024) NULL,
     \`source\` varchar(64) NULL,
@@ -18,7 +17,7 @@ async function main() {
     PRIMARY KEY (\`id\`)
   )`);
   try { await atlasPool.query('CREATE UNIQUE INDEX `ux_overrides_projects_kimai_project` ON `overrides_projects` (`kimai_project_id`)'); } catch {}
-  try { await atlasPool.query('CREATE INDEX `ix_overrides_projects_status` ON `overrides_projects` (`status`)'); } catch {}
+  -- status column removed; using status_id only
   try { await atlasPool.query('CREATE INDEX `ix_overrides_projects_prospective` ON `overrides_projects` (`is_prospective`)'); } catch {}
   console.log('[ensure-overrides] ensured overrides_projects table and indexes');
   await atlasPool.end();

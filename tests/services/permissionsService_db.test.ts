@@ -7,6 +7,7 @@ describe('PermissionsService (DB-backed cases)', () => {
   const email = `ut.perm.${Date.now()}@example.com`;
   const userRecord = { email, passwordHash: 'x', isActive: 1, displayName: 'Perm Test' as any };
   let userId: number;
+  const createdPermissionNames: string[] = []
 
   async function ensurePermission(name: string) {
     await db.insert(permissions).values({ name }).onDuplicateKeyUpdate({ set: { name } });
@@ -25,11 +26,18 @@ describe('PermissionsService (DB-backed cases)', () => {
     await db.delete(permissionGrants).where(eq(permissionGrants.subjectId, userId));
     await db.delete(userRoles).where(eq(userRoles.userId, userId));
     await db.delete(users).where(eq(users.id, userId));
+    // Cleanup any ad-hoc permissions created by the tests
+    for (const name of createdPermissionNames) {
+      try {
+        await db.delete(permissions).where(eq(permissions.name, name))
+      } catch {}
+    }
   });
 
   it('direct user permission allows access', async () => {
     const pname = `custom:test:${Date.now()}`;
     const pid = await ensurePermission(pname);
+    createdPermissionNames.push(pname)
     await db.insert(userPermissions).values({ userId, permissionId: pid }).onDuplicateKeyUpdate({ set: { userId, permissionId: pid } });
     const decision = await PermissionsService.hasPermission({ id: userId, email, roles: [] }, pname);
     expect(decision.allow).toBe(true);

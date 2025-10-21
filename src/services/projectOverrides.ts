@@ -7,18 +7,11 @@ export class ProjectOverrides {
     return rows;
   }
 
-  static async updateStatus(kimai_project_id: number, status: string) {
-    await atlasPool.query(
-      `UPDATE overrides_projects SET status = ? WHERE kimai_project_id = ?`,
-      [status, kimai_project_id]
-    );
-  }
-
-  static async updateStatusAndId(kimai_project_id: number, status: string, status_id?: number | null) {
+  static async updateStatusId(kimai_project_id: number, status_id?: number | null) {
     await StatusService.ensureSchema();
     await atlasPool.query(
-      `UPDATE overrides_projects SET status = ?, status_id = ? WHERE kimai_project_id = ?`,
-      [status, status_id ?? null, kimai_project_id]
+      `UPDATE overrides_projects SET status_id = ? WHERE kimai_project_id = ?`,
+      [status_id ?? null, kimai_project_id]
     );
   }
 
@@ -34,7 +27,6 @@ export class ProjectOverrides {
 
   static async upsertOverrides(payload: {
     kimai_project_id: number,
-    status?: string | null,
     status_id?: number | null,
     money_collected?: number | null,
     is_prospective?: boolean | number | null,
@@ -46,10 +38,6 @@ export class ProjectOverrides {
     const fields: string[] = [];
     const values: any[] = [];
 
-    if (payload.status !== undefined) {
-      fields.push('status = ?');
-      values.push(payload.status);
-    }
     if (payload.money_collected !== undefined) {
       fields.push('money_collected = ?');
       values.push(payload.money_collected);
@@ -79,7 +67,6 @@ export class ProjectOverrides {
       const cols = ['kimai_project_id'];
       const qs = ['?'];
       const insertVals: any[] = [id];
-      if (payload.status !== undefined) { cols.push('status'); qs.push('?'); insertVals.push(payload.status); }
       if (payload.money_collected !== undefined) { cols.push('money_collected'); qs.push('?'); insertVals.push(payload.money_collected); }
       if (payload.status_id !== undefined) { await StatusService.ensureSchema(); cols.push('status_id'); qs.push('?'); insertVals.push(payload.status_id); }
       if (payload.is_prospective !== undefined) { cols.push('is_prospective'); qs.push('?'); insertVals.push(payload.is_prospective ? 1 : 0); }

@@ -4,10 +4,10 @@ Actionable tasks to implement and evolve the `overrides_projects` model that fil
 
 ## Phase 1 – Schema & Migration
 - [x] Table `overrides_projects` (Atlas DB) with core fields:
-  - [x] `kimai_project_id` (FK-less reference), `money_collected` (decimal), `status` (varchar), `is_prospective` (tinyint), `notes`, `source`, `updated_by_*`, timestamps, `extras_json`.
+  - [x] `kimai_project_id` (FK-less reference), `money_collected` (decimal), `status_id` (int), `is_prospective` (tinyint), `notes`, `source`, `updated_by_*`, timestamps, `extras_json`.
   - [x] Unique index on `kimai_project_id` (one override row per Kimai project).
 - [x] Prospective projects: allow `kimai_project_id` to be NULL; unique index applies only when not NULL (MySQL unique index permits multiple NULLs).
-- [x] Add optional indexes for `status`, `is_prospective`.
+- [x] Add optional indexes for `status_id`, `is_prospective`.
 
 ## Phase 2 – Services & Repository
 - [x] Read overrides for projects; merge logic only applies non-null overrides.
@@ -15,7 +15,7 @@ Actionable tasks to implement and evolve the `overrides_projects` model that fil
 - [x] Helper to compute/normalize project id from request payload.
 
 ## Phase 3 – API Endpoints (Write)
-- [x] `PUT /overrides/status` — update `status` / `is_prospective`.
+- [x] `PUT /overrides/status` — update `status_id` / `is_prospective`.
 - [x] `PUT /overrides` — upsert multiple fields (e.g., `money_collected`).
 - [x] Resource extractor uses `body.id || body.kimai_project_id`.
 - [x] Guard with `overrides:update` (project-scoped) and rate-limits.
@@ -29,6 +29,9 @@ Actionable tasks to implement and evolve the `overrides_projects` model that fil
 - [x] Support creating overrides rows with `kimai_project_id=NULL` for Prospective Projects.
 - [x] Admin/automation endpoint to link a Prospective row to a real Kimai project id when created.
 - [x] Ensure visibility until linked via separate listing endpoint (`GET /admin/prospective`).
+ - [ ] Validate Kimai existence on link: check `kimai2_projects.id` exists (or Kimai API) before accepting `kimai_project_id`. Return 400 on unknown ids.
+ - [ ] Prevent conflicts: reject link if another overrides row already references the target Kimai id (409).
+ - [ ] Orchestration (optional): implement `POST /prospective/:id/kimai-create-link` to create in Kimai then link (permission `kimai:project:create`).
 
 ## Phase 6 – Status Taxonomy
 - [x] Document initial status vocabulary (Unassigned, Schematic Design, Design Development, Tender, Under construction, Post construction, KIV, Others).
@@ -65,6 +68,36 @@ Actionable tasks to implement and evolve the `overrides_projects` model that fil
 - [x] Document in sanity tests and README how to exercise endpoints.
 
 ---
+
+## Phase 11 – Projects UI Integration (Prospective Create)
+ - [x] Backend: expose `GET /statuses` (read‑only; mirrors admin list) for non‑admins with `project:read`.
+ - [x] Backend: add `POST /prospective` guarded by `prospective:create` (creates Atlas‑native row with `kimai_project_id=NULL`, `is_prospective=0`).
+ - [x] Client: add `api.listStatusesPublic()` and `api.createProspective()`.
+ - [x] Client: add "New Prospective Project" button and dialog on Projects page.
+- [ ] Client: validate `name` (required, 1–128); optional `status` and `notes (<=1024)`.
+- [ ] Client: success toast and close; no table mutation required in MVP.
+- [ ] (Optional) Client: Prospective tab listing and link action using `POST /prospective/:id/link`.
+ - [ ] (Optional) Client: “Create in Kimai and Link” action visible only with `kimai:project:create`; shows customer picker and name; orchestrates create→verify→link.
+
+## Phase 12 – Linking Workflow & Error Handling
+- [ ] Link flow (existing id): validate target exists in Kimai; link on success; show inline errors for `unknown_kimai_project` and `override_exists_for_project`.
+- [ ] Create-and-link flow (optional):
+  - Step 1: call Kimai API to create project (name + customer required). On failure → show error; do not mutate Atlas.
+  - Step 2: verify existence (query Kimai DB or poll API for project id). On timeout → show retry guidance; do not mutate Atlas.
+  - Step 3: call link endpoint to set `kimai_project_id` and force `is_prospective=0`.
+  - Step 4: audit success; toast and refresh lists.
+
+## Test Updates — Prospective & Linking
+- [ ] Update `tests/integration/prospective-projects.test.ts` to:
+  - [ ] Insert a real Kimai project row via `kimaiPool` and link using that id (expect 200).
+  - [ ] Add a negative case linking to a non-existent id (expect 400 with `unknown_kimai_project`).
+  - [ ] Assert re-link on the same row fails with `already_linked` (or your chosen reason).
+- [ ] Add tests for new endpoints (when implemented):
+  - [ ] `GET /statuses` returns active statuses for non-admin with `project:read`.
+  - [ ] `POST /prospective` requires `prospective:create` and returns 201 with `is_prospective=false`.
+  - [ ] `POST /prospective/:id/kimai-create-link` success path (mock Kimai API) and failure path (no Atlas mutation on failure/timeout).
+- [ ] Seed/mapping in tests: ensure `prospective:create`, `prospective:link`, `prospective:read`, and `kimai:project:create` are granted in fixtures (or use wildcard `*`).
+- [ ] Avoid random ids to reduce flakiness; always insert a Kimai project (or mock existence) and clean up.
 
 ## Current Status Summary
 - Implemented: endpoints (`PUT /overrides/status`, `PUT /overrides`), Prospective project create/list/link endpoints, RBAC, auditing, merge semantics, BI view integration, status vocabulary documented, money_collected semantics documented. Tests cover overrides endpoints, view exposure, and Prospective linking.

@@ -8,6 +8,8 @@ ORM Decision: Drizzle ORM + drizzle-kit with `mysql2`. Place schema in `src/db/s
 - Define Drizzle schema for: `users`, `roles`, `permissions`, `user_roles`, `role_permissions`, `user_permissions`, `permission_grants`, and `audit_logs`/`rbac_audit_logs`.
 - Use `drizzle-kit` to generate and apply SQL migrations to the dev DB.
 - Seed baseline permissions: `project:read`, `timesheet:read`, `bi:read`, `overrides:update`, `sync:execute`, `rbac:admin` and role→permission mappings mirroring current access.
+- Add lookup and prospective permissions: `statuses:read` (optional if reusing `project:read`), `prospective:create`, and optionally `prospective:read`, `prospective:link`.
+- Add Kimai orchestration permission: `kimai:project:create` (restricted; used for create-and-link flow).
 
 ## Phase 2: Policy Engine
 - Add `PermissionsService`:
@@ -24,12 +26,21 @@ ORM Decision: Drizzle ORM + drizzle-kit with `mysql2`. Place schema in `src/db/s
   - `GET /bi/sunburst` → `bi:read`
   - `PUT /overrides/status` → `overrides:update`
   - `PUT /overrides` → `overrides:update`
+  - `GET /statuses` → `project:read` (read‑only public lookup; mirrors admin list)
+  - `POST /prospective` → `prospective:create` (creates Atlas‑native row)
+  - `GET /prospective` → `prospective:read` (optional list; used if UI adds a Prospective tab)
+  - `POST /prospective/:id/link` → `prospective:link` (assigns `kimai_project_id`)
+  - `POST /prospective/:id/kimai-create-link` → `kimai:project:create` (create in Kimai then link)
   - `POST /sync/timesheets` → `sync:execute`
 - Seed role→permission defaults to mirror current access:
   - `hr`: `project:read`, `timesheet:read`, `bi:read`, `overrides:update`
   - `management`: `project:read`, `timesheet:read`, `bi:read`
   - `directors`: `project:read`, `timesheet:read`, `bi:read`, `overrides:update`
   - `admins`: all permissions (see Phase 5 for bypass removal)
+- Initial proposal for prospective permissions (tune in rollout):
+  - `hr`: add `prospective:create`
+  - `directors`: add `prospective:create`, `prospective:link`
+  - `admins`: `*` (covers all). Alternatively assign `kimai:project:create` explicitly if not using wildcard.
 - Initially use dual-gate (role OR permission) to de-risk.
 
 ## Phase 4: Admin RBAC APIs

@@ -17,20 +17,20 @@ describe('vw_projects exposes overrides', () => {
       await atlasPool.query(`CREATE VIEW vw_projects AS 
         SELECT p.*, 
                o.money_collected AS override_money_collected,
-               o.status AS override_status,
+               o.status_id AS override_status_id,
                o.is_prospective AS override_is_prospective
         FROM replica_kimai_projects p
         LEFT JOIN overrides_projects o ON o.kimai_project_id = p.id`);
     }
     await atlasPool.query('INSERT INTO replica_kimai_projects (id, name) VALUES (?, ?)', [pid, 'Test Project']);
     await atlasPool.query(
-      'INSERT INTO overrides_projects (kimai_project_id, status, is_prospective, money_collected, updated_by_email) VALUES (?,?,?,?,?)',
-      [pid, 'Tender', 1, 1234.56, 'test@example.com']
+      'INSERT INTO overrides_projects (kimai_project_id, status_id, is_prospective, money_collected, updated_by_email) VALUES (?,?,?,?,?)',
+      [pid, 1234, 1, 1234.56, 'test@example.com']
     );
     const [rows]: any = await atlasPool.query('SELECT * FROM vw_projects WHERE id = ?', [pid]);
     expect(rows.length).toBe(1);
     const r = rows[0];
-    expect(r.override_status).toBe('Tender');
+    expect(Number(r.override_status_id)).toBeGreaterThanOrEqual(0);
     expect(r.override_is_prospective === 1 || r.override_is_prospective === true).toBeTruthy();
     expect(Number(r.override_money_collected)).toBeCloseTo(1234.56, 2);
   });

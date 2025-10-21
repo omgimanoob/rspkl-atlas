@@ -70,10 +70,12 @@ describe('Admin Project Statuses CRUD and usage', () => {
     const pid = 7777000 + Math.floor(Math.random() * 100000);
     try { await atlasPool.query('DELETE FROM overrides_projects WHERE kimai_project_id = ?', [pid]); } catch {}
     const up = await agent.put('/overrides').send({ id: pid, status_id: sid, money_collected: 42 }).expect(200);
-    // Verify row exists and has status set to the name and status_id to sid
-    const [row]: any = await atlasPool.query('SELECT status, status_id FROM overrides_projects WHERE kimai_project_id = ? LIMIT 1', [pid]);
+    // Verify row exists and has status_id set to sid
+    const [row]: any = await atlasPool.query('SELECT status_id FROM overrides_projects WHERE kimai_project_id = ? LIMIT 1', [pid]);
     expect(row.length).toBe(1);
-    expect(row[0].status).toBe(name);
     expect(Number(row[0].status_id)).toBe(Number(sid));
+    // Cleanup: remove created override row and status
+    try { await atlasPool.query('DELETE FROM overrides_projects WHERE kimai_project_id = ?', [pid]); } catch {}
+    try { await agent.delete(`/admin/statuses/${sid}`).expect(200); } catch {}
   });
 });

@@ -126,6 +126,10 @@ export const api = {
   listStatuses() {
     return http<Array<{ id: number; name: string; code: string | null; is_active: number; sort_order: number | null }>>('/api/admin/statuses')
   },
+  // Public (read-only) statuses list for UI dropdowns
+  listStatusesPublic() {
+    return http<Array<{ id: number; name: string; code: string | null; is_active: number; sort_order: number | null }>>('/api/statuses')
+  },
   adminCreateStatus(payload: { name: string; code?: string | null; is_active?: boolean; sort_order?: number | null }) {
     return http<{ id: number; name: string; code: string | null; is_active: number; sort_order: number | null }>(
       '/api/admin/statuses', { method: 'POST', body: JSON.stringify(payload) }
@@ -175,8 +179,23 @@ export const api = {
       { method: 'POST', body: JSON.stringify(payload) }
     )
   },
-  projects() {
-    return http<any[]>('/api/projects')
+  projects(opts: { include?: Array<'kimai' | 'atlas' | 'prospective'>; includeProspective?: boolean } = {}) {
+    const qs = new URLSearchParams()
+    if (opts.include && opts.include.length) {
+      const set = new Set(opts.include.map(v => (v === 'prospective' ? 'atlas' : v)))
+      qs.set('include', Array.from(set).join(','))
+    } else if (opts.includeProspective) {
+      qs.set('includeProspective', '1')
+    }
+    const q = qs.toString()
+    return http<any[]>(`/api/projects${q ? ('?' + q) : ''}`)
+  },
+  // Create an Atlas-native prospective project (kimai_project_id = null)
+  createProspective(payload: { name: string; status_id?: number; notes?: string }) {
+    return http<{ id: number; kimai_project_id: null; is_prospective: boolean; name?: string; status?: string | null; notes?: string | null }>(
+      '/api/prospective',
+      { method: 'POST', body: JSON.stringify(payload) }
+    )
   },
   // New: update status by status_id (preferred)
   updateProjectStatusById(id: number, statusId: number) {

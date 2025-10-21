@@ -9,6 +9,35 @@ export type ProjectStatusRow = {
 };
 
 export const StatusService = {
+  slugify(name: string): string {
+    return String(name || '')
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-');
+  },
+
+  async nextSortOrder(): Promise<number> {
+    const [rows]: any = await atlasPool.query('SELECT COALESCE(MAX(sort_order), 0) AS max_so FROM project_statuses');
+    const max = Number(rows?.[0]?.max_so || 0);
+    return max + 10;
+  },
+
+  async ensureUniqueCode(base: string, excludeId?: number | null): Promise<string> {
+    const b = base || 'status';
+    const like = b.replace(/[%_]/g, '') + '%';
+    const params: any[] = [b, like];
+    let sql = 'SELECT code FROM project_statuses WHERE (code = ? OR code LIKE ?)';
+    if (excludeId && Number.isFinite(excludeId)) { sql += ' AND id <> ?'; params.push(excludeId); }
+    const [rows]: any = await atlasPool.query(sql, params);
+    const existing = new Set<string>((rows || []).map((r: any) => String(r.code || '')));
+    if (!existing.has(b)) return b;
+    // Find next available suffix like base-2, base-3, ...
+    let n = 2;
+    while (existing.has(`${b}-${n}`)) n++;
+    return `${b}-${n}`;
+  },
   async ensureSchema() {
     // Create lookup table
     await atlasPool.query(`CREATE TABLE IF NOT EXISTS project_statuses (
@@ -39,9 +68,10 @@ export const StatusService = {
   async create(input: { name: string; code?: string | null; is_active?: boolean; sort_order?: number | null }) {
     await this.ensureSchema();
     const name = String(input.name).trim();
-    const code = input.code ? String(input.code).trim() : null;
+    let code = (input.code == null || String(input.code).trim() === '') ? this.slugify(name) : String(input.code).trim();
+    code = await this.ensureUniqueCode(code);
     const isActive = input.is_active === false ? 0 : 1;
-    const sortOrder = input.sort_order ?? null;
+    const sortOrder = input.sort_order != null ? input.sort_order : await this.nextSortOrder();
     await atlasPool.query('INSERT INTO project_statuses (name, code, is_active, sort_order) VALUES (?,?,?,?)', [name, code, isActive, sortOrder]);
     const [rows]: any = await atlasPool.query('SELECT id, name, code, is_active, sort_order FROM project_statuses WHERE name = ? LIMIT 1', [name]);
     return rows[0] as ProjectStatusRow;
@@ -52,9 +82,20 @@ export const StatusService = {
     const fields: string[] = [];
     const vals: any[] = [];
     if (input.name !== undefined) { fields.push('name = ?'); vals.push(String(input.name).trim()); }
-    if (input.code !== undefined) { fields.push('code = ?'); vals.push(input.code ? String(input.code).trim() : null); }
+    if (input.code !== undefined) {
+      let nextCode = (input.code == null || String(input.code).trim() === '')
+        ? (input.name !== undefined ? this.slugify(String(input.name)) : null)
+        : String(input.code).trim();
+      if (nextCode !== null) {
+        nextCode = await this.ensureUniqueCode(nextCode, id);
+        fields.push('code = ?'); vals.push(nextCode);
+      }
+    }
     if (input.is_active !== undefined) { fields.push('is_active = ?'); vals.push(input.is_active ? 1 : 0); }
-    if (input.sort_order !== undefined) { fields.push('sort_order = ?'); vals.push(input.sort_order ?? null); }
+    if (input.sort_order !== undefined) {
+      const so = input.sort_order != null ? input.sort_order : await this.nextSortOrder();
+      fields.push('sort_order = ?'); vals.push(so);
+    }
     if (!fields.length) return this.getById(id);
     await atlasPool.query(`UPDATE project_statuses SET ${fields.join(', ')} WHERE id = ?`, [...vals, id]);
     return this.getById(id);
@@ -71,4 +112,3 @@ export const StatusService = {
     return (rows && rows[0]) || null;
   },
 };
-

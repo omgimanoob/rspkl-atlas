@@ -102,6 +102,15 @@ app.post('/sync/timesheets', writeLimiter, ...permit('sync:execute', 'write'), s
 app.post('/sync/projects', writeLimiter, ...permit('sync:execute', 'write'), syncProjectsHandler);
 app.get('/sync/health', ...permit('sync:execute', 'read'), syncHealthHandler);
 
+// Public statuses lookup for UI (read-only)
+app.get('/statuses', ...permit('project:read', 'read'), listStatusesHandler);
+
+// Prospective projects creation (non-admin; permission-gated)
+app.post('/prospective', writeLimiter, ...permit('prospective:create', 'write'), createProspectiveHandler);
+
+// Prospective projects listing (non-admin read)
+app.get('/prospective', ...permit('prospective:read', 'read'), listProspectiveHandler);
+
 // Prospective projects (admin-only for now)
 app.post('/admin/prospective', writeLimiter, ...permit('rbac:admin', 'write'), createProspectiveHandler);
 app.get('/admin/prospective', ...permit('rbac:admin', 'read'), listProspectiveHandler);

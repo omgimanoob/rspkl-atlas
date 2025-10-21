@@ -171,7 +171,7 @@ describe('Admin RBAC APIs', () => {
   it('explicitly removes permission from role and role from user (and audits)', async () => {
     // Create temp permission and map to createdRoleId
     const tempName = `temp:perm:${Date.now()}`;
-    await adminAgent.post('/admin/rbac/permissions').send({ name: tempName }).expect(201);
+    const createdPerm = await adminAgent.post('/admin/rbac/permissions').send({ name: tempName }).expect(201);
     await adminAgent.post(`/admin/rbac/roles/${createdRoleId}/permissions/${tempName}`).expect(200);
     await adminAgent.delete(`/admin/rbac/roles/${createdRoleId}/permissions/${tempName}`).expect(200);
 
@@ -181,5 +181,15 @@ describe('Admin RBAC APIs', () => {
     const audits = await db.select().from(rbacAuditLogs).then(r => r);
     expect(audits.some(a => a.route?.includes('/admin/rbac/roles') && a.method === 'DELETE')).toBe(true);
     expect(audits.some(a => a.route?.includes('/admin/rbac/users') && a.method === 'DELETE')).toBe(true);
+
+    // Cleanup: delete the temp permission to avoid test data accumulation
+    try {
+      const list = await adminAgent.get('/admin/rbac/permissions').expect(200);
+      const found = Array.isArray(list.body) ? list.body.find((p: any) => p.name === tempName) : null;
+      const pid = found?.id ?? createdPerm.body?.id;
+      if (pid) {
+        await adminAgent.delete(`/admin/rbac/permissions/${pid}`).expect(200);
+      }
+    } catch {}
   });
 });

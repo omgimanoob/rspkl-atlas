@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { api } from '../lib/api'
+import { api, extractApiReason } from '../lib/api'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -20,7 +20,19 @@ export function Login({ onLoggedIn, className, ...props }: { onLoggedIn: (u: any
       const res = await api.login(email, password)
       onLoggedIn(res)
     } catch (e: any) {
-      setError('Invalid email or password')
+      const status = e?.status
+      const reason = extractApiReason(e)
+      if (status === 401) {
+        setError('Invalid email or password')
+      } else if (status === 429) {
+        setError('Too many attempts. Please wait and try again.')
+      } else if (status === 400) {
+        setError('Missing or invalid input. Please check and try again.')
+      } else {
+        setError('Login failed due to a server error. Please try again later.')
+        // Optionally log reason to console for debugging
+        if (import.meta.env.DEV && reason) console.debug('[Login] server reason:', reason)
+      }
     } finally {
       setLoading(false)
     }

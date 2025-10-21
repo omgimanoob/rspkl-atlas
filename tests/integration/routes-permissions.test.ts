@@ -30,8 +30,7 @@ jest.mock('../../src/services/timesheetSync', () => ({
 jest.mock('../../src/services/projectOverrides', () => ({
   ProjectOverrides: {
     getAll: jest.fn().mockResolvedValue([]),
-    updateStatus: jest.fn().mockResolvedValue(undefined),
-    updateStatusAndId: jest.fn().mockResolvedValue(undefined),
+    updateStatusId: jest.fn().mockResolvedValue(undefined),
     upsertOverrides: jest.fn().mockResolvedValue({}),
   },
 }));

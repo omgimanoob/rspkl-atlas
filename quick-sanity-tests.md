@@ -23,7 +23,7 @@ Expected:
 ```bash
 curl -i -X POST http://localhost:$PORT/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"nickcys@gmail.com","password":"vgsd_gr0k79ZpLy77"}' \
+  -d '{"email":"nickcys@gmail.com","password":"vgsd_gr0k79ZpLy88"}' \
   -c cookies.txt
 ```
 Expected:
@@ -160,6 +160,95 @@ curl -i -X PUT http://localhost:$PORT/overrides \
   -d '{"id":'$PROJECT_ID',"status_id":'$STATUS_ID',"money_collected":1000}'
 ```
 Expected: 200; DB row has both `status` (resolved name) and `status_id` set
+
+---
+
+### Prospective Projects (UI support; permissions TBD)
+
+MVP flow for enabling creation from the Projects page.
+
+##### Public statuses list (used by UI)
+```bash
+curl -i http://localhost:$PORT/statuses -b cookies.txt
+```
+Expected:
+- 200 OK with active statuses for non‑admin users who can read projects.
+
+##### List Prospective projects (non-admin read)
+```bash
+curl -sS http://localhost:$PORT/prospective -b cookies.txt | jq '.'
+```
+Notes:
+- This returns only Atlas-native (Prospective) entries without Kimai rows. Use this to verify creation quickly.
+
+##### Create a prospective project (Atlas‑native)
+```bash
+curl -i -X POST http://localhost:$PORT/prospective \
+  -H "Content-Type: application/json" \
+  -b cookies.txt \
+  -d '{"name":"New Draft Project","status_id":1,"notes":"Optional context"}'
+```
+Expected:
+- 201 Created with `{ id, kimai_project_id: null, is_prospective: true, name, status? }`.
+
+##### Link a prospective row to Kimai (optional Phase 2)
+```bash
+PROS_ID=123
+KIMAI_ID=456
+curl -i -X POST http://localhost:$PORT/prospective/$PROS_ID/link \
+  -H "Content-Type: application/json" \
+  -b cookies.txt \
+  -d '{"kimai_project_id":'$KIMAI_ID'}'
+```
+Expected:
+- 200 OK with `{ id, kimai_project_id, is_prospective: false }`.
+- 400 with `{ reason: 'unknown_kimai_project' }` if the Kimai id does not exist.
+- 409 with `{ reason: 'override_exists_for_project' }` if another override exists for that Kimai id.
+
+Notes:
+- The UI only surfaces creation on the Projects page; listing/linking may be provided in a dedicated Prospective tab.
+
+##### End-to-end via cURL (login → create → list)
+```bash
+# If your .env contains values with spaces, avoid sourcing it directly.
+# Either export just PORT, or ensure those values are quoted in .env.
+export PORT=${PORT:-9999}
+
+# 1) Login (saves cookie)
+curl -sS -i -X POST "http://localhost:$PORT/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"nickcys@gmail.com","password":"vgsd_gr0k79ZpLy88"}' \
+  -c cookies.txt
+
+# 2) Create a Prospective project (Atlas-native)
+curl -sS -X POST "http://localhost:$PORT/prospective" \
+  -H "Content-Type: application/json" \
+  -b cookies.txt \
+  -d '{"name":"Prospective via curl","notes":"created from CLI"}' | tee create.json
+
+# 3) Fetch projects including Prospective rows (mixed list)
+curl -sS "http://localhost:$PORT/projects?includeProspective=1" -b cookies.txt | jq '.'
+
+# 4) Show only Prospective (Atlas-native) entries
+curl -sS "http://localhost:$PORT/projects?includeProspective=1" -b cookies.txt \
+  | jq '[.[] | select(.origin=="atlas")]'
+```
+Tips:
+- Keep `-b cookies.txt` on the same line as its argument; splitting them causes curl to error.
+- Prospective rows appear only when `includeProspective=1` is included. They show with `origin: "atlas"` and a negative `id`.
+
+##### (Optional) Create in Kimai then link
+```bash
+PROS_ID=123
+curl -i -X POST http://localhost:$PORT/prospective/$PROS_ID/kimai-create-link \
+  -H "Content-Type: application/json" \
+  -b cookies.txt \
+  -d '{"name":"New Draft Project","customer_id":99}'
+```
+Expected:
+- 201/200 with `{ id, kimai_project_id }` when created in Kimai and linked.
+- 403 if caller lacks `kimai:project:create`.
+- 500/4xx with a reason if Kimai creation failed or verification timed out; Atlas row remains unchanged.
 
 ---
 

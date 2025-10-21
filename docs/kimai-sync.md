@@ -59,15 +59,15 @@ Indexes
   - LEFT JOIN `overrides_projects o` ON `o.kimai_project_id = p.id`
   - LEFT JOIN `project_tags pt` → `taxonomy_terms` → `taxonomies` (aggregate terms per project)
   - LEFT JOIN `project_payments_rollup r` by project
-  - Selected fields: p.*, o.money_collected (cached), o.status, o.is_prospective, tags (array/string agg), payments total(s)
+  - Selected fields: p.*, o.money_collected (cached), o.status_id, o.is_prospective, tags (array/string agg), payments total(s)
 - `vw_timesheet_facts`
   - Base: `replica_kimai_timesheets t`
   - JOIN `replica_kimai_projects p` (basic project info like name, customer_id)
   - JOIN `replica_kimai_users u`
   - JOIN `replica_kimai_activities a`
   - LEFT JOIN aggregated timesheet tags from `replica_kimai_timesheet_tags` + `replica_kimai_tags`
-  - LEFT JOIN `vw_projects` (or join overlays directly) for enriched project columns (status, tags)
-  - Selected fields: t.*, user_name, activity_name, project_name, customer_id, project_status, project_tags_csv, billable flags, derived duration_hours
+  - LEFT JOIN `vw_projects` (or join overlays directly) for enriched project columns (status_id, tags)
+  - Selected fields: t.*, user_name, activity_name, project_name, customer_id, project_status_id, project_tags_csv, billable flags, derived duration_hours
 
 Note: If the DB engine lacks native array agg, expose tags as comma‑separated string and document how to split in BI.
 
@@ -159,6 +159,10 @@ Consistency notes
   - Sync health:
     - `/sync/health` (requires `sync:execute`) — last-run state and replica counts
     - `/metrics` — includes `sync` section with state and counts
+
+Linking validation
+- Linking Prospective → Kimai can rely on either the live Kimai DB (`kimai2_projects`) or the `replica_kimai_projects` table if sync freshness is guaranteed.
+- Prefer live DB (via `kimaiPool`) for strict existence checks to avoid race conditions when linking immediately after creation.
 
 ## Materialization
 - For BI performance, create snapshot tables from views:

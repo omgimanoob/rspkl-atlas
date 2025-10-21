@@ -15,6 +15,7 @@ Actionable micro-tasks to execute the plan in `docs/rbac-implementation-plan.md`
 - [x] Generate initial migration for all models and apply to dev DB (`db:generate`, `db:migrate`).
 - [x] Add useful indexes (e.g., on `permission_grants(subject_type, subject_id)`, `permission_grants(permission)`, `users.email`).
 - [x] Create seed script for baseline roles and permissions (`project:read`, `timesheet:read`, `bi:read`, `overrides:update`, `sync:execute`, `rbac:admin`).
+ - [ ] Add new permissions to seeds: `prospective:create` (and optionally `prospective:read`, `prospective:link`, `statuses:read` if not reusing `project:read`) and `kimai:project:create` for orchestration.
 - [x] Seed role→permission defaults to mirror current access model.
 - [x] Document migration/seed commands (see `docs/drizzle-setup.md`).
 - [x] Remove legacy auto-schema creation on startup (disabled `ensureAuthSchema`).
@@ -37,6 +38,11 @@ Actionable micro-tasks to execute the plan in `docs/rbac-implementation-plan.md`
   - [x] `GET /bi/sunburst` → `bi:read`.
   - [x] `PUT /overrides/status` → `overrides:update` (with extractor).
   - [x] `PUT /overrides` → `overrides:update` (with extractor).
+  - [x] `GET /statuses` → `project:read` (read‑only lookup for UI)
+  - [x] `POST /prospective` → `prospective:create` (no resource scope)
+  - [ ] `GET /prospective` → `prospective:read` (optional)
+  - [ ] `POST /prospective/:id/link` → `prospective:link` (optional)
+  - [ ] `POST /prospective/:id/kimai-create-link` → `kimai:project:create` (optional; restricted)
   - [x] `POST /sync/timesheets` → `sync:execute`.
 - [x] Keep existing checks via `requireRoleUnlessPermitted` (dual-gate) to remove later.
 
@@ -56,7 +62,8 @@ Actionable micro-tasks to execute the plan in `docs/rbac-implementation-plan.md`
 - [x] Add wildcard support (grant `*` to admins via permissions rather than bypass).
 - [x] Instrument current admin bypass path to log usage (temporary).
  - [x] Remove legacy role gates and admin bypass (permission-only enforcement).
-  - [ ] (Optional) Split `overrides:update` into field-specific permissions if needed.
+- [ ] (Optional) Split `overrides:update` into field-specific permissions if needed.
+ - [ ] Seed `hr` with `prospective:create`; seed `directors` with `prospective:create` and `prospective:link`.
 
 ## Phase 6 – Resource-Level Scoping
  - [x] Validate and normalize resource types (e.g., `project`).
@@ -137,6 +144,11 @@ Integration (HTTP)
 - [x] GET `/bi/sunburst` with `directors` cookie → 200; with `basic` → 403.
 - [x] PUT `/overrides/status` with scoped grant for project 123 → 200; for project 999 → 403.
  - [x] PUT `/overrides` mirrors `/overrides/status` behaviors.
+ - [ ] POST `/prospective/:id/link` with unknown Kimai id → 400 `{ reason: 'unknown_kimai_project' }`.
+ - [ ] POST `/prospective/:id/kimai-create-link` (with permission) creates in Kimai → links → returns 200/201; on failure, does not mutate Atlas row.
+ - [ ] GET `/statuses` with `hr` cookie → 200 (list active statuses).
+ - [ ] POST `/prospective` with `hr` cookie → 201 (creates Atlas‑native override row; `kimai_project_id=NULL`, `is_prospective=0`).
+ - [ ] POST `/prospective/:id/link` with `directors` or `admins` → 200; 403 for others.
 - [x] POST `/sync/timesheets` → 200 for `admins`; 403 for others.
 - [x] Admin RBAC APIs CRUD and grants endpoints guarded by `rbac:admin`.
  - [x] GET `/metrics` returns counters for RBAC decisions/admin mutations.
@@ -156,3 +168,15 @@ Edge Cases
 Notes
 - Consider exporting `app` from `src/index.ts` for Supertest-based integration tests without binding a port.
  - See RBAC flags and observability usage: [docs/rbac-flags.md](./rbac-flags.md)
+
+## Test Updates — Prospective & Linking
+- [ ] Update `tests/integration/prospective-projects.test.ts` to stop using random, non-existent Kimai ids:
+  - [ ] Insert a Kimai project row via `kimaiPool` and link using that id (expect 200).
+  - [ ] Add a negative case linking to a non-existent id (expect 400 `unknown_kimai_project`).
+  - [ ] Assert re-link response shows `already_linked` (or conflict as implemented).
+- [ ] Add endpoint tests (when implemented):
+  - [ ] `GET /statuses` returns active statuses for non-admin with `project:read`.
+  - [ ] `POST /prospective` requires `prospective:create` and returns 201 with `is_prospective=false`.
+  - [ ] `POST /prospective/:id/link` requires `prospective:link` and enforces validation (unknown id 400, conflict 409).
+  - [ ] `POST /prospective/:id/kimai-create-link` success (mock Kimai API) and failure (no Atlas mutation).
+- [ ] Ensure test seeds/fixtures grant `prospective:create|read|link` and `kimai:project:create`, or rely on wildcard `*` in admin tests.

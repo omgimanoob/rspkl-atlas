@@ -63,8 +63,8 @@ describe('Overrides status validation', () => {
     await agent.put('/overrides/status').send({ id: 123, status_id: 1234 }).expect(200);
   });
 
-  it('rejects missing status_id on /overrides upsert when status provided', async () => {
-    await agent.put('/overrides').send({ id: 123, status: 'Under construction' }).expect(400);
+  it('allows /overrides upsert without status_id (no status change)', async () => {
+    await agent.put('/overrides').send({ id: 123, money_collected: 1000 }).expect(200);
   });
 
   it('accepts valid status_id on /overrides upsert', async () => {

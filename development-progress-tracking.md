@@ -45,6 +45,12 @@ Notes:
 - [ ] Smoke tests across roles (HR/Management/Directors/Admin)
 - [ ] Update README and runbook
 
+V2 Projects (replica-backed)
+- [x] Switch Projects V2 list to SQL over Atlas replicas (no live Kimai dependency for listing)
+- [x] Server-side filters, sorting, and pagination in SQL
+- [x] Keep live Kimai check for linking validation only
+- [x] Counts and status facets computed via SQL
+
 Notes:
 
 ## Day 7 — Buffer + Fixes

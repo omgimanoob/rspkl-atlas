@@ -69,11 +69,65 @@ export const api = {
   adminAddPermissionToRole(roleId: number, permName: string) {
     return http<{ ok: boolean }>(`/api/admin/rbac/roles/${roleId}/permissions/${encodeURIComponent(permName)}`, { method: 'POST' })
   },
+  sync: {
+    health() {
+      return http<{ state: Record<string, { value: string; updated_at: string }>; counts: Record<string, number> }>(
+        '/api/sync/health'
+      )
+    },
+    projects() {
+      return http<{ message: string }>(
+        '/api/sync/projects',
+        { method: 'POST' }
+      )
+    },
+    timesheets() {
+      return http<{ message: string }>(
+        '/api/sync/timesheets',
+        { method: 'POST' }
+      )
+    },
+    users() {
+      return http<{ message: string }>(
+        '/api/sync/users',
+        { method: 'POST' }
+      )
+    },
+    activities() {
+      return http<{ message: string }>(
+        '/api/sync/activities',
+        { method: 'POST' }
+      )
+    },
+    tags() {
+      return http<{ message: string }>(
+        '/api/sync/tags',
+        { method: 'POST' }
+      )
+    },
+    customers() {
+      return http<{ message: string }>(
+        '/api/sync/customers',
+        { method: 'POST' }
+      )
+    },
+    verify() {
+      return http<{ totals: Array<{ name: string; kimai: number; replica: number; diff: number; ok: boolean }>; recent: { days: number; kimai: number; replica: number; diff: number; ok: boolean }; tolerance: number }>(
+        '/api/sync/verify'
+      )
+    },
+    clear(kind: 'projects' | 'timesheets' | 'users' | 'activities' | 'tags' | 'timesheet_tags' | 'customers') {
+      return http<{ ok: true; table: string }>(`/api/sync/clear/${encodeURIComponent(kind)}`, { method: 'POST' })
+    }
+  },
   // V2 Projects API
   v2: {
     projects(opts: { include?: Array<'kimai' | 'atlas' | 'prospective'>; q?: string; page?: number; pageSize?: number; sort?: string; statusIds?: number[]; statusNull?: boolean; isProspective?: boolean } = {}) {
       const qs = new URLSearchParams()
-      if (opts.include && opts.include.length) qs.set('include', opts.include.join(','))
+      if (opts.include) {
+        // Send 'include' key even when empty to indicate no sources selected
+        qs.set('include', opts.include.length ? opts.include.join(',') : '')
+      }
       if (opts.q) qs.set('q', opts.q)
       if (opts.page) qs.set('page', String(opts.page))
       if (opts.pageSize) qs.set('pageSize', String(opts.pageSize))

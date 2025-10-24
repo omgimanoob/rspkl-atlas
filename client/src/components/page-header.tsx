@@ -2,6 +2,7 @@ import { ReactNode, Fragment } from 'react'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
+import { ModeToggle } from '@/components/mode-toggle'
 
 type Crumb = {
   label: string
@@ -34,6 +35,9 @@ export function PageHeader({
           ))}
           </BreadcrumbList>
         </Breadcrumb>
+        <div className="ml-auto flex items-center gap-2">
+          <ModeToggle />
+        </div>
     </header>
   )
 }

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express'
 import { atlasPool, kimaiPool } from '../../db'
-import { Kimai } from '../services/kimai'
+// import { Kimai } from '../services/kimai'
 import { ProjectOverridesV2 } from '../services/projectOverridesV2'
 import { ProjectsV2Schema } from '../services/projectsV2Schema'
 import { StatusService } from '../services/statusService'
@@ -32,7 +32,8 @@ function normalizeInclude(qs: any): { includeKimai: boolean; includeAtlas: boole
     const includeAtlas = lf !== '' && lf !== '0' && lf !== 'false' && lf !== 'no'
     return { includeKimai: true, includeAtlas }
   }
-  return { includeKimai: false, includeAtlas: false }
+  // Default to both sources when unspecified
+  return { includeKimai: true, includeAtlas: true }
 }
 
 export async function listProjectsV2Handler(req: Request, res: Response): Promise<void> {
@@ -52,175 +53,132 @@ export async function listProjectsV2Handler(req: Request, res: Response): Promis
     const statusMap = new Map<number, string>()
     for (const s of statusRows) statusMap.set(s.id, s.name)
 
-    let out: ProjectDTO[] = []
-
+    // counts per origin with q
+    let kimaiCount = 0, atlasCount = 0
+    if (includeKimai) {
+      const [rows]: any = await atlasPool.query(
+        `SELECT COUNT(*) AS cnt FROM replica_kimai_projects p WHERE (? = '' OR LOWER(p.name) LIKE CONCAT('%', ?, '%'))`,
+        [q, q]
+      )
+      kimaiCount = Number(rows?.[0]?.cnt || 0)
+    }
     if (includeAtlas) {
       const [rows]: any = await atlasPool.query(
-        `SELECT id, name, status_id, notes, extras_json, created_at, updated_at
-           FROM atlas_projects
-          ORDER BY updated_at DESC, id DESC`
+        `SELECT COUNT(*) AS cnt FROM atlas_projects a WHERE (? = '' OR LOWER(a.name) LIKE CONCAT('%', ?, '%'))`,
+        [q, q]
       )
-      for (const r of rows as any[]) {
-        // Prefer the dedicated name column, but fall back to extras_json for older rows
-        let display = typeof r.name === 'string' && r.name.trim() ? r.name.trim() : ''
-        if (!display && r.extras_json) {
-          try {
-            const raw = typeof r.extras_json === 'string'
-              ? r.extras_json
-              : Buffer.isBuffer(r.extras_json)
-                ? r.extras_json.toString('utf8')
-                : JSON.stringify(r.extras_json)
-            const parsed = JSON.parse(raw)
-            const extraName = parsed?.name
-            if (typeof extraName === 'string' && extraName.trim()) display = extraName.trim()
-          } catch {/* ignore malformed extras */}
-        }
-        if (!display) display = 'Prospective Project'
-        if (q && !display.toLowerCase().includes(q)) continue
-        out.push({
-          origin: 'atlas',
-          id: -Number(r.id),
-          atlasId: Number(r.id),
-          displayName: display,
-          statusId: r.status_id ?? null,
-          statusName: r.status_id ? (statusMap.get(Number(r.status_id)) || null) : null,
-          isProspective: true,
-          moneyCollected: null,
-          createdAt: r.created_at ?? null,
-          updatedAt: r.updated_at ?? null,
-        })
-      }
+      atlasCount = Number(rows?.[0]?.cnt || 0)
+    }
+    const counts = { kimai: kimaiCount, atlas: atlasCount }
+
+    // status facets (with q + include)
+    const [facetRows]: any = await atlasPool.query(
+      `SELECT status_id, COUNT(*) AS cnt FROM (
+         ${includeKimai ? `SELECT o.status_id AS status_id FROM replica_kimai_projects p LEFT JOIN project_overrides o ON o.kimai_project_id = p.id WHERE (? = '' OR LOWER(p.name) LIKE CONCAT('%', ?, '%'))` : 'SELECT NULL AS status_id WHERE 1=0'}
+         UNION ALL
+         ${includeAtlas ? `SELECT a.status_id AS status_id FROM atlas_projects a WHERE (? = '' OR LOWER(a.name) LIKE CONCAT('%', ?, '%'))` : 'SELECT NULL AS status_id WHERE 1=0'}
+       ) u GROUP BY status_id`,
+      includeKimai && includeAtlas ? [q, q, q, q] : includeKimai ? [q, q] : includeAtlas ? [q, q] : []
+    )
+    const statusFacets = (facetRows as any[]).map(r => ({ id: r.status_id == null ? -1 : Number(r.status_id), name: r.status_id == null ? null : (statusMap.get(Number(r.status_id)) || null), count: Number(r.cnt) }))
+
+    // Build union query with filters
+    const wantKimai = includeKimai
+    const wantAtlas = includeAtlas
+    const statusIds = typeof statusIdParam === 'string' && statusIdParam.trim()
+      ? statusIdParam.split(',').map((x: string) => Number(x)).filter((n: number) => Number.isFinite(n))
+      : []
+    const wantsNullStatus = String(statusNullParam || '').trim() !== '' && String(statusNullParam).toLowerCase() !== '0' && String(statusNullParam).toLowerCase() !== 'false'
+    const isProspectiveFilter = typeof isProspectiveParam === 'string' ? (isProspectiveParam === '1' || isProspectiveParam.toLowerCase() === 'true') : (typeof isProspectiveParam === 'boolean' ? isProspectiveParam : undefined)
+
+    const parts: string[] = []
+    const params: any[] = []
+    if (wantKimai) {
+      parts.push(
+        `SELECT 'kimai' AS origin,
+                p.id AS id,
+                p.id AS kimaiId,
+                NULL AS atlasId,
+                p.name AS displayName,
+                o.status_id AS statusId,
+                o.money_collected AS moneyCollected,
+                0 AS isProspective,
+                o.created_at AS createdAt,
+                o.updated_at AS updatedAt
+           FROM replica_kimai_projects p
+           LEFT JOIN project_overrides o ON o.kimai_project_id = p.id
+          WHERE (? = '' OR LOWER(p.name) LIKE CONCAT('%', ?, '%'))`
+      )
+      params.push(q, q)
+    }
+    if (wantAtlas) {
+      parts.push(
+        `SELECT 'atlas' AS origin,
+                (-a.id) AS id,
+                NULL AS kimaiId,
+                a.id AS atlasId,
+                a.name AS displayName,
+                a.status_id AS statusId,
+                NULL AS moneyCollected,
+                1 AS isProspective,
+                a.created_at AS createdAt,
+                a.updated_at AS updatedAt
+           FROM atlas_projects a
+          WHERE (? = '' OR LOWER(a.name) LIKE CONCAT('%', ?, '%'))`
+      )
+      params.push(q, q)
+    }
+    const base = parts.join(' UNION ALL ')
+    if (!base) {
+      // No sources selected; return empty result gracefully
+      res.json({ items: [], total: 0, page, pageSize, counts: { kimai: 0, atlas: 0 }, statusFacets: [] })
+      return
+    }
+    const where: string[] = []
+    if (wantsNullStatus) {
+      where.push('statusId IS NULL')
+    } else if (statusIds.length) {
+      where.push(`statusId IN (${statusIds.map(() => '?').join(',')})`)
+      params.push(...statusIds)
+    }
+    if (typeof isProspectiveFilter === 'boolean') {
+      where.push('isProspective = ?')
+      params.push(isProspectiveFilter ? 1 : 0)
+    }
+    const wrapped = `SELECT * FROM (${base}) x ${where.length ? ('WHERE ' + where.join(' AND ')) : ''}`
+
+    // Sort
+    let orderBy = 'updatedAt DESC, id DESC'
+    if (sortParamRaw) {
+      const [k, d] = sortParamRaw.split(':')
+      const dir = (d || 'asc').toLowerCase() === 'desc' ? 'DESC' : 'ASC'
+      if (k === 'displayName' || k === 'name') orderBy = `displayName ${dir}, id DESC`
+      else if (k === 'updatedAt') orderBy = `updatedAt ${dir}, id DESC`
     }
 
-    if (includeKimai) {
-      const kimai = await Kimai.getProjects()
-      const overrides = await ProjectOverridesV2.getAll()
-      for (const p of kimai as any[]) {
-        const ov = (overrides as any[]).find(o => o.kimai_project_id === p.id)
-        const display = String(p.name || '')
-        if (q && !display.toLowerCase().includes(q)) continue
-        const statusId = ov?.status_id ?? null
-        out.push({
-          origin: 'kimai',
-          id: Number(p.id),
-          kimaiId: Number(p.id),
-          displayName: display,
-          statusId,
-          statusName: statusId ? (statusMap.get(Number(statusId)) || null) : null,
-          isProspective: false,
-          moneyCollected: ov?.money_collected != null ? Number(ov.money_collected) : null,
-          createdAt: ov?.created_at ?? null,
-          updatedAt: ov?.updated_at ?? null,
-        })
-      }
-    }
+    const [totRows]: any = await atlasPool.query(`SELECT COUNT(*) AS cnt FROM (${wrapped}) t`, params)
+    const total = Number(totRows?.[0]?.cnt || 0)
+    const offset = (page - 1) * pageSize
+    const [rows]: any = await atlasPool.query(`${wrapped} ORDER BY ${orderBy} LIMIT ? OFFSET ?`, [...params, pageSize, offset])
 
-    // Compute facets (before filters other than origin+search): totals by origin and by status
-    const counts = {
-      kimai: out.filter(r => r.origin === 'kimai').length,
-      atlas: out.filter(r => r.origin === 'atlas').length,
-    }
-    const statusFacetMap = new Map<number, { id: number; name: string | null; count: number }>()
-    for (const r of out) {
-      const sid = r.statusId
-      if (sid == null) continue
-      const key = Number(sid)
-      const ex = statusFacetMap.get(key)
-      if (ex) ex.count += 1
-      else statusFacetMap.set(key, { id: key, name: r.statusName, count: 1 })
-    }
-    const statusFacets = Array.from(statusFacetMap.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''))
-
-    // Filters
-    const wantsNullStatus = typeof statusNullParam === 'string'
-      ? ['1', 'true', 'yes'].includes(statusNullParam.toLowerCase())
-      : !!statusNullParam
-    if (statusIdParam != null && statusIdParam !== '') {
-      const rawParts = String(statusIdParam).split(',').map(s => s.trim()).filter(Boolean)
-      const wanted = new Set(rawParts.map(s => Number(s)).filter(n => Number.isFinite(n)))
-      const includeNull = wantsNullStatus || rawParts.some(p => ['null', 'none'].includes(p.toLowerCase()))
-      out = out.filter(r => {
-        if (r.statusId == null) return includeNull
-        return wanted.size ? wanted.has(Number(r.statusId)) : false
-      })
-    } else if (wantsNullStatus) {
-      out = out.filter(r => r.statusId == null)
-    }
-    if (isProspectiveParam != null && isProspectiveParam !== '') {
-      const val = String(isProspectiveParam).toLowerCase();
-      const want = !(val === '0' || val === 'false' || val === 'no')
-      out = out.filter(r => r.isProspective === want)
-    }
-
-    // Sorting
-    const [rawKey, rawDir] = sortParamRaw.split(':')
-    const sortKeyInput = (rawKey || '').trim()
-    const sortDir = ((rawDir || '').trim().toLowerCase() === 'desc' ? 'desc' : 'asc') as 'asc' | 'desc'
-    const resolveSortKey = (key: string): keyof ProjectDTO | '' => {
-      const lower = key.toLowerCase()
-      switch (lower) {
-        case 'displayname':
-        case 'name':
-          return 'displayName'
-        case 'updatedat':
-          return 'updatedAt'
-        case 'createdat':
-          return 'createdAt'
-        case 'statusid':
-          return 'statusId'
-        case 'moneycollected':
-          return 'moneyCollected'
-        case 'origin':
-          return 'origin'
-        default:
-          return ''
-      }
-    }
-    const sortKey = resolveSortKey(sortKeyInput)
-    const cmp = (a: any, b: any) => (a < b ? -1 : a > b ? 1 : 0)
-    if (sortKey) {
-      out.sort((a, b) => {
-        let va: any = (a as any)[sortKey]
-        let vb: any = (b as any)[sortKey]
-        if (sortKey === 'displayName' || sortKey === 'origin') {
-          const base = String(va || '').localeCompare(String(vb || ''))
-          return sortDir === 'desc' ? -base : base
-        }
-        if (sortKey === 'updatedAt' || sortKey === 'createdAt') {
-          const da = va ? new Date(va).getTime() : 0
-          const db = vb ? new Date(vb).getTime() : 0
-          const base = cmp(da, db)
-          return sortDir === 'desc' ? -base : base
-        }
-        if (sortKey === 'statusId' || sortKey === 'moneyCollected') {
-          const base = cmp(Number(va ?? 0), Number(vb ?? 0))
-          return sortDir === 'desc' ? -base : base
-        }
-        // normalize and use localeCompare for strings
-        if (typeof va === 'string' && typeof vb === 'string') {
-          const base = va.localeCompare(vb)
-          return sortDir === 'desc' ? -base : base
-        }
-        const base = cmp(va ?? '', vb ?? '')
-        return sortDir === 'desc' ? -base : base
-      })
-    } else {
-      // default sort: updatedAt desc
-      out.sort((a, b) => {
-        const da = a.updatedAt ? new Date(a.updatedAt).getTime() : 0
-        const db = b.updatedAt ? new Date(b.updatedAt).getTime() : 0
-        return db - da
-      })
-    }
-
-    const total = out.length
-    const start = (page - 1) * pageSize
-    const items = out.slice(start, start + pageSize)
+    const items: ProjectDTO[] = (rows as any[]).map(r => ({
+      origin: r.origin,
+      id: Number(r.id),
+      kimaiId: r.kimaiId != null ? Number(r.kimaiId) : undefined,
+      atlasId: r.atlasId != null ? Number(r.atlasId) : undefined,
+      displayName: String(r.displayName || ''),
+      statusId: r.statusId != null ? Number(r.statusId) : null,
+      statusName: r.statusId != null ? (statusMap.get(Number(r.statusId)) || null) : null,
+      isProspective: !!r.isProspective,
+      moneyCollected: r.moneyCollected != null ? Number(r.moneyCollected) : null,
+      createdAt: r.createdAt || null,
+      updatedAt: r.updatedAt || null,
+    }))
 
     res.json({ items, total, page, pageSize, counts, statusFacets })
     return
   } catch (e: any) {
-    res.status(500).json({ error: 'Failed to list projects v2' })
+    res.status(500).json({ error: 'Failed to list projects (v2)' })
     return
   }
 }

@@ -1,7 +1,7 @@
 // index.ts
 import express from 'express';
 import { getProjectsHandler, getDetailedTimesheetsHandler } from './controllers/projectsController';
-import { syncTimesheetsHandler } from './controllers/syncController';
+import { syncTimesheetsHandler, clearReplicaHandler, syncUsersHandler, syncActivitiesHandler, syncTagsHandler, syncCustomersHandler } from './controllers/syncController';
 import { getSunburstHandler } from './controllers/biController';
 import { updateProjectStatusHandler, updateProjectOverridesHandler } from './controllers/projectOverridesController';
 import { authMiddleware } from './middleware/auth';
@@ -30,7 +30,7 @@ import { loginHandler, logoutHandler, meHandler } from './controllers/authContro
 import { AuthService } from './services/authService';
 import { updateMeHandler, changePasswordHandler, requestPasswordResetHandler, confirmPasswordResetHandler, selfWriteLimiter } from './controllers/selfController';
 import { syncProjectsHandler } from './controllers/syncController';
-import { syncHealthHandler } from './controllers/syncHealthController';
+import { syncHealthHandler, syncVerifyHandler } from './controllers/syncHealthController';
 import { createProspectiveHandler, listProspectiveHandler, linkProspectiveHandler } from './controllers/prospectiveProjectsController';
 import { listStatusesHandler, createStatusHandler, updateStatusHandler, deleteStatusHandler } from './controllers/statusesController';
 import {
@@ -106,8 +106,14 @@ app.get('/bi/sunburst', ...permit('bi:read', 'read'), getSunburstHandler);
 app.get('/projects', ...permit('project:read', 'read'), getProjectsHandler);
 app.get('/timesheets', ...permit('timesheet:read', 'read'), getDetailedTimesheetsHandler);
 app.post('/sync/timesheets', writeLimiter, ...permit('sync:execute', 'write'), syncTimesheetsHandler);
+app.post('/sync/users', writeLimiter, ...permit('sync:execute', 'write'), syncUsersHandler);
+app.post('/sync/activities', writeLimiter, ...permit('sync:execute', 'write'), syncActivitiesHandler);
+app.post('/sync/tags', writeLimiter, ...permit('sync:execute', 'write'), syncTagsHandler);
+app.post('/sync/customers', writeLimiter, ...permit('sync:execute', 'write'), syncCustomersHandler);
+app.post('/sync/clear/:table', writeLimiter, ...permit('sync:execute', 'write'), clearReplicaHandler);
 app.post('/sync/projects', writeLimiter, ...permit('sync:execute', 'write'), syncProjectsHandler);
 app.get('/sync/health', ...permit('sync:execute', 'read'), syncHealthHandler);
+app.get('/sync/verify', ...permit('sync:execute', 'read'), syncVerifyHandler);
 
 // Public statuses lookup for UI (read-only)
 app.get('/statuses', ...permit('project:read', 'read'), listStatusesHandler);

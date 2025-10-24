@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { Login } from '../pages/Login'
-import { Projects } from '../pages/Projects'
 import { Dashboard } from '../pages/Dashboard'
 import { ProjectsV2 } from '@/pages/ProjectsV2'
 import { api } from '../lib/api'
@@ -108,18 +107,13 @@ export default function App() {
         },
         {
           path: 'projects',
-          element: (
-            <>
-              <PageHeader trail={[{ label: 'Home', href: '/' }, { label: 'Projects', current: true }]} />
-              <Projects me={me!} />
-            </>
-          ),
+          element: <Navigate to="/projects-v2" replace />,
         },
         {
           path: 'projects-v2',
           element: (
             <>
-              <PageHeader trail={[{ label: 'Home', href: '/' }, { label: 'Projects v2', current: true }]} />
+              <PageHeader trail={[{ label: 'Home', href: '/' }, { label: 'Projects', current: true }]} />
               <ProjectsV2 me={me!} />
             </>
           ),

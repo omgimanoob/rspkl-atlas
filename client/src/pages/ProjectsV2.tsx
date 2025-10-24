@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
+import { Badge } from '@/components/ui/badge'
+import { CheckCircle2, Loader2, MoreVertical, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, Plus } from 'lucide-react'
 
 export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) {
   const [includeKimai, setIncludeKimai] = useState(true)
@@ -131,7 +134,7 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
     <div className="p-4 flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="text-base font-semibold">Projects v2</div>
+          <div className="text-base font-semibold">Projects</div>
           <DropdownMenu open={sourceMenuOpen} onOpenChange={(open) => {
             setSourceMenuOpen(open)
             if (open) setSourceDraft({ kimai: includeKimai, atlas: includeAtlas })
@@ -205,7 +208,7 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Filter by status</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {statuses.length === 0 && <div className="px-2 py-1 text-xs text-gray-500">No statuses</div>}
+              {statuses.length === 0 && <div className="px-2 py-1 text-xs text-muted-foreground">No statuses</div>}
               {statuses.map(s => (
                 <DropdownMenuCheckboxItem
                   key={s.id}
@@ -260,19 +263,23 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
               )}
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button size="sm" onClick={() => { setPage(1); load() }} disabled={loading}>{loading ? 'Loading…' : 'Search'}</Button>
-          <Button size="sm" onClick={() => setCreateOpen(true)} disabled={!canProspective}>New Prospective</Button>
+          <Button variant="outline" size="sm" onClick={() => { setPage(1); load() }} disabled={loading}>{loading ? 'Loading…' : 'Search'}</Button>
+          <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)} disabled={!canProspective}>
+            <Plus className="h-4 w-4" />
+            <span className="hidden lg:inline">New Prospective</span>
+            <span className="sr-only lg:hidden">New Prospective</span>
+          </Button>
         </div>
       </div>
       <div className="border rounded">
         {counts && (
-          <div className="px-3 py-2 text-xs text-gray-600 flex gap-4 border-b bg-gray-50">
+          <div className="px-3 py-2 text-xs text-muted-foreground flex gap-4 border-b bg-muted">
             <div>Kimai: <span className="font-semibold">{counts.kimai}</span></div>
             <div>Prospective: <span className="font-semibold">{counts.atlas}</span></div>
             <div>Total: <span className="font-semibold">{total}</span></div>
           </div>
         )}
-        <div className="grid grid-cols-7 gap-2 px-3 py-2 text-xs font-semibold text-gray-600 bg-gray-50 border-b">
+        <div className="grid grid-cols-7 gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground bg-muted border-b sticky top-16 z-10">
           <div>Origin</div>
           <div>ID</div>
           <div>Name</div>
@@ -287,40 +294,111 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
             <div>{r.id}</div>
             <div>{r.displayName}</div>
             <div>
-              {r.statusName ? <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs bg-gray-100 border border-gray-200">{r.statusName}</span> : '-'}
+              {r.statusName ? (
+                <Badge variant="outline" className="text-muted-foreground px-1.5 gap-1.5">
+                  {r.statusName === 'Done' ? (
+                    <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+                  ) : (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  )}
+                  {r.statusName}
+                </Badge>
+              ) : (
+                '-'
+              )}
             </div>
             <div>{r.isProspective ? 'Yes' : 'No'}</div>
             <div>{r.updatedAt ? new Date(r.updatedAt).toLocaleString() : '-'}</div>
-            <div className="flex items-center justify-end gap-2">
-              {r.origin === 'atlas' ? (
-                <>
-                  <Button size="sm" variant="outline" disabled={!canProspective} onClick={() => { setEditAtlasRow(r); setEditAtlasName(r.displayName || ''); setEditAtlasStatusId(r.statusId ?? null); setEditAtlasNotes(''); setEditAtlasOpen(true) }}>Edit</Button>
-                  <Button size="sm" disabled={!canProspective} onClick={() => { setLinkRow(r); setLinkKimaiId(''); setLinkOpen(true) }}>Link</Button>
-                </>
-              ) : (
-                <Button size="sm" variant="outline" disabled={!canOverrides} onClick={() => { setEditKimaiRow(r); setEditKimaiStatusId(r.statusId ?? null); setEditKimaiMoney(''); setEditKimaiOpen(true) }}>Overrides</Button>
-              )}
+            <div className="flex items-center justify-end">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="data-[state=open]:bg-muted text-muted-foreground"
+                    aria-label="Open row actions"
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                    <span className="sr-only">Open menu</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-40">
+                  {r.origin === 'atlas' ? (
+                    <>
+                      <DropdownMenuItem disabled={!canProspective} onClick={() => { setEditAtlasRow(r); setEditAtlasName(r.displayName || ''); setEditAtlasStatusId(r.statusId ?? null); setEditAtlasNotes(''); setEditAtlasOpen(true) }}>
+                        Edit
+                      </DropdownMenuItem>
+                      <DropdownMenuItem disabled={!canProspective} onClick={() => { setLinkRow(r); setLinkKimaiId(''); setLinkOpen(true) }}>
+                        Link
+                      </DropdownMenuItem>
+                    </>
+                  ) : (
+                    <DropdownMenuItem disabled={!canOverrides} onClick={() => { setEditKimaiRow(r); setEditKimaiStatusId(r.statusId ?? null); setEditKimaiMoney(''); setEditKimaiOpen(true) }}>
+                      Overrides
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         ))}
         {!filtered.length && (
-          <div className="px-3 py-8 text-center text-sm text-gray-500">No projects</div>
+          <div className="px-3 py-8 text-center text-sm text-muted-foreground">No projects</div>
         )}
       </div>
       <div className="flex items-center justify-between mt-2">
-        <div className="text-sm text-gray-600">Page {page} of {Math.max(1, Math.ceil(total / pageSize))}</div>
-        <div className="flex items-center gap-2">
-          <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1) }}>
-            <SelectTrigger className="h-8 w-[120px]"><SelectValue placeholder="Rows" /></SelectTrigger>
-            <SelectContent>
-              {[10,20,50,100].map(n => <SelectItem key={n} value={String(n)}>{n} rows</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <div className="flex items-center gap-1">
-            <Button size="sm" variant="outline" onClick={() => setPage(1)} disabled={page === 1}>First</Button>
-            <Button size="sm" variant="outline" onClick={() => setPage(p => Math.max(1, p-1))} disabled={page === 1}>Prev</Button>
-            <Button size="sm" variant="outline" onClick={() => setPage(p => p + 1)} disabled={page >= Math.ceil(total / pageSize)}>Next</Button>
-            <Button size="sm" variant="outline" onClick={() => setPage(Math.max(1, Math.ceil(total / pageSize)))} disabled={page >= Math.ceil(total / pageSize)}>Last</Button>
+        <div className="text-sm text-muted-foreground">Page {page} of {Math.max(1, Math.ceil(total / pageSize))}</div>
+        <div className="flex items-center gap-8">
+          <div className="hidden items-center gap-2 lg:flex">
+            <Label htmlFor="pv2-rows-per-page" className="text-sm font-medium">Rows per page</Label>
+            <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1) }}>
+              <SelectTrigger size="sm" className="w-20" id="pv2-rows-per-page">
+                <SelectValue placeholder={pageSize} />
+              </SelectTrigger>
+              <SelectContent side="top">
+                {[10,20,50,100].map(n => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              className="hidden h-8 w-8 p-0 lg:flex"
+              onClick={() => setPage(1)}
+              disabled={page === 1}
+            >
+              <span className="sr-only">Go to first page</span>
+              <ChevronsLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="size-8"
+              onClick={() => setPage(p => Math.max(1, p-1))}
+              disabled={page === 1}
+            >
+              <span className="sr-only">Go to previous page</span>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="size-8"
+              onClick={() => setPage(p => p + 1)}
+              disabled={page >= Math.ceil(total / pageSize)}
+            >
+              <span className="sr-only">Go to next page</span>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              className="hidden h-8 w-8 p-0 lg:flex"
+              onClick={() => setPage(Math.max(1, Math.ceil(total / pageSize)))}
+              disabled={page >= Math.ceil(total / pageSize)}
+            >
+              <span className="sr-only">Go to last page</span>
+              <ChevronsRight className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </div>
@@ -335,11 +413,11 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1">
-              <div className="text-sm text-gray-600">Name</div>
+              <div className="text-sm text-muted-foreground">Name</div>
               <Input value={createName} onChange={e => setCreateName(e.target.value)} disabled={saving} placeholder="Enter name" />
             </div>
             <div className="space-y-1">
-              <div className="text-sm text-gray-600">Status</div>
+              <div className="text-sm text-muted-foreground">Status</div>
               <Select value={createStatusId != null ? String(createStatusId) : ''} onValueChange={v => setCreateStatusId(v ? Number(v) : null)}>
                 <SelectTrigger disabled={saving || statuses.length === 0}>
                   <SelectValue placeholder={statuses.length ? 'Select status' : 'Statuses unavailable'} />
@@ -350,7 +428,7 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
               </Select>
             </div>
             <div className="space-y-1">
-              <div className="text-sm text-gray-600">Notes</div>
+              <div className="text-sm text-muted-foreground">Notes</div>
               <Input value={createNotes} onChange={e => setCreateNotes(e.target.value)} disabled={saving} placeholder="Optional" />
             </div>
           </div>
@@ -383,11 +461,11 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1">
-              <div className="text-sm text-gray-600">Name</div>
+              <div className="text-sm text-muted-foreground">Name</div>
               <Input value={editAtlasName} onChange={e => setEditAtlasName(e.target.value)} disabled={saving} />
             </div>
             <div className="space-y-1">
-              <div className="text-sm text-gray-600">Status</div>
+              <div className="text-sm text-muted-foreground">Status</div>
               <Select value={editAtlasStatusId != null ? String(editAtlasStatusId) : ''} onValueChange={v => setEditAtlasStatusId(v ? Number(v) : null)}>
                 <SelectTrigger disabled={saving || statuses.length === 0}>
                   <SelectValue placeholder={statuses.length ? 'Select status' : 'Statuses unavailable'} />
@@ -398,7 +476,7 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
               </Select>
             </div>
             <div className="space-y-1">
-              <div className="text-sm text-gray-600">Notes</div>
+              <div className="text-sm text-muted-foreground">Notes</div>
               <Input value={editAtlasNotes} onChange={e => setEditAtlasNotes(e.target.value)} disabled={saving} />
             </div>
           </div>
@@ -430,7 +508,7 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1">
-              <div className="text-sm text-gray-600">Kimai Project ID</div>
+              <div className="text-sm text-muted-foreground">Kimai Project ID</div>
               <Input value={linkKimaiId} onChange={e => setLinkKimaiId(e.target.value)} placeholder="e.g., 1234" disabled={saving} />
             </div>
           </div>
@@ -465,7 +543,7 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1">
-              <div className="text-sm text-gray-600">Status</div>
+              <div className="text-sm text-muted-foreground">Status</div>
               <Select value={editKimaiStatusId != null ? String(editKimaiStatusId) : ''} onValueChange={v => setEditKimaiStatusId(v ? Number(v) : null)}>
                 <SelectTrigger disabled={saving || statuses.length === 0}>
                   <SelectValue placeholder={statuses.length ? 'Select status' : 'Statuses unavailable'} />
@@ -476,7 +554,7 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
               </Select>
             </div>
             <div className="space-y-1">
-              <div className="text-sm text-gray-600">Money Collected</div>
+              <div className="text-sm text-muted-foreground">Money Collected</div>
               <Input value={editKimaiMoney} onChange={e => setEditKimaiMoney(e.target.value)} placeholder="0.00" disabled={saving} />
             </div>
           </div>

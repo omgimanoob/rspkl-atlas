@@ -51,8 +51,7 @@ const data = {
       isActive: true,
       items: [
         { title: 'Home', url: '/' },
-        { title: 'Projects', url: '/projects' },
-        { title: 'Projects v2', url: '/projects-v2' },
+        { title: 'Projects', url: '/projects-v2' },
       ],
     },
   ],

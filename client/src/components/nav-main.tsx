@@ -37,7 +37,7 @@ export function NavMain({
   const current = location.pathname
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Platform</SidebarGroupLabel>
+      {/* <SidebarGroupLabel>Platform</SidebarGroupLabel> */}
       <SidebarMenu>
         {items.map((item) => {
           const isParentActive = item.items?.some((s) => s.url === current)

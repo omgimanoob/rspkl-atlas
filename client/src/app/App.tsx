@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Login } from '../pages/Login'
 import { Projects } from '../pages/Projects'
 import { Dashboard } from '../pages/Dashboard'
+import { ProjectsV2 } from '@/pages/ProjectsV2'
 import { api } from '../lib/api'
 import { Toaster } from 'sonner'
 import { AppSidebar } from '@/components/app-sidebar'
@@ -111,6 +112,15 @@ export default function App() {
             <>
               <PageHeader trail={[{ label: 'Home', href: '/' }, { label: 'Projects', current: true }]} />
               <Projects me={me!} />
+            </>
+          ),
+        },
+        {
+          path: 'projects-v2',
+          element: (
+            <>
+              <PageHeader trail={[{ label: 'Home', href: '/' }, { label: 'Projects v2', current: true }]} />
+              <ProjectsV2 me={me!} />
             </>
           ),
         },

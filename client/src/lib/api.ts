@@ -69,6 +69,35 @@ export const api = {
   adminAddPermissionToRole(roleId: number, permName: string) {
     return http<{ ok: boolean }>(`/api/admin/rbac/roles/${roleId}/permissions/${encodeURIComponent(permName)}`, { method: 'POST' })
   },
+  // V2 Projects API
+  v2: {
+    projects(opts: { include?: Array<'kimai' | 'atlas' | 'prospective'>; q?: string; page?: number; pageSize?: number; sort?: string; statusIds?: number[]; statusNull?: boolean; isProspective?: boolean } = {}) {
+      const qs = new URLSearchParams()
+      if (opts.include && opts.include.length) qs.set('include', opts.include.join(','))
+      if (opts.q) qs.set('q', opts.q)
+      if (opts.page) qs.set('page', String(opts.page))
+      if (opts.pageSize) qs.set('pageSize', String(opts.pageSize))
+      if (opts.sort) qs.set('sort', opts.sort)
+      if (opts.statusIds && opts.statusIds.length) qs.set('statusId', opts.statusIds.join(','))
+      if (opts.statusNull) qs.set('statusNull', '1')
+      if (typeof opts.isProspective === 'boolean') qs.set('isProspective', opts.isProspective ? '1' : '0')
+      const q = qs.toString()
+      return http<{ items: any[]; total: number; page: number; pageSize: number; counts?: { kimai: number; atlas: number }; statusFacets?: Array<{ id: number; name: string | null; count: number }> }>(`/api/v2/projects${q ? ('?' + q) : ''}`)
+    },
+    listStatuses() { return http<Array<{ id: number; name: string; code: string | null; is_active: number; sort_order: number | null }>>('/api/v2/statuses') },
+    createProspective(payload: { name: string; status_id?: number; notes?: string }) {
+      return http<any>('/api/v2/prospective', { method: 'POST', body: JSON.stringify(payload) })
+    },
+    updateProspective(id: number, payload: { name?: string; status_id?: number | null; notes?: string | null }) {
+      return http<any>(`/api/v2/prospective/${id}`, { method: 'PUT', body: JSON.stringify(payload) })
+    },
+    linkProspective(id: number, kimaiId: number) {
+      return http<any>(`/api/v2/prospective/${id}/link`, { method: 'POST', body: JSON.stringify({ kimai_project_id: kimaiId }) })
+    },
+    updateKimaiOverrides(kimaiId: number, payload: { status_id?: number | null; money_collected?: number | null }) {
+      return http<any>(`/api/v2/projects/${kimaiId}/overrides`, { method: 'PUT', body: JSON.stringify(payload) })
+    },
+  },
   adminRemovePermissionFromRole(roleId: number, permName: string) {
     return http<{ ok: boolean }>(`/api/admin/rbac/roles/${roleId}/permissions/${encodeURIComponent(permName)}`, { method: 'DELETE' })
   },

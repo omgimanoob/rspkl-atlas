@@ -34,6 +34,13 @@ import { syncHealthHandler } from './controllers/syncHealthController';
 import { createProspectiveHandler, listProspectiveHandler, linkProspectiveHandler } from './controllers/prospectiveProjectsController';
 import { listStatusesHandler, createStatusHandler, updateStatusHandler, deleteStatusHandler } from './controllers/statusesController';
 import {
+  listProjectsV2Handler,
+  createProspectiveV2Handler,
+  updateProspectiveV2Handler,
+  linkProspectiveV2Handler,
+  updateKimaiOverridesV2Handler,
+} from './controllers/projectsV2Controller';
+import {
   createUserHandler,
   listUsersHandler,
   getUserByIdHandler,
@@ -151,6 +158,14 @@ app.put('/admin/users/:id', writeLimiter, ...permit('rbac:admin', 'write'), upda
 app.post('/admin/users/:id/activate', writeLimiter, ...permit('rbac:admin', 'write'), activateUserHandler);
 app.post('/admin/users/:id/deactivate', writeLimiter, ...permit('rbac:admin', 'write'), deactivateUserHandler);
 app.delete('/admin/users/:id', writeLimiter, ...permit('rbac:admin', 'write'), deleteUserHandler);
+
+// V2 Projects APIs
+app.get('/v2/projects', ...permit('project:read', 'read'), listProjectsV2Handler);
+app.get('/v2/statuses', ...permit('project:read', 'read'), listStatusesHandler);
+app.post('/v2/prospective', writeLimiter, ...permit('prospective:create', 'write'), createProspectiveV2Handler);
+app.put('/v2/prospective/:id', writeLimiter, ...permit('prospective:update', 'write'), updateProspectiveV2Handler);
+app.post('/v2/prospective/:id/link', writeLimiter, ...permit('prospective:link', 'write'), linkProspectiveV2Handler);
+app.put('/v2/projects/:kimaiId/overrides', writeLimiter, ...permit('overrides:update', 'write', { resourceExtractor: (req) => ({ resource_type: 'project', resource_id: Number(req.params.kimaiId) || null }) }), updateKimaiOverridesV2Handler);
 
 // Minimal metrics endpoint (no auth; safe aggregate counters only)
 import { metricsSnapshot, syncMetrics } from './services/metrics';

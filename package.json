@@ -10,6 +10,7 @@
     "db:seed:statuses": "ts-node scripts/seed-statuses.ts",
     "db:seed:admin": "ts-node scripts/seed-admin.ts",
     "test": "jest",
+    "test:projects:v2": "jest --runInBand tests/integration/projects-v2.test.ts",
     "test:prospective": "jest --runInBand tests/integration/public-statuses.test.ts tests/integration/prospective-create-public.test.ts",
     "test:prospective:all": "jest --runInBand tests/integration/public-statuses.test.ts tests/integration/prospective-create-public.test.ts tests/integration/prospective-projects.test.ts",
     "mail:test": "ts-node scripts/mail-test.ts",
@@ -28,6 +29,7 @@
     "sync:verify": "ts-node scripts/quality-check.ts",
     "sync:materialize": "ts-node scripts/materialize-views.ts",
     "db:ensure:overrides": "ts-node scripts/ensure-overrides.ts",
+    "db:ensure:projects_v2": "ts-node scripts/ensure-projects-v2.ts",
     "debug:mixed": "ts-node scripts/debug-projects-mixed.ts"
   },
   "keywords": [],

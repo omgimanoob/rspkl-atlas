@@ -13,7 +13,14 @@ import { ProjectStatusBadge } from '@/components/ProjectStatusBadge'
 import { CheckCircle2, Loader2, MoreVertical, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, Plus, ChevronsUpDown, ArrowUp, ArrowDown, Columns as ColumnsIcon, ChevronDown } from 'lucide-react'
 import { formatLocalPopover } from '@/lib/datetime'
 
-const defaultVisibleColumns = ['origin','name','notes','status','prospective','updated'] as const
+const defaultVisibleColumns = [
+  // 'origin',
+  'name',
+  'notes',
+  'status',
+  // 'prospective',
+  'updated',
+] as const
 
 export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) {
   const [includeKimai, setIncludeKimai] = useState(true)
@@ -112,7 +119,7 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
     } catch { }
   }, [])
   useEffect(() => {
-    try { localStorage.setItem('pv2:cols', JSON.stringify(Array.from(visibleCols))) } catch {}
+    try { localStorage.setItem('pv2:cols', JSON.stringify(Array.from(visibleCols))) } catch { }
   }, [visibleCols])
 
   const statusFilterKey = useMemo(() => {

@@ -1,15 +1,11 @@
 import * as React from "react"
 import {
   AudioWaveform,
-  BookOpen,
-  Bot,
-  Command,
-  Frame,
   GalleryVerticalEnd,
-  Map,
-  PieChart,
+  Command,
   Settings2,
-  SquareTerminal,
+  Home,
+  FolderKanban,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -44,16 +40,8 @@ const data = {
     },
   ],
   navMain: [
-    {
-      title: "Navigation",
-      url: "#",
-      icon: SquareTerminal,
-      isActive: true,
-      items: [
-        { title: 'Home', url: '/' },
-        { title: 'Projects', url: '/projects-v2' },
-      ],
-    },
+    { title: 'Home', url: '/', icon: Home },
+    { title: 'Projects', url: '/projects-v2', icon: FolderKanban },
   ],
   projects: [
     // {

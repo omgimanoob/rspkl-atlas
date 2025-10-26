@@ -69,6 +69,26 @@ export const api = {
   adminAddPermissionToRole(roleId: number, permName: string) {
     return http<{ ok: boolean }>(`/api/admin/rbac/roles/${roleId}/permissions/${encodeURIComponent(permName)}`, { method: 'POST' })
   },
+  payments: {
+    list(params: { q?: string; page?: number; pageSize?: number; sort?: string; kimai?: number } = {}) {
+      const qs = new URLSearchParams()
+      if (params.q) qs.set('q', params.q)
+      if (params.page) qs.set('page', String(params.page))
+      if (params.pageSize) qs.set('pageSize', String(params.pageSize))
+      if (params.sort) qs.set('sort', params.sort)
+      if (params.kimai != null) qs.set('kimai', String(params.kimai))
+      const q = qs.toString()
+      return http<{ items: Array<{ id: number; kimai_project_id: number; amount: number; notes?: string | null; payment_date: string; created_at: string; created_by?: number | null; created_by_display?: string | null; project_name?: string | null; project_comment?: string | null; override_notes?: string | null }>; total: number; page: number; pageSize: number }>(`/api/payments${q ? ('?' + q) : ''}`)
+    },
+    create(payload: { kimai_project_id: number; amount: number; payment_date: string; notes?: string | null }) {
+      return http<{ id: number; kimai_project_id: number; amount: number; payment_date: string; notes?: string | null; created_by?: number | null; money_collected: number }>(
+        '/api/payments', { method: 'POST', body: JSON.stringify(payload) }
+      )
+    },
+    recalc(kimaiId: number) {
+      return http<{ ok: true; kimai_project_id: number; money_collected: number }>(`/api/payments/recalc/${kimaiId}`, { method: 'POST' })
+    },
+  },
   sync: {
     healthz() {
       return http<{ ok: boolean; db: boolean }>(

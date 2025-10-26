@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { ProjectStatusBadge } from '@/components/ProjectStatusBadge'
+import { PaymentDialog } from '@/components/PaymentDialog'
 import { CheckCircle2, Loader2, MoreVertical, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, Plus, ChevronsUpDown, ArrowUp, ArrowDown, Columns as ColumnsIcon, ChevronDown } from 'lucide-react'
 import { formatLocalPopover } from '@/lib/datetime'
 
@@ -18,6 +19,7 @@ const defaultVisibleColumns = [
   'name',
   'notes',
   'status',
+  'money',
   // 'prospective',
   'updated',
 ] as const
@@ -45,11 +47,21 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
     { id: 'name', label: 'Name', sortable: true as const, sortKey: 'displayName' },
     { id: 'notes', label: 'Notes', sortable: true as const, sortKey: 'notes' },
     { id: 'status', label: 'Status', sortable: true as const, sortKey: 'statusName' },
+    { id: 'money', label: 'Money Collected', sortable: false as const },
     { id: 'prospective', label: 'Prospective', sortable: true as const, sortKey: 'isProspective' },
     { id: 'updated', label: 'Updated', sortable: true as const, sortKey: 'updatedAt' },
     { id: 'actions', label: 'Actions', sortable: false as const },
   ]), [])
-  const [visibleCols, setVisibleCols] = useState<Set<string>>(new Set(defaultVisibleColumns))
+  const [visibleCols, setVisibleCols] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem('pv2:cols')
+      if (raw) {
+        const arr = JSON.parse(raw)
+        if (Array.isArray(arr)) return new Set(arr.filter((x: any) => typeof x === 'string'))
+      }
+    } catch {}
+    return new Set(defaultVisibleColumns)
+  })
   const isAdmin = !!me?.roles?.includes('admins')
   const canProspective = isAdmin || me?.roles?.some(r => ['hr', 'directors'].includes(r))
   const canOverrides = isAdmin || me?.roles?.some(r => ['hr', 'directors'].includes(r))
@@ -74,6 +86,9 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
   const [editKimaiStatusId, setEditKimaiStatusId] = useState<number | null>(null)
   const [editKimaiMoney, setEditKimaiMoney] = useState('')
   const [editKimaiNotes, setEditKimaiNotes] = useState('')
+  const [showKimaiComment, setShowKimaiComment] = useState(false)
+  const [payOpen, setPayOpen] = useState(false)
+  const [payKimaiId, setPayKimaiId] = useState<number | null>(null)
 
   function handleRowClick(r: any) {
     if (r.origin === 'atlas') {
@@ -87,8 +102,9 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
       if (!canOverrides) return
       setEditKimaiRow(r)
       setEditKimaiStatusId(r.statusId ?? null)
-      setEditKimaiMoney(r.moneyCollected != null ? String(r.moneyCollected) : '')
+      setEditKimaiMoney(r.moneyCollected != null ? Number(r.moneyCollected).toFixed(2) : '')
       setEditKimaiNotes(r.notes || '')
+      setShowKimaiComment(false)
       setEditKimaiOpen(true)
     }
   }
@@ -416,10 +432,11 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
                   </div>
                 )
                 if (c.id === 'notes') return <div key={c.id} className="truncate" title={r.notes || ''}>{r.notes || '-'}</div>
+                if (c.id === 'money') return <div key={c.id}>{r.moneyCollected != null ? Number(r.moneyCollected).toFixed(2) : ''}</div>
                 if (c.id === 'prospective') return <div key={c.id}>{r.isProspective ? 'Yes' : 'No'}</div>
                 if (c.id === 'updated') return <div key={c.id}>{formatLocalPopover(r.updatedAt)}</div>
                 if (c.id === 'actions') return (
-                  <div key={c.id} className="flex items-center justify-end">
+                  <div key={c.id} className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
@@ -433,20 +450,43 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
                           <span className="sr-only">Open menu</span>
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-40">
+                      <DropdownMenuContent align="end" className="w-40" onClick={(e) => e.stopPropagation()}>
                         {r.origin === 'atlas' ? (
                           <>
-                            <DropdownMenuItem disabled={!canProspective} onClick={() => { setEditAtlasRow(r); setEditAtlasName(r.displayName || ''); setEditAtlasStatusId(r.statusId ?? null); setEditAtlasNotes(r.notes || ''); setEditAtlasOpen(true) }}>
+                            <DropdownMenuItem
+                              disabled={!canProspective}
+                              onSelect={(e) => { e.preventDefault(); e.stopPropagation(); setEditAtlasRow(r); setEditAtlasName(r.displayName || ''); setEditAtlasStatusId(r.statusId ?? null); setEditAtlasNotes(r.notes || ''); setEditAtlasOpen(true) }}
+                            >
                               Edit
                             </DropdownMenuItem>
-                            <DropdownMenuItem disabled={!canProspective} onClick={() => { setLinkRow(r); setLinkKimaiId(''); setLinkOpen(true) }}>
+                            <DropdownMenuItem
+                              disabled={!canProspective}
+                              onSelect={(e) => { e.preventDefault(); e.stopPropagation(); setLinkRow(r); setLinkKimaiId(''); setLinkOpen(true) }}
+                            >
                               Link
                             </DropdownMenuItem>
                           </>
                         ) : (
-                          <DropdownMenuItem disabled={!canOverrides} onClick={() => { setEditKimaiRow(r); setEditKimaiStatusId(r.statusId ?? null); setEditKimaiMoney(''); setEditKimaiNotes(r.notes || ''); setEditKimaiOpen(true) }}>
-                            Edit
-                          </DropdownMenuItem>
+                          <>
+                            <DropdownMenuItem
+                              disabled={!canOverrides}
+                              onSelect={(e) => { e.preventDefault(); e.stopPropagation(); setEditKimaiRow(r); setEditKimaiStatusId(r.statusId ?? null); setEditKimaiMoney(r.moneyCollected != null ? Number(r.moneyCollected).toFixed(2) : ''); setEditKimaiNotes(r.notes || ''); setShowKimaiComment(false); setEditKimaiOpen(true) }}
+                            >
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              disabled={!canOverrides}
+                              onSelect={(e) => { e.preventDefault(); e.stopPropagation(); setPayKimaiId(r.kimaiId || r.id); setPayOpen(true) }}
+                            >
+                              Enter Payment
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              disabled={!canOverrides}
+                              onSelect={async (e) => { e.preventDefault(); e.stopPropagation(); try { await api.payments.recalc(r.kimaiId || r.id); toast.success('Recalculated'); await load() } catch { toast.error('Failed to recalculate') } }}
+                            >
+                              Recalculate
+                            </DropdownMenuItem>
+                          </>
                         )}
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -670,8 +710,26 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
             </div>
 
             <div className="space-y-1">
-              <div className="text-sm text-muted-foreground">Money Collected</div>
-              <Input value={editKimaiMoney} onChange={e => setEditKimaiMoney(e.target.value)} placeholder="0.00" disabled={saving} />
+              <div className="text-sm text-muted-foreground">Money Collected (read-only)</div>
+              <div className="flex items-center gap-2">
+                <Input value={editKimaiMoney} readOnly disabled placeholder="0.00" className="flex-1" />
+                <Button type="button" variant="outline" size="icon" title="Recalculate" aria-label="Recalculate"
+                  onClick={async () => {
+                    if (!editKimaiRow) return;
+                    try {
+                      const resp = await api.payments.recalc(editKimaiRow.kimaiId || editKimaiRow.id)
+                      const val = Number(resp.money_collected || 0)
+                      setEditKimaiMoney(val.toFixed(2))
+                      setEditKimaiRow({ ...editKimaiRow, moneyCollected: val })
+                      toast.success('Recalculated')
+                      await load()
+                    } catch {
+                      toast.error('Failed to recalculate')
+                    }
+                  }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                </Button>
+              </div>
             </div>
             <div className="space-y-1">
               <div className="text-sm text-muted-foreground">Notes</div>
@@ -680,8 +738,15 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
           </div>
           {editKimaiRow?.comment && (
             <div className="space-y-1">
-              <div className="text-sm text-muted-foreground">Kimai Comment</div>
-              <Textarea value={editKimaiRow.comment} readOnly disabled className="min-h-[80px]" />
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">Kimai Comment</div>
+                <Button type="button" variant="ghost" size="sm" onClick={() => setShowKimaiComment(v => !v)}>
+                  {showKimaiComment ? 'Hide' : 'Show'}
+                </Button>
+              </div>
+              {showKimaiComment && (
+                <Textarea value={editKimaiRow.comment} readOnly disabled className="min-h-[80px]" />
+              )}
             </div>
           )}
           <DialogFooter>
@@ -690,7 +755,6 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
               if (!editKimaiRow) return
               const payload: any = {}
               if (editKimaiStatusId !== undefined) payload.status_id = editKimaiStatusId
-              if (editKimaiMoney.trim() !== '') payload.money_collected = Number(parseFloat(editKimaiMoney))
               payload.notes = editKimaiNotes
               try {
                 setSaving(true)
@@ -706,6 +770,8 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <PaymentDialog open={payOpen} onOpenChange={setPayOpen} defaultKimaiId={payKimaiId ?? undefined} onSaved={() => load()} />
     </div>
   )
 }

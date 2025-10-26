@@ -42,6 +42,7 @@ const data = {
   navMain: [
     { title: 'Home', url: '/', icon: Home },
     { title: 'Projects', url: '/projects-v2', icon: FolderKanban },
+    { title: 'Payments', url: '/payments', icon: FolderKanban },
   ],
   projects: [
     // {

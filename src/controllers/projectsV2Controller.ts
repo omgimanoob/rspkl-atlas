@@ -315,11 +315,10 @@ export async function updateKimaiOverridesV2Handler(req: Request, res: Response)
   try {
     const kimaiId = Number(req.params.kimaiId)
     if (!Number.isFinite(kimaiId)) { res.status(400).json({ error: 'Bad Request', reason: 'invalid_id' }); return }
-    const { status_id, money_collected, notes } = req.body || {}
+    const { status_id, notes } = req.body || {}
     await ProjectsV2Schema.ensure()
     const payload: any = { kimai_project_id: kimaiId }
     if (status_id !== undefined) payload.status_id = status_id === null ? null : Number(status_id)
-    if (money_collected !== undefined) payload.money_collected = money_collected === null ? null : Number(money_collected)
     if (notes !== undefined) payload.notes = notes === null ? null : String(notes)
     await ProjectOverridesV2.upsert(payload)
     res.json({ ok: true })

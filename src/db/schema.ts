@@ -8,6 +8,8 @@ import {
   uniqueIndex,
   index,
   primaryKey,
+  decimal,
+  date,
 } from 'drizzle-orm/mysql-core';
 import { text } from 'drizzle-orm/mysql-core';
 
@@ -304,3 +306,40 @@ export const passwordResetTokens = mysqlTable('password_reset_tokens', {
   usedAt: timestamp('used_at'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
+
+// Project statuses lookup (Drizzle model mirrors existing table managed by StatusService/migrations)
+export const projectStatuses = mysqlTable(
+  'project_statuses',
+  {
+    id: int('id').primaryKey().autoincrement(),
+    name: varchar('name', { length: 64 }).notNull(),
+    code: varchar('code', { length: 64 }).notNull(),
+    color: varchar('color', { length: 7 }),
+    isActive: tinyint('is_active').notNull().default(1),
+    sortOrder: int('sort_order').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow().onUpdateNow(),
+  },
+  (t) => ({
+    uxName: uniqueIndex('ux_project_statuses_name').on(t.name),
+    uxCode: uniqueIndex('ux_project_statuses_code').on(t.code),
+  })
+);
+
+// Project payments (auditable payments received per Kimai project)
+export const projectPayments = mysqlTable(
+  'project_payments',
+  {
+    id: bigint('id', { mode: 'number', unsigned: true }).primaryKey().autoincrement(),
+    kimaiProjectId: int('kimai_project_id').notNull(),
+    amount: decimal('amount', { precision: 12, scale: 2 }).notNull(),
+    notes: text('notes'),
+    paymentDate: date('payment_date').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    createdBy: bigint('created_by', { mode: 'number', unsigned: true }),
+  },
+  (t) => ({
+    ixKimai: index('ix_project_payments_kimai').on(t.kimaiProjectId),
+    ixDate: index('ix_project_payments_date').on(t.paymentDate),
+  })
+);

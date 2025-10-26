@@ -50,6 +50,13 @@ export async function updateProjectOverridesHandler(req, res) {
     return res.status(400).json(resp);
   }
 
+  // Reject attempts to update money_collected via legacy overrides endpoint
+  if (money_collected !== undefined) {
+    const resp = { error: 'Bad Request', reason: 'money_collected_read_only' };
+    await recordAudit(req, 400, crypto.createHash('sha256').update(JSON.stringify(req.body || {})).digest('hex'));
+    return res.status(400).json(resp);
+  }
+
   if (status_id !== undefined && status_id !== null) {
     const sid = Number(status_id);
     if (!Number.isFinite(sid)) {
@@ -83,12 +90,12 @@ export async function updateProjectOverridesHandler(req, res) {
     const row = await StatusService.getById(Number(status_id));
     normalizedStatusId = row?.id;
   }
-  const saved = await ProjectOverrides.upsertOverrides({ kimai_project_id: Number(projectId), status_id: normalizedStatusId ?? null, money_collected, is_prospective });
+  const saved = await ProjectOverrides.upsertOverrides({ kimai_project_id: Number(projectId), status_id: normalizedStatusId ?? null, is_prospective });
   incOverrideUpsert();
   await recordAudit(
     req,
     200,
-    crypto.createHash('sha256').update(JSON.stringify({ id: projectId, status_id, money_collected, is_prospective })).digest('hex')
+    crypto.createHash('sha256').update(JSON.stringify({ id: projectId, status_id, is_prospective })).digest('hex')
   );
   res.json(saved || {});
 }

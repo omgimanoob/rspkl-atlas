@@ -49,6 +49,7 @@ import {
   deactivateUserHandler,
   deleteUserHandler,
 } from './controllers/usersController';
+import { listPaymentsHandler, createPaymentHandler, recalcPaymentTotalsHandler } from './controllers/paymentsController';
 
 
 export const app = express();
@@ -190,6 +191,11 @@ app.post('/v2/prospective', writeLimiter, ...permit('prospective:create', 'write
 app.put('/v2/prospective/:id', writeLimiter, ...permit('prospective:update', 'write'), updateProspectiveV2Handler);
 app.post('/v2/prospective/:id/link', writeLimiter, ...permit('prospective:link', 'write'), linkProspectiveV2Handler);
 app.put('/v2/projects/:kimaiId/overrides', writeLimiter, ...permit('overrides:update', 'write', { resourceExtractor: (req) => ({ resource_type: 'project', resource_id: Number(req.params.kimaiId) || null }) }), updateKimaiOverridesV2Handler);
+
+// Payments
+app.get('/payments', ...permit('payments:view', 'read'), listPaymentsHandler);
+app.post('/payments', writeLimiter, ...permit('payments:create', 'write'), createPaymentHandler);
+app.post('/payments/recalc/:kimaiId', writeLimiter, ...permit('payments:create', 'write'), recalcPaymentTotalsHandler);
 
 // Minimal metrics endpoint (no auth; safe aggregate counters only)
 import { metricsSnapshot, syncMetrics } from './services/metrics';

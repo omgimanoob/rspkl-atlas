@@ -9,12 +9,12 @@ Key points:
 - RBAC controls who can create and view payments.
 - UI provides a Payments page with search, sorting, and a create dialog.
 
-## Open Questions
-- Confirm table names for consistency: `project_overrides` (not `overrides` / `overrides_projects`).
-- Confirm `project_overrides.money_collected` exists; if not, add a migration to create it.
-- Are edit/delete of payments in scope now, or just create+list?
-- Currency handling: one currency or per-project? Any rounding rules?
-- Access rules: can all users with `payments:view` see all payments, or only for projects they can view?
+## Decisions
+- Table name: use `project_overrides` (not `overrides` / `overrides_projects`).
+- Aggregation column: `project_overrides.money_collected` already exists; no migration required.
+- Scope: only create and list payments (no edit/delete).
+- Currency: single currency for all amounts; normal decimal handling.
+- Access: any user with `payments:view` can view all payments.
 
 ## Implementation Checklist
 

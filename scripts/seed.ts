@@ -60,15 +60,15 @@ async function main() {
     { code: 'directors', name: 'Directors' },
     { code: 'admins', name: 'Administrator' },
   ];
-  const permNames = ['*', 'project:read', 'timesheet:read', 'bi:read', 'overrides:update', 'sync:execute', 'rbac:admin'];
+  const permNames = ['*', 'project:read', 'timesheet:read', 'bi:read', 'overrides:update', 'sync:execute', 'rbac:admin', 'payments:view', 'payments:create'];
 
   const roleMap = await upsertRoles(roleEntries);
   const permMap = await upsertPermissions(permNames);
 
   const grants: Record<string, string[]> = {
-    hr: ['project:read', 'timesheet:read', 'bi:read', 'overrides:update'],
-    management: ['project:read', 'timesheet:read', 'bi:read'],
-    directors: ['project:read', 'timesheet:read', 'bi:read', 'overrides:update'],
+    hr: ['project:read', 'timesheet:read', 'bi:read', 'overrides:update', 'payments:view', 'payments:create'],
+    management: ['project:read', 'timesheet:read', 'bi:read', 'payments:view'],
+    directors: ['project:read', 'timesheet:read', 'bi:read', 'overrides:update', 'payments:view', 'payments:create'],
     admins: ['*'],
   };
 

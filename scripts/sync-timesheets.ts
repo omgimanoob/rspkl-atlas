@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { kimaiPool, atlasPool } from '../db';
+import { syncTimesheetsShared } from '../src/services/timesheetsSync';
 
 const BATCH = 2000;
 const INITIAL_DAYS = 90; // initial bootstrap window for null modified_at rows
@@ -86,96 +87,23 @@ async function upsertBatch(rows: any[]) {
 }
 
 async function main() {
-  console.log('[sync:timesheets] Starting incremental sync from Kimai');
-  const checkpoint = await getCheckpoint();
-  const now = new Date();
-  let whereSql = '';
-  let params: any[] = [];
-  if (checkpoint) {
-    const since = minusMinutes(checkpoint, OVERLAP_MINUTES);
-    whereSql = 'WHERE modified_at IS NOT NULL AND modified_at > ?';
-    params = [since];
-    console.log('[sync:timesheets] Using checkpoint since', since.toISOString());
-  } else {
-    // Bootstrap: include rows with modified_at NULL in a reasonable window and rows with modified_at >= initialSince
-    whereSql = 'WHERE (modified_at IS NULL AND start_time >= DATE_SUB(NOW(), INTERVAL ? DAY)) OR (modified_at IS NOT NULL AND modified_at >= DATE_SUB(NOW(), INTERVAL ? DAY))';
-    params = [INITIAL_DAYS, INITIAL_DAYS];
-    console.log('[sync:timesheets] Bootstrap mode for last', INITIAL_DAYS, 'days');
-  }
-
-  let offset = 0;
-  let total = 0;
-  let maxModified: Date | null = checkpoint || null;
-  for (;;) {
-    const rows = await fetchBatch(whereSql, params, offset, BATCH);
-    if (!rows.length) break;
-    await upsertBatch(rows);
-    total += rows.length;
-    offset += rows.length;
-    for (const r of rows) {
-      if (r.modified_at) {
-        const d = new Date(r.modified_at);
-        if (!maxModified || d > maxModified) maxModified = d;
-      }
-    }
-    console.log(`[sync:timesheets] Upserted ${total}`);
-    if (rows.length < BATCH) break;
-  }
-  // Fallback: if bootstrap window yielded no rows (e.g., historical DB), perform a one-time full load
-  if (!checkpoint && total === 0) {
-    console.log('[sync:timesheets] Bootstrap window returned 0 rows; falling back to one-time full load');
-    offset = 0;
-    for (;;) {
-      const allRows = await fetchAllBatch(offset, BATCH);
-      if (!allRows.length) break;
-      await upsertBatch(allRows);
-      total += allRows.length;
-      // No modified_at checkpoint advancement on full load if missing; still compute max if present
-      for (const r of allRows) {
-        if (r.modified_at) {
-          const d = new Date(r.modified_at);
-          if (!maxModified || d > maxModified) maxModified = d;
-        }
-      }
-      offset += allRows.length;
-      console.log(`[sync:timesheets] Full-load upserted ${total}`);
-    }
-  }
-  if (maxModified) {
-    await setCheckpoint(maxModified);
-    console.log('[sync:timesheets] Updated checkpoint to', maxModified.toISOString());
-  } else {
-    console.log('[sync:timesheets] No checkpoint update (no modified rows)');
-  }
-  // Reconcile deletes within rolling window
+  console.log('[sync:timesheets] Starting sync (shared service)');
+  const { total, newRows, maxModified } = await syncTimesheetsShared({
+    atlasPool,
+    kimaiPool,
+    batch: BATCH,
+    initialDays: INITIAL_DAYS,
+    overlapMinutes: OVERLAP_MINUTES,
+    reconcileDays: RECONCILE_DAYS,
+  })
+  console.log(`[sync:timesheets] Upserted ${total}${newRows ? ` (new: ${newRows})` : ''}`)
+  // Record last_run so the dashboard reflects CLI runs too
   try {
-    const [kRows]: any = await kimaiPool.query(
-      'SELECT id FROM kimai2_timesheet WHERE date_tz >= DATE_SUB(CURDATE(), INTERVAL ? DAY)',
-      [RECONCILE_DAYS]
+    await atlasPool.query(
+      'INSERT INTO sync_state (state_key, state_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE state_value=VALUES(state_value), updated_at=CURRENT_TIMESTAMP',
+      ['sync.timesheets.last_run', new Date().toISOString()]
     );
-    const kimaiSet = new Set<number>(kRows.map((r: any) => Number(r.id)));
-    const [rRows]: any = await atlasPool.query(
-      'SELECT id FROM replica_kimai_timesheets WHERE date_tz >= DATE_FORMAT(DATE_SUB(CURDATE(), INTERVAL ? DAY), "%Y-%m-%d")',
-      [RECONCILE_DAYS]
-    );
-    const missing: number[] = [];
-    for (const r of rRows) {
-      const id = Number(r.id);
-      if (!kimaiSet.has(id)) missing.push(id);
-    }
-    if (missing.length) {
-      console.log(`[sync:timesheets] Reconciling deletes in last ${RECONCILE_DAYS}d: ${missing.length} rows`);
-      for (let i = 0; i < missing.length; i += DELETE_CHUNK) {
-        const chunk = missing.slice(i, i + DELETE_CHUNK);
-        const placeholders = chunk.map(() => '?').join(',');
-        await atlasPool.query(`DELETE FROM replica_kimai_timesheets WHERE id IN (${placeholders})`, chunk);
-      }
-    } else {
-      console.log('[sync:timesheets] No deletions to reconcile in rolling window');
-    }
-  } catch (e: any) {
-    console.warn('[sync:timesheets] Reconciliation skipped:', e?.message || e);
-  }
+  } catch {}
   await kimaiPool.end();
   await atlasPool.end();
   console.log('[sync:timesheets] Done');

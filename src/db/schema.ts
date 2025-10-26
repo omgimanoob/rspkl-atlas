@@ -9,6 +9,7 @@ import {
   index,
   primaryKey,
 } from 'drizzle-orm/mysql-core';
+import { text } from 'drizzle-orm/mysql-core';
 
 // Users (introduce as first-class model)
 export const users = mysqlTable(
@@ -137,6 +138,7 @@ export const replicaKimaiProjects = mysqlTable(
     id: int('id').primaryKey(),
     customerId: int('customer_id'),
     name: varchar('name', { length: 150 }),
+    comment: text('comment'),
     visible: tinyint('visible'),
     budget: varchar('budget', { length: 64 }), // keep as string to avoid FP issues; optional typing later
     color: varchar('color', { length: 7 }),
@@ -240,6 +242,22 @@ export const replicaKimaiTimesheetTags = mysqlTable(
     syncedAt: timestamp('synced_at').notNull().defaultNow(),
   },
   (t) => ({ pk: primaryKey({ columns: [t.timesheetId, t.tagId], name: 'pk_replica_ts_tags' }) })
+);
+
+export const replicaKimaiTimesheetMeta = mysqlTable(
+  'replica_kimai_timesheet_meta',
+  {
+    id: int('id').primaryKey(),
+    timesheetId: int('timesheet_id').notNull(),
+    name: varchar('name', { length: 50 }).notNull(),
+    value: text('value'),
+    visible: tinyint('visible').notNull().default(0),
+    syncedAt: timestamp('synced_at').notNull().defaultNow(),
+  },
+  (t) => ({
+    ixTimesheet: index('ix_rktm_timesheet').on(t.timesheetId),
+    ixName: index('ix_rktm_name').on(t.name),
+  })
 );
 
 export const replicaKimaiCustomers = mysqlTable(

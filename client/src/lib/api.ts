@@ -70,6 +70,11 @@ export const api = {
     return http<{ ok: boolean }>(`/api/admin/rbac/roles/${roleId}/permissions/${encodeURIComponent(permName)}`, { method: 'POST' })
   },
   sync: {
+    healthz() {
+      return http<{ ok: boolean; db: boolean }>(
+        '/api/healthz'
+      )
+    },
     health() {
       return http<{ state: Record<string, { value: string; updated_at: string }>; counts: Record<string, number> }>(
         '/api/sync/health'
@@ -102,6 +107,12 @@ export const api = {
     tags() {
       return http<{ message: string }>(
         '/api/sync/tags',
+        { method: 'POST' }
+      )
+    },
+    tsmeta() {
+      return http<{ message: string }>(
+        '/api/sync/tsmeta',
         { method: 'POST' }
       )
     },
@@ -138,7 +149,7 @@ export const api = {
       const q = qs.toString()
       return http<{ items: any[]; total: number; page: number; pageSize: number; counts?: { kimai: number; atlas: number }; statusFacets?: Array<{ id: number; name: string | null; count: number }> }>(`/api/v2/projects${q ? ('?' + q) : ''}`)
     },
-    listStatuses() { return http<Array<{ id: number; name: string; code: string | null; is_active: number; sort_order: number | null }>>('/api/v2/statuses') },
+    listStatuses() { return http<Array<{ id: number; name: string; code: string | null; color?: string | null; is_active: number; sort_order: number | null }>>('/api/v2/statuses') },
     createProspective(payload: { name: string; status_id?: number; notes?: string }) {
       return http<any>('/api/v2/prospective', { method: 'POST', body: JSON.stringify(payload) })
     },
@@ -148,7 +159,7 @@ export const api = {
     linkProspective(id: number, kimaiId: number) {
       return http<any>(`/api/v2/prospective/${id}/link`, { method: 'POST', body: JSON.stringify({ kimai_project_id: kimaiId }) })
     },
-    updateKimaiOverrides(kimaiId: number, payload: { status_id?: number | null; money_collected?: number | null }) {
+    updateKimaiOverrides(kimaiId: number, payload: { status_id?: number | null; money_collected?: number | null; notes?: string | null }) {
       return http<any>(`/api/v2/projects/${kimaiId}/overrides`, { method: 'PUT', body: JSON.stringify(payload) })
     },
   },
@@ -207,19 +218,19 @@ export const api = {
   },
   // Statuses lookup (admin read endpoint; consider exposing read-only for editors)
   listStatuses() {
-    return http<Array<{ id: number; name: string; code: string | null; is_active: number; sort_order: number | null }>>('/api/admin/statuses')
+    return http<Array<{ id: number; name: string; code: string | null; color?: string | null; is_active: number; sort_order: number | null }>>('/api/admin/statuses')
   },
   // Public (read-only) statuses list for UI dropdowns
   listStatusesPublic() {
-    return http<Array<{ id: number; name: string; code: string | null; is_active: number; sort_order: number | null }>>('/api/statuses')
+    return http<Array<{ id: number; name: string; code: string | null; color?: string | null; is_active: number; sort_order: number | null }>>('/api/statuses')
   },
-  adminCreateStatus(payload: { name: string; code?: string | null; is_active?: boolean; sort_order?: number | null }) {
-    return http<{ id: number; name: string; code: string | null; is_active: number; sort_order: number | null }>(
+  adminCreateStatus(payload: { name: string; code?: string | null; color?: string | null; is_active?: boolean; sort_order?: number | null }) {
+    return http<{ id: number; name: string; code: string | null; color?: string | null; is_active: number; sort_order: number | null }>(
       '/api/admin/statuses', { method: 'POST', body: JSON.stringify(payload) }
     )
   },
-  adminUpdateStatus(id: number, payload: { name?: string; code?: string | null; is_active?: boolean; sort_order?: number | null }) {
-    return http<{ id: number; name: string; code: string | null; is_active: number; sort_order: number | null }>(
+  adminUpdateStatus(id: number, payload: { name?: string; code?: string | null; color?: string | null; is_active?: boolean; sort_order?: number | null }) {
+    return http<{ id: number; name: string; code: string | null; color?: string | null; is_active: number; sort_order: number | null }>(
       `/api/admin/statuses/${id}`, { method: 'PUT', body: JSON.stringify(payload) }
     )
   },

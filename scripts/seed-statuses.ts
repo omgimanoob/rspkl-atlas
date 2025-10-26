@@ -9,14 +9,14 @@ async function main() {
     return;
   }
   const defaults = [
-    { name: 'Unassigned', code: 'unassigned', sort_order: 10 },
-    { name: 'Schematic Design', code: 'schematic', sort_order: 20 },
-    { name: 'Design Development', code: 'design-dev', sort_order: 30 },
-    { name: 'Tender', code: 'tender', sort_order: 40 },
-    { name: 'Under construction', code: 'under-construction', sort_order: 50 },
-    { name: 'Post construction', code: 'post-construction', sort_order: 60 },
-    { name: 'KIV', code: 'kiv', sort_order: 70 },
-    { name: 'Others', code: 'others', sort_order: 80 },
+    { name: 'Unassigned', code: 'unassigned', color: '#6b7280', sort_order: 10 }, // gray-500
+    { name: 'Schematic Design', code: 'schematic', color: '#3b82f6', sort_order: 20 }, // blue-500
+    { name: 'Design Development', code: 'design-dev', color: '#6366f1', sort_order: 30 }, // indigo-500
+    { name: 'Tender', code: 'tender', color: '#a78bfa', sort_order: 40 }, // violet-400
+    { name: 'Under construction', code: 'under-construction', color: '#f59e0b', sort_order: 50 }, // amber-500
+    { name: 'Post construction', code: 'post-construction', color: '#10b981', sort_order: 60 }, // emerald-500
+    { name: 'KIV', code: 'kiv', color: '#ef4444', sort_order: 70 }, // red-500
+    { name: 'Others', code: 'others', color: '#9ca3af', sort_order: 80 }, // gray-400
   ];
   for (const s of defaults) {
     await StatusService.create(s);
@@ -26,4 +26,3 @@ async function main() {
 }
 
 main().catch((e) => { console.error('[seed-statuses] Failed:', e?.message || e); process.exit(1); });
-

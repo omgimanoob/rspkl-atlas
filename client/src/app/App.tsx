@@ -67,7 +67,7 @@ export default function App() {
       { path: '/reset', element: <ResetConfirm />, errorElement: <ErrorPage /> },
       { path: '/reset/request', element: <ResetRequest />, errorElement: <ErrorPage /> },
       // For any other route while logged out, show Login for a smoother experience
-      { path: '*', element: <><Toaster richColors /><Login onLoggedIn={setMe} /></>, errorElement: <ErrorPage /> },
+      { path: '*', element: <><Toaster richColors position="bottom-right" expand /><Login onLoggedIn={setMe} /></>, errorElement: <ErrorPage /> },
     ])
     return (
       <>
@@ -80,7 +80,7 @@ export default function App() {
 
   const RootLayout = () => (
     <SidebarProvider>
-      <Toaster richColors />
+      <Toaster richColors position="bottom-right" expand />
       <AppSidebar me={me!} onLogout={async () => { try { await api.logout(); } finally { setMe(null) } }} />
       <SidebarInset>
         <Outlet />

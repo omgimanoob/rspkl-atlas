@@ -24,6 +24,7 @@
     "sync:activities": "ts-node scripts/sync-activities.ts",
     "sync:tags": "ts-node scripts/sync-tags.ts",
     "sync:customers": "ts-node scripts/sync-customers.ts",
+    "sync:timesheet_meta": "ts-node scripts/sync-timesheet-meta.ts",
     "atlas:tables": "ts-node scripts/atlas-describe.ts",
     "sync:all": "ts-node scripts/sync-all.ts",
     "sync:verify": "ts-node scripts/quality-check.ts",

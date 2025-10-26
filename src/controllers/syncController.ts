@@ -2,6 +2,7 @@
 import crypto from 'crypto';
 import { recordAudit } from '../services/audit';
 import { kimaiPool, atlasPool } from '../../db';
+import { ProjectsSync } from '../services/projectsSync';
 
 export async function syncTimesheetsHandler(_req, res) {
   try {
@@ -13,7 +14,7 @@ export async function syncTimesheetsHandler(_req, res) {
 
     async function getCheckpoint(): Promise<Date | null> {
       const [rows]: any = await atlasPool.query('SELECT state_value FROM sync_state WHERE state_key = ? LIMIT 1', [
-        'sync.timesheets.last_modified_at',
+        'kimai.timesheets.last_modified_at',
       ]);
       const v = rows?.[0]?.state_value as string | undefined;
       if (!v) return null;
@@ -23,7 +24,7 @@ export async function syncTimesheetsHandler(_req, res) {
     async function setCheckpoint(d: Date) {
       await atlasPool.query(
         'INSERT INTO sync_state (state_key, state_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE state_value=VALUES(state_value), updated_at=CURRENT_TIMESTAMP',
-        ['sync.timesheets.last_modified_at', d.toISOString()]
+        ['kimai.timesheets.last_modified_at', d.toISOString()]
       );
     }
     function minusMinutes(d: Date, minutes: number): Date { return new Date(d.getTime() - minutes * 60_000) }
@@ -84,6 +85,9 @@ modified_at=VALUES(modified_at), date_tz=VALUES(date_tz), synced_at=CURRENT_TIME
     }
 
     const checkpoint = await getCheckpoint();
+    // Detect empty replica to trigger a one-time full load regardless of bootstrap results
+    const [repCntRows]: any = await atlasPool.query('SELECT COUNT(*) AS cnt FROM `replica_kimai_timesheets`');
+    const replicaEmpty = Number(repCntRows?.[0]?.cnt || 0) === 0;
     const now = new Date();
     let whereSql = '';
     let params: any[] = [];
@@ -97,37 +101,43 @@ modified_at=VALUES(modified_at), date_tz=VALUES(date_tz), synced_at=CURRENT_TIME
     }
 
     let offset = 0;
-    let total = 0;
+    let total = 0; // total rows processed in the overlap window
+    let newRows = 0; // rows strictly newer than the previous checkpoint
     let maxModified: Date | null = checkpoint || null;
-    for (;;) {
-      const rows = await fetchBatch(whereSql, params, offset, BATCH);
-      if (!rows.length) break;
-      await upsertBatch(rows);
-      total += rows.length;
-      offset += rows.length;
-      for (const r of rows) {
-        if (r.modified_at) {
-          const d = new Date(r.modified_at);
-          if (!maxModified || d > maxModified) maxModified = d;
-        }
-      }
-      if (rows.length < BATCH) break;
-    }
-    if (!checkpoint && total === 0) {
+    if (replicaEmpty) {
+      // One-time full load when replica is empty
       offset = 0;
       for (;;) {
-        const allRows = await fetchAllBatch(offset, BATCH);
-        if (!allRows.length) break;
-        await upsertBatch(allRows);
-        total += allRows.length;
-        for (const r of allRows) {
+        const rows = await fetchAllBatch(offset, BATCH);
+        if (!rows.length) break;
+        await upsertBatch(rows);
+        total += rows.length;
+        for (const r of rows) {
           if (r.modified_at) {
             const d = new Date(r.modified_at);
             if (!maxModified || d > maxModified) maxModified = d;
           }
         }
-        offset += allRows.length;
+        offset += rows.length;
       }
+    } else {
+      // Incremental windowed upsert
+      for (;;) {
+        const rows = await fetchBatch(whereSql, params, offset, BATCH);
+        if (!rows.length) break;
+        await upsertBatch(rows);
+        total += rows.length;
+        offset += rows.length;
+        for (const r of rows) {
+          if (r.modified_at) {
+            const d = new Date(r.modified_at);
+            if (!maxModified || d > maxModified) maxModified = d;
+            if (checkpoint && d > checkpoint) newRows += 1;
+          }
+        }
+        if (rows.length < BATCH) break;
+      }
+      // If bootstrap yielded nothing (rare), we keep as-is; full load can be forced by clearing replica
     }
     if (maxModified) await setCheckpoint(maxModified);
     // Reconcile deletes within rolling window
@@ -161,7 +171,7 @@ modified_at=VALUES(modified_at), date_tz=VALUES(date_tz), synced_at=CURRENT_TIME
       );
     } catch {}
     await recordAudit(_req as any, 200, crypto.createHash('sha256').update('syncTimesheets').digest('hex'));
-    res.json({ message: `Timesheets synced: ${total}` });
+    res.json({ message: `Timesheets synced: ${total}${checkpoint ? ` (new: ${newRows})` : ''}` });
   } catch (e: any) {
     console.error('[syncTimesheets] failed:', e?.message || e);
     res.status(500).json({ error: 'Sync timesheets failed' });
@@ -169,57 +179,13 @@ modified_at=VALUES(modified_at), date_tz=VALUES(date_tz), synced_at=CURRENT_TIME
 }
 
 export async function syncProjectsHandler(_req, res) {
-  // staging-and-swap within the API for convenience
-  const live = 'replica_kimai_projects';
-  const stg = 'replica_kimai_projects_stg';
   try {
-    await atlasPool.query(`DROP TABLE IF EXISTS \`${stg}\``);
-    await atlasPool.query(`CREATE TABLE IF NOT EXISTS \`${live}\` (
-      \`id\` int NOT NULL,
-      \`customer_id\` int,
-      \`name\` varchar(150),
-      \`visible\` tinyint(1),
-      \`budget\` varchar(64),
-      \`color\` varchar(7),
-      \`time_budget\` int,
-      \`order_date\` datetime,
-      \`start\` datetime,
-      \`end\` datetime,
-      \`timezone\` varchar(64),
-      \`budget_type\` varchar(10),
-      \`billable\` tinyint(1),
-      \`synced_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      PRIMARY KEY(\`id\`)
-    )`);
-    await atlasPool.query(`CREATE TABLE \`${stg}\` LIKE \`${live}\``);
-    const [rows]: any = await kimaiPool.query(
-      'SELECT id, customer_id, name, visible, budget, color, time_budget, order_date, start, end, timezone, budget_type, billable FROM kimai2_projects ORDER BY id'
-    );
-    if (rows.length) {
-      const cols = ['id','customer_id','name','visible','budget','color','time_budget','order_date','start','end','timezone','budget_type','billable'];
-      const ph = '(' + cols.map(() => '?').join(',') + ')';
-      const values: any[] = [];
-      for (const r of rows) {
-        values.push(r.id, r.customer_id, r.name, r.visible, r.budget, r.color, r.time_budget, r.order_date, r.start, r.end, r.timezone, r.budget_type, r.billable);
-      }
-      const sql = `INSERT INTO \`${stg}\` (${cols.join(',')}) VALUES ${rows.map(() => ph).join(',')}`;
-      await atlasPool.query(sql, values);
-    }
-    const old = `${live}_old`;
-    await atlasPool.query(`RENAME TABLE \`${live}\` TO \`${old}\`, \`${stg}\` TO \`${live}\``);
-    await atlasPool.query(`DROP TABLE IF EXISTS \`${old}\``);
-    // record last run + audit
-    try {
-      await atlasPool.query(
-        'INSERT INTO sync_state (state_key, state_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE state_value=VALUES(state_value), updated_at=CURRENT_TIMESTAMP',
-        ['sync.projects.last_run', new Date().toISOString()]
-      );
-    } catch {}
-    await recordAudit(_req as any, 200, crypto.createHash('sha256').update('syncProjects').digest('hex'));
-    res.json({ message: `Projects synced: ${rows.length}` });
+    const total = await ProjectsSync.run()
+    await recordAudit(_req as any, 200, crypto.createHash('sha256').update('syncProjects').digest('hex'))
+    res.json({ message: `Projects synced: ${total}` })
   } catch (e: any) {
-    console.error('[syncProjects] failed:', e?.message || e);
-    res.status(500).json({ error: 'Sync projects failed' });
+    console.error('[syncProjects] failed:', e?.message || e)
+    res.status(500).json({ error: 'Sync projects failed', reason: e?.message })
   }
 }
 
@@ -231,6 +197,7 @@ const REPLICA_TABLES: Record<string, string> = {
   activities: 'replica_kimai_activities',
   tags: 'replica_kimai_tags',
   timesheet_tags: 'replica_kimai_timesheet_tags',
+  timesheet_meta: 'replica_kimai_timesheet_meta',
   customers: 'replica_kimai_customers',
 };
 
@@ -458,5 +425,49 @@ export async function syncCustomersHandler(req, res) {
   } catch (e: any) {
     console.error('[syncCustomers] failed:', e?.message || e);
     res.status(500).json({ error: 'Sync customers failed' });
+  }
+}
+
+export async function syncTimesheetMetaHandler(req, res) {
+  try {
+    console.log('[sync:timesheet_meta] API full refresh (staging-and-swap)');
+    const live = 'replica_kimai_timesheet_meta';
+    const stg = 'replica_kimai_timesheet_meta_stg';
+    await atlasPool.query(`CREATE TABLE IF NOT EXISTS \`${live}\` (
+      \`id\` int NOT NULL,
+      \`timesheet_id\` int NOT NULL,
+      \`name\` varchar(50) NOT NULL,
+      \`value\` text,
+      \`visible\` tinyint(1) NOT NULL DEFAULT 0,
+      \`synced_at\` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY(\`id\`),
+      INDEX \`ix_rktm_timesheet\` (\`timesheet_id\`),
+      INDEX \`ix_rktm_name\` (\`name\`)
+    )`);
+    await atlasPool.query(`DROP TABLE IF EXISTS \`${stg}\``);
+    await atlasPool.query(`CREATE TABLE \`${stg}\` LIKE \`${live}\``);
+    const [rows]: any = await kimaiPool.query('SELECT id, timesheet_id, name, value, visible FROM kimai2_timesheet_meta');
+    if (rows.length) {
+      const cols = ['id','timesheet_id','name','value','visible'];
+      const ph = '(' + cols.map(() => '?').join(',') + ')';
+      const values: any[] = [];
+      for (const r of rows) values.push(r.id, r.timesheet_id, r.name, r.value, r.visible);
+      const sql = `INSERT INTO \`${stg}\` (${cols.join(',')}) VALUES ${rows.map(() => ph).join(',')}`;
+      await atlasPool.query(sql, values);
+    }
+    const old = `${live}_old`;
+    await atlasPool.query(`RENAME TABLE \`${live}\` TO \`${old}\`, \`${stg}\` TO \`${live}\``);
+    await atlasPool.query(`DROP TABLE IF EXISTS \`${old}\``);
+    try {
+      await atlasPool.query(
+        'INSERT INTO sync_state (state_key, state_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE state_value=VALUES(state_value), updated_at=CURRENT_TIMESTAMP',
+        ['sync.tsmeta.last_run', new Date().toISOString()]
+      );
+    } catch {}
+    await recordAudit(req as any, 200, crypto.createHash('sha256').update('syncTimesheetMeta').digest('hex'));
+    res.json({ message: `Timesheet meta synced: ${rows.length}` });
+  } catch (e: any) {
+    console.error('[syncTimesheetMeta] failed:', e?.message || e);
+    res.status(500).json({ error: 'Sync timesheet meta failed' });
   }
 }

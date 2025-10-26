@@ -72,3 +72,7 @@ Notes
 ## Views (Analytics)
 - `vw_projects` — replica projects + overrides (`status_id`, `is_prospective`, `money_collected` cached)
 - `vw_timesheet_facts` — replica timesheets + users/activities/projects + aggregated timesheet tags
+
+## Replicas (Kimai → Atlas)
+- Core: `replica_kimai_projects`, `replica_kimai_timesheets`
+- Dimensions: `replica_kimai_users`, `replica_kimai_activities`, `replica_kimai_tags`, `replica_kimai_timesheet_tags`, `replica_kimai_timesheet_meta`, `replica_kimai_customers`

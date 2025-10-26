@@ -5,7 +5,9 @@ export async function syncHealthHandler(_req, res) {
   try {
     const keys = [
       'sync.projects.last_run',
+      'sync.timesheets.last_run',
       'sync.timesheets.last_modified_at',
+      'sync.tsmeta.last_run',
       'sync.customers.last_run',
       'sync.users.last_run',
       'sync.activities.last_run',
@@ -17,30 +19,39 @@ export async function syncHealthHandler(_req, res) {
     );
     const state: Record<string, any> = {};
     for (const r of stateRows) state[r.state_key] = { value: r.state_value, updated_at: r.updated_at };
-    const countsSql = `SELECT 'projects' as name, COUNT(*) as cnt FROM replica_kimai_projects
-      UNION ALL SELECT 'timesheets', COUNT(*) FROM replica_kimai_timesheets
-      UNION ALL SELECT 'users', COUNT(*) FROM replica_kimai_users
-      UNION ALL SELECT 'activities', COUNT(*) FROM replica_kimai_activities
-      UNION ALL SELECT 'tags', COUNT(*) FROM replica_kimai_tags
-      UNION ALL SELECT 'timesheet_tags', COUNT(*) FROM replica_kimai_timesheet_tags
-      UNION ALL SELECT 'customers', COUNT(*) FROM replica_kimai_customers`;
-    const [countRows]: any = await atlasPool.query(countsSql);
+    // Build counts and last-modified per replica table (tolerant of missing tables)
+    const tables: Record<string, string> = {
+      projects: 'replica_kimai_projects',
+      timesheets: 'replica_kimai_timesheets',
+      users: 'replica_kimai_users',
+      activities: 'replica_kimai_activities',
+      tags: 'replica_kimai_tags',
+      timesheet_tags: 'replica_kimai_timesheet_tags',
+      timesheet_meta: 'replica_kimai_timesheet_meta',
+      customers: 'replica_kimai_customers',
+    };
     const counts: Record<string, number> = {};
-    for (const r of countRows) counts[r.name] = Number(r.cnt) || 0;
-    // Replica last modified (MAX(synced_at)) per table
-    const [lastRows]: any = await atlasPool.query(
-      `SELECT 'projects' AS name, MAX(synced_at) AS last FROM replica_kimai_projects
-       UNION ALL SELECT 'timesheets', MAX(synced_at) FROM replica_kimai_timesheets
-       UNION ALL SELECT 'users', MAX(synced_at) FROM replica_kimai_users
-       UNION ALL SELECT 'activities', MAX(synced_at) FROM replica_kimai_activities
-       UNION ALL SELECT 'tags', MAX(synced_at) FROM replica_kimai_tags
-       UNION ALL SELECT 'timesheet_tags', MAX(synced_at) FROM replica_kimai_timesheet_tags
-       UNION ALL SELECT 'customers', MAX(synced_at) FROM replica_kimai_customers`
-    );
     const replicaLast: Record<string, string | null> = {};
-    for (const r of lastRows) {
-      const v = r.last instanceof Date ? (r.last as Date).toISOString() : (r.last ? String(r.last) : null);
-      replicaLast[r.name] = v;
+    for (const [name, table] of Object.entries(tables)) {
+      try {
+        const [existsRows]: any = await atlasPool.query(
+          'SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ? LIMIT 1',
+          [table]
+        );
+        const exists = Array.isArray(existsRows) && existsRows.length > 0;
+        if (!exists) {
+          counts[name] = 0;
+          replicaLast[name] = null;
+          continue;
+        }
+        const [cRows]: any = await atlasPool.query(`SELECT COUNT(*) AS cnt, MAX(synced_at) AS last FROM \`${table}\``);
+        counts[name] = Number(cRows?.[0]?.cnt || 0);
+        const lastVal = cRows?.[0]?.last;
+        replicaLast[name] = lastVal ? new Date(lastVal).toISOString() : null;
+      } catch {
+        counts[name] = 0;
+        replicaLast[name] = null;
+      }
     }
     res.json({ state, counts, replicaLast });
   } catch (e: any) {
@@ -87,6 +98,10 @@ export async function syncVerifyHandler(_req, res) {
     const kTags = await countOne(kimaiPool, 'SELECT COUNT(*) AS cnt FROM kimai2_tags')
     const rTags = await countOne(atlasPool, 'SELECT COUNT(*) AS cnt FROM replica_kimai_tags')
     totals.push({ name: 'tags', kimai: kTags, replica: rTags, diff: rTags - kTags, ok: withinTolerance(kTags, rTags, TOLERANCE) })
+    // Timesheet meta (total)
+    const kTsMeta = await countOne(kimaiPool, 'SELECT COUNT(*) AS cnt FROM kimai2_timesheet_meta')
+    const rTsMeta = await countOne(atlasPool, 'SELECT COUNT(*) AS cnt FROM replica_kimai_timesheet_meta')
+    totals.push({ name: 'timesheet_meta', kimai: kTsMeta, replica: rTsMeta, diff: rTsMeta - kTsMeta, ok: withinTolerance(kTsMeta, rTsMeta, TOLERANCE) })
     // Timesheets (total)
     const kTs = await countOne(kimaiPool, 'SELECT COUNT(*) AS cnt FROM kimai2_timesheet')
     const rTs = await countOne(atlasPool, 'SELECT COUNT(*) AS cnt FROM replica_kimai_timesheets')

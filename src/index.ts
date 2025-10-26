@@ -1,7 +1,7 @@
 // index.ts
 import express from 'express';
 import { getProjectsHandler, getDetailedTimesheetsHandler } from './controllers/projectsController';
-import { syncTimesheetsHandler, clearReplicaHandler, syncUsersHandler, syncActivitiesHandler, syncTagsHandler, syncCustomersHandler } from './controllers/syncController';
+import { syncTimesheetsHandler, clearReplicaHandler, syncUsersHandler, syncActivitiesHandler, syncTagsHandler, syncCustomersHandler, syncTimesheetMetaHandler } from './controllers/syncController';
 import { getSunburstHandler } from './controllers/biController';
 import { updateProjectStatusHandler, updateProjectOverridesHandler } from './controllers/projectOverridesController';
 import { authMiddleware } from './middleware/auth';
@@ -59,8 +59,25 @@ if (!port) {
 
 app.use(express.json());
 app.use(helmet());
-const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: process.env.NODE_ENV === 'test' ? 10000 : 10 });
-const writeLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 60 });
+const isDev = process.env.NODE_ENV !== 'production';
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: isDev ? 1000 : (process.env.NODE_ENV === 'test' ? 10000 : 10),
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+const writeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: isDev ? 1000 : 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+const syncLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: isDev ? 2000 : 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 app.use(authMiddleware);
 
 // Public auth endpoints
@@ -105,13 +122,14 @@ app.put(
 app.get('/bi/sunburst', ...permit('bi:read', 'read'), getSunburstHandler);
 app.get('/projects', ...permit('project:read', 'read'), getProjectsHandler);
 app.get('/timesheets', ...permit('timesheet:read', 'read'), getDetailedTimesheetsHandler);
-app.post('/sync/timesheets', writeLimiter, ...permit('sync:execute', 'write'), syncTimesheetsHandler);
-app.post('/sync/users', writeLimiter, ...permit('sync:execute', 'write'), syncUsersHandler);
-app.post('/sync/activities', writeLimiter, ...permit('sync:execute', 'write'), syncActivitiesHandler);
-app.post('/sync/tags', writeLimiter, ...permit('sync:execute', 'write'), syncTagsHandler);
-app.post('/sync/customers', writeLimiter, ...permit('sync:execute', 'write'), syncCustomersHandler);
-app.post('/sync/clear/:table', writeLimiter, ...permit('sync:execute', 'write'), clearReplicaHandler);
-app.post('/sync/projects', writeLimiter, ...permit('sync:execute', 'write'), syncProjectsHandler);
+app.post('/sync/timesheets', syncLimiter, ...permit('sync:execute', 'write'), syncTimesheetsHandler);
+app.post('/sync/users', syncLimiter, ...permit('sync:execute', 'write'), syncUsersHandler);
+app.post('/sync/activities', syncLimiter, ...permit('sync:execute', 'write'), syncActivitiesHandler);
+app.post('/sync/tags', syncLimiter, ...permit('sync:execute', 'write'), syncTagsHandler);
+app.post('/sync/customers', syncLimiter, ...permit('sync:execute', 'write'), syncCustomersHandler);
+app.post('/sync/tsmeta', syncLimiter, ...permit('sync:execute', 'write'), syncTimesheetMetaHandler);
+app.post('/sync/clear/:table', syncLimiter, ...permit('sync:execute', 'write'), clearReplicaHandler);
+app.post('/sync/projects', syncLimiter, ...permit('sync:execute', 'write'), syncProjectsHandler);
 app.get('/sync/health', ...permit('sync:execute', 'read'), syncHealthHandler);
 app.get('/sync/verify', ...permit('sync:execute', 'read'), syncVerifyHandler);
 

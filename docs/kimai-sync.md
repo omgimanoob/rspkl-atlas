@@ -17,6 +17,7 @@ Atlas’ third core function is to provide well‑modeled, queryable data for an
   - `kimai2_activities` → `replica_kimai_activities`
   - `kimai2_tags` → `replica_kimai_tags`
   - `kimai2_timesheet_tags` → `replica_kimai_timesheet_tags`
+  - `kimai2_timesheet_meta` → `replica_kimai_timesheet_meta`
   - (Optional) `kimai2_customers` → `replica_kimai_customers`
 - Build enriched views:
   - `vw_projects` — `replica_kimai_projects` LEFT JOIN `overrides_projects` + tags + payments rollup
@@ -46,6 +47,9 @@ Atlas’ third core function is to provide well‑modeled, queryable data for an
 - `replica_kimai_timesheet_tags`
   - Columns mirror `kimai2_timesheet_tags` (timesheet_id, tag_id), plus `synced_at`.
   - PK: composite or surrogate id; indexes on (timesheet_id), (tag_id)
+- `replica_kimai_timesheet_meta`
+  - Columns mirror `kimai2_timesheet_meta` (id, timesheet_id, name, value, visible), plus `synced_at`.
+  - PK: `id`; indexes on `timesheet_id`, `name` for lookups
 - `replica_kimai_customers` (optional Phase 1.5)
   - Columns mirror `kimai2_customers`, plus `synced_at`.
 
@@ -118,6 +122,16 @@ Consistency notes
 - Admin endpoint (present): `POST /sync/timesheets` (requires `sync:execute`) — can be extended for projects.
 - Cron/scheduler (external or PM2) to run syncs periodically.
 
+HTTP endpoints (admin)
+- `POST /sync/projects`
+- `POST /sync/timesheets` (incremental)
+- `POST /sync/users`
+- `POST /sync/activities`
+- `POST /sync/tags` (tags + timesheet_tags)
+- `POST /sync/customers`
+- `POST /sync/tsmeta` (timesheet meta)
+- `POST /sync/clear/:table` — clears a replica table (whitelist enforced)
+
 ## Security
 - Replicas live in Atlas DB; BI tools connect read‑only.
 - No writes back to Kimai. Filter sensitive columns if not needed.
@@ -153,7 +167,7 @@ Consistency notes
     - `QUALITY_WINDOW_DAYS` (default 7)
     - `QUALITY_TOLERANCE` (default 0.02 = 2%)
   - Output:
-    - Totals for projects/users/activities/timesheets (Kimai vs replicas)
+    - Totals for projects/users/activities/timesheets/timesheet_meta (Kimai vs replicas)
     - Timesheets counts in the recent window (Kimai vs replicas)
     - Per-day breakdown for timesheets in the window
   - Sync health:

@@ -3,38 +3,55 @@ import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
-import { CheckCircle2, Loader2, MoreVertical, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, Plus } from 'lucide-react'
+import { ProjectStatusBadge } from '@/components/ProjectStatusBadge'
+import { CheckCircle2, Loader2, MoreVertical, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, Plus, ChevronsUpDown, ArrowUp, ArrowDown, Columns as ColumnsIcon, ChevronDown } from 'lucide-react'
+import { formatLocalPopover } from '@/lib/datetime'
+
+const defaultVisibleColumns = ['origin','name','notes','status','prospective','updated'] as const
 
 export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) {
   const [includeKimai, setIncludeKimai] = useState(true)
   const [includeAtlas, setIncludeAtlas] = useState(true)
-  const [sourceMenuOpen, setSourceMenuOpen] = useState(false)
-  const [sourceDraft, setSourceDraft] = useState<{ kimai: boolean; atlas: boolean }>({ kimai: true, atlas: true })
+  const [originMenuOpen, setOriginMenuOpen] = useState(false)
+  const [originDraft, setOriginDraft] = useState<{ kimai: boolean; atlas: boolean }>({ kimai: true, atlas: true })
   const [q, setQ] = useState('')
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [total, setTotal] = useState(0)
-  const [sort, setSort] = useState<'updatedAt:desc' | 'displayName:asc' | 'displayName:desc'>('updatedAt:desc')
+  const [sort, setSort] = useState<string>('updatedAt:desc')
   const [statusFilter, setStatusFilter] = useState<Set<number> | null>(null)
   const [statusDraft, setStatusDraft] = useState<Set<number>>(new Set())
   const [statusMenuOpen, setStatusMenuOpen] = useState(false)
   const [counts, setCounts] = useState<{ kimai: number; atlas: number } | null>(null)
+  // Columns visibility
+  const allColumns = useMemo(() => ([
+    { id: 'origin', label: 'Origin', sortable: false as const },
+    { id: 'id', label: 'ID', sortable: true as const, sortKey: 'id' },
+    { id: 'name', label: 'Name', sortable: true as const, sortKey: 'displayName' },
+    { id: 'notes', label: 'Notes', sortable: true as const, sortKey: 'notes' },
+    { id: 'status', label: 'Status', sortable: true as const, sortKey: 'statusName' },
+    { id: 'prospective', label: 'Prospective', sortable: true as const, sortKey: 'isProspective' },
+    { id: 'updated', label: 'Updated', sortable: true as const, sortKey: 'updatedAt' },
+    { id: 'actions', label: 'Actions', sortable: false as const },
+  ]), [])
+  const [visibleCols, setVisibleCols] = useState<Set<string>>(new Set(defaultVisibleColumns))
   const isAdmin = !!me?.roles?.includes('admins')
-  const canProspective = isAdmin || me?.roles?.some(r => ['hr','directors'].includes(r))
-  const canOverrides = isAdmin || me?.roles?.some(r => ['hr','directors'].includes(r))
+  const canProspective = isAdmin || me?.roles?.some(r => ['hr', 'directors'].includes(r))
+  const canOverrides = isAdmin || me?.roles?.some(r => ['hr', 'directors'].includes(r))
   // Create dialog
   const [createOpen, setCreateOpen] = useState(false)
   const [createName, setCreateName] = useState('')
   const [createStatusId, setCreateStatusId] = useState<number | null>(null)
   const [createNotes, setCreateNotes] = useState('')
-  const [statuses, setStatuses] = useState<Array<{ id: number; name: string }>>([])
+  const [statuses, setStatuses] = useState<Array<{ id: number; name: string; color?: string | null }>>([])
 
   // Dialog states
   const [editAtlasOpen, setEditAtlasOpen] = useState(false)
@@ -49,6 +66,25 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
   const [editKimaiRow, setEditKimaiRow] = useState<any | null>(null)
   const [editKimaiStatusId, setEditKimaiStatusId] = useState<number | null>(null)
   const [editKimaiMoney, setEditKimaiMoney] = useState('')
+  const [editKimaiNotes, setEditKimaiNotes] = useState('')
+
+  function handleRowClick(r: any) {
+    if (r.origin === 'atlas') {
+      if (!canProspective) return
+      setEditAtlasRow(r)
+      setEditAtlasName(r.displayName || '')
+      setEditAtlasStatusId(r.statusId ?? null)
+      setEditAtlasNotes(r.notes || '')
+      setEditAtlasOpen(true)
+    } else {
+      if (!canOverrides) return
+      setEditKimaiRow(r)
+      setEditKimaiStatusId(r.statusId ?? null)
+      setEditKimaiMoney(r.moneyCollected != null ? String(r.moneyCollected) : '')
+      setEditKimaiNotes(r.notes || '')
+      setEditKimaiOpen(true)
+    }
+  }
   const [saving, setSaving] = useState(false)
 
   // Persist preferences
@@ -56,7 +92,7 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
     try {
       const pref = { includeKimai, includeAtlas, sort, pageSize }
       localStorage.setItem('pv2:prefs', JSON.stringify(pref))
-    } catch {}
+    } catch { }
   }, [includeKimai, includeAtlas, sort, pageSize])
   useEffect(() => {
     try {
@@ -68,8 +104,16 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
         if (typeof pref?.sort === 'string') setSort(pref.sort)
         if (typeof pref?.pageSize === 'number') setPageSize(pref.pageSize)
       }
-    } catch {}
+      const rawCols = localStorage.getItem('pv2:cols')
+      if (rawCols) {
+        const arr = JSON.parse(rawCols)
+        if (Array.isArray(arr)) setVisibleCols(new Set(arr.filter((x: any) => typeof x === 'string')))
+      }
+    } catch { }
   }, [])
+  useEffect(() => {
+    try { localStorage.setItem('pv2:cols', JSON.stringify(Array.from(visibleCols))) } catch {}
+  }, [visibleCols])
 
   const statusFilterKey = useMemo(() => {
     if (statusFilter === null) return '__all__'
@@ -86,7 +130,7 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
   const statusIdsAll = useMemo(() => statuses.map(s => s.id), [statuses])
   const allStatusesSelected = statuses.length > 0 && statusDraft.size === statuses.length
   const noStatusesSelected = statusDraft.size === 0
-  const bothSourcesSelected = sourceDraft.kimai && sourceDraft.atlas
+  const bothOriginsSelected = originDraft.kimai && originDraft.atlas
 
   async function load(input?: { statusIds?: number[]; statusNull?: boolean; include?: Array<'kimai' | 'atlas'> }) {
     setLoading(true)
@@ -94,11 +138,11 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
       const include: Array<'kimai' | 'atlas'> = input?.include
         ? [...input.include]
         : (() => {
-            const arr: Array<'kimai' | 'atlas'> = []
-            if (includeKimai) arr.push('kimai')
-            if (includeAtlas) arr.push('atlas')
-            return arr
-          })()
+          const arr: Array<'kimai' | 'atlas'> = []
+          if (includeKimai) arr.push('kimai')
+          if (includeAtlas) arr.push('atlas')
+          return arr
+        })()
       const wantsNull = input?.statusNull ?? statusFilterState.wantsNull
       const statusIds = input?.statusIds ?? statusFilterState.ids
       const res = await api.v2.projects({
@@ -123,7 +167,7 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
     (async () => {
       try {
         const list = await api.v2.listStatuses()
-        setStatuses(list.filter(s => Number(s.is_active) === 1).map(s => ({ id: s.id, name: s.name })))
+        setStatuses(list.filter(s => Number(s.is_active) === 1).map(s => ({ id: s.id, name: s.name, color: (s as any).color || null })))
       } catch { setStatuses([]) }
     })()
   }, [])
@@ -135,135 +179,33 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="text-base font-semibold">Projects</div>
-          <DropdownMenu open={sourceMenuOpen} onOpenChange={(open) => {
-            setSourceMenuOpen(open)
-            if (open) setSourceDraft({ kimai: includeKimai, atlas: includeAtlas })
-          }}>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">Sources</Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start">
-              <DropdownMenuLabel>Include</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuCheckboxItem
-                checked={sourceDraft.kimai}
-                onSelect={event => event.preventDefault()}
-                onCheckedChange={v => setSourceDraft(d => ({ ...d, kimai: Boolean(v) }))}
-              >
-                Kimai
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuCheckboxItem
-                checked={sourceDraft.atlas}
-                onSelect={event => event.preventDefault()}
-                onCheckedChange={v => setSourceDraft(d => ({ ...d, atlas: Boolean(v) }))}
-              >
-                Prospective (Atlas)
-              </DropdownMenuCheckboxItem>
-              <DropdownMenuSeparator />
-              <div className="px-2 py-2 flex items-center justify-end gap-2">
-                <Button variant="ghost" size="sm" onClick={() => setSourceDraft({ kimai: true, atlas: true })} disabled={bothSourcesSelected}>Select both</Button>
-                <Button size="sm" onClick={async () => {
-                  setIncludeKimai(sourceDraft.kimai)
-                  setIncludeAtlas(sourceDraft.atlas)
-                  setPage(1)
-                  setSourceMenuOpen(false)
-                  const nextInclude: Array<'kimai' | 'atlas'> = []
-                  if (sourceDraft.kimai) nextInclude.push('kimai')
-                  if (sourceDraft.atlas) nextInclude.push('atlas')
-                  await load({
-                    statusIds: statusFilterState.ids,
-                    statusNull: statusFilterState.wantsNull,
-                    include: nextInclude,
-                  })
-                }}>Apply</Button>
-              </div>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
         <div className="flex items-center gap-2">
           <Input placeholder="Search name…" value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { setPage(1); load() } }} className="max-w-xs" />
-          <Select value={sort} onValueChange={(v) => { setSort(v as any); setPage(1) }}>
-            <SelectTrigger className="w-[180px]"><SelectValue placeholder="Sort" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="updatedAt:desc">Updated (newest)</SelectItem>
-              <SelectItem value="displayName:asc">Name (A→Z)</SelectItem>
-              <SelectItem value="displayName:desc">Name (Z→A)</SelectItem>
-            </SelectContent>
-          </Select>
-          <DropdownMenu open={statusMenuOpen} onOpenChange={(open) => {
-            setStatusMenuOpen(open)
-            if (open) {
-              if (statusFilter === null) {
-                setStatusDraft(new Set(statusIdsAll))
-              } else if (statusFilter.size) {
-                setStatusDraft(new Set(statusFilter))
-              } else {
-                setStatusDraft(new Set())
-              }
-            }
-          }}>
+          <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">Status</Button>
+              <Button variant="outline" size="sm">
+                <ColumnsIcon className="h-4 w-4" />
+                <span className="hidden lg:inline">Customize Columns</span>
+                <span className="lg:hidden">Columns</span>
+                <ChevronDown className="h-4 w-4" />
+              </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Filter by status</DropdownMenuLabel>
+              <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {statuses.length === 0 && <div className="px-2 py-1 text-xs text-muted-foreground">No statuses</div>}
-              {statuses.map(s => (
-                <DropdownMenuCheckboxItem
-                  key={s.id}
-                  checked={statusDraft.has(s.id)}
-                  onCheckedChange={(v) => {
-                    const next = new Set(statusDraft)
-                    if (v) next.add(s.id); else next.delete(s.id)
-                    setStatusDraft(next)
-                  }}
-                  onSelect={(event) => event.preventDefault()}
-                >
-                  <div className="flex w-full justify-between"><span>{s.name || `#${s.id}`}</span></div>
-                </DropdownMenuCheckboxItem>
+              {allColumns.filter(c => c.id !== 'actions').map(c => (
+                <DropdownMenuCheckboxItem key={c.id} checked={visibleCols.has(c.id)} onCheckedChange={(v) => {
+                  const next = new Set(visibleCols)
+                  if (v) next.add(c.id); else next.delete(c.id)
+                  if (next.size === 0) return // keep at least one
+                  setVisibleCols(next)
+                }}>{c.label}</DropdownMenuCheckboxItem>
               ))}
-              {statuses.length > 0 && (
-                <>
-                  <DropdownMenuSeparator />
-                  <div className="px-2 py-2 flex items-center justify-end gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setStatusDraft(new Set(statusIdsAll))}
-                      disabled={allStatusesSelected}
-                    >Select all</Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setStatusDraft(new Set())}
-                      disabled={noStatusesSelected}
-                    >Clear all</Button>
-                    <Button size="sm" onClick={async () => {
-                      const next = new Set(statusDraft)
-                      let nextFilter: Set<number> | null = next
-                      let statusIdsArg: number[] | undefined
-                      let statusNullArg = false
-                      if (statuses.length && next.size === statuses.length) {
-                        nextFilter = null
-                        statusIdsArg = undefined
-                      } else if (next.size === 0) {
-                        nextFilter = new Set()
-                        statusNullArg = true
-                      } else {
-                        statusIdsArg = Array.from(next)
-                      }
-                      setStatusFilter(nextFilter)
-                      setPage(1)
-                      setStatusMenuOpen(false)
-                      await load({ statusIds: statusIdsArg, statusNull: statusNullArg })
-                    }}>Apply</Button>
-                  </div>
-                </>
-              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setVisibleCols(new Set(defaultVisibleColumns))}>Reset to default</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button variant="outline" size="sm" onClick={() => { setPage(1); load() }} disabled={loading}>{loading ? 'Loading…' : 'Search'}</Button>
           <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)} disabled={!canProspective}>
             <Plus className="h-4 w-4" />
             <span className="hidden lg:inline">New Prospective</span>
@@ -279,69 +221,235 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
             <div>Total: <span className="font-semibold">{total}</span></div>
           </div>
         )}
-        <div className="grid grid-cols-7 gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground bg-muted border-b sticky top-16 z-10">
-          <div>Origin</div>
-          <div>ID</div>
-          <div>Name</div>
-          <div>Status</div>
-          <div>Prospective</div>
-          <div>Updated</div>
-          <div className="text-right">Actions</div>
-        </div>
-        {filtered.map((r, idx) => (
-          <div key={idx} className="grid grid-cols-7 gap-2 px-3 py-2 text-sm border-b last:border-b-0">
-            <div>{r.origin === 'atlas' ? 'Prospective' : 'Kimai'}</div>
-            <div>{r.id}</div>
-            <div>{r.displayName}</div>
-            <div>
-              {r.statusName ? (
-                <Badge variant="outline" className="text-muted-foreground px-1.5 gap-1.5">
-                  {r.statusName === 'Done' ? (
-                    <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-                  ) : (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  )}
-                  {r.statusName}
-                </Badge>
-              ) : (
-                '-'
-              )}
+        {(() => {
+          const visible = allColumns.filter(c => c.id === 'actions' || visibleCols.has(c.id))
+          const count = visible.length
+          const gridCls = count === 1 ? 'grid-cols-1' : count === 2 ? 'grid-cols-2' : count === 3 ? 'grid-cols-3' : count === 4 ? 'grid-cols-4' : count === 5 ? 'grid-cols-5' : count === 6 ? 'grid-cols-6' : count === 7 ? 'grid-cols-7' : 'grid-cols-8'
+          const sortKey = (id: string) => (allColumns.find(c => c.id === id) as any)?.sortKey as string | undefined
+          const currentKey = sort.split(':')[0]
+          const currentDir = (sort.split(':')[1] || 'asc') as 'asc' | 'desc'
+          const toggleSort = (id: string) => {
+            const key = sortKey(id)
+            if (!key) return
+            let dir: 'asc' | 'desc' = 'asc'
+            if (currentKey === key) dir = currentDir === 'asc' ? 'desc' : 'asc'
+            else dir = key === 'updatedAt' ? 'desc' : 'asc'
+            setSort(`${key}:${dir}`)
+            setPage(1)
+          }
+          return (
+            <div className={`grid ${gridCls} gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground bg-muted border-b sticky top-16 z-10`}>
+              {visible.map((c) => {
+                const key = sortKey(c.id)
+                const active = key && currentKey === key
+                const isActions = c.id === 'actions'
+                const showFilterTrigger = c.id === 'status' || c.id === 'origin'
+                return (
+                  <div key={c.id} className={isActions ? 'text-right' : ''}>
+                    <div className="inline-flex items-center gap-1">
+                      {showFilterTrigger && c.id === 'origin' && (
+                        <DropdownMenu open={originMenuOpen} onOpenChange={(open) => {
+                          setOriginMenuOpen(open)
+                          if (open) setOriginDraft({ kimai: includeKimai, atlas: includeAtlas })
+                        }}>
+                          <DropdownMenuTrigger asChild>
+                            <button type="button" className="hover:underline">{c.label}</button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="start">
+                            <DropdownMenuLabel>Include</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuCheckboxItem
+                              checked={originDraft.kimai}
+                              onSelect={event => event.preventDefault()}
+                              onCheckedChange={v => setOriginDraft(d => ({ ...d, kimai: Boolean(v) }))}
+                            >
+                              Kimai
+                            </DropdownMenuCheckboxItem>
+                            <DropdownMenuCheckboxItem
+                              checked={originDraft.atlas}
+                              onSelect={event => event.preventDefault()}
+                              onCheckedChange={v => setOriginDraft(d => ({ ...d, atlas: Boolean(v) }))}
+                            >
+                              Prospective (Atlas)
+                            </DropdownMenuCheckboxItem>
+                            <DropdownMenuSeparator />
+                            <div className="px-2 py-2 flex items-center justify-end gap-2">
+                              <Button variant="ghost" size="sm" onClick={() => setOriginDraft({ kimai: true, atlas: true })} disabled={bothOriginsSelected}>Select both</Button>
+                              <Button size="sm" onClick={async () => {
+                                setIncludeKimai(originDraft.kimai)
+                                setIncludeAtlas(originDraft.atlas)
+                                setPage(1)
+                                setOriginMenuOpen(false)
+                                const nextInclude: Array<'kimai' | 'atlas'> = []
+                                if (originDraft.kimai) nextInclude.push('kimai')
+                                if (originDraft.atlas) nextInclude.push('atlas')
+                                await load({
+                                  statusIds: statusFilterState.ids,
+                                  statusNull: statusFilterState.wantsNull,
+                                  include: nextInclude,
+                                })
+                              }}>Apply</Button>
+                            </div>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                      {showFilterTrigger && c.id === 'status' && (
+                        <DropdownMenu open={statusMenuOpen} onOpenChange={(open) => {
+                          setStatusMenuOpen(open)
+                          if (open) {
+                            if (statusFilter === null) {
+                              setStatusDraft(new Set(statusIdsAll))
+                            } else if (statusFilter.size) {
+                              setStatusDraft(new Set(statusFilter))
+                            } else {
+                              setStatusDraft(new Set())
+                            }
+                          }
+                        }}>
+                          <DropdownMenuTrigger asChild>
+                            <button type="button" className="hover:underline">{c.label}</button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Filter by status</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            {statuses.length === 0 && <div className="px-2 py-1 text-xs text-muted-foreground">No statuses</div>}
+                            {statuses.map(s => (
+                              <DropdownMenuCheckboxItem
+                                key={s.id}
+                                checked={statusDraft.has(s.id)}
+                                onCheckedChange={(v) => {
+                                  const next = new Set(statusDraft)
+                                  if (v) next.add(s.id); else next.delete(s.id)
+                                  setStatusDraft(next)
+                                }}
+                                onSelect={(event) => event.preventDefault()}
+                              >
+                                <div className="flex w-full justify-between"><span>{s.name || `#${s.id}`}</span></div>
+                              </DropdownMenuCheckboxItem>
+                            ))}
+                            {statuses.length > 0 && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <div className="px-2 py-2 flex items-center justify-end gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setStatusDraft(new Set(statusIdsAll))}
+                                    disabled={allStatusesSelected}
+                                  >Select all</Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setStatusDraft(new Set())}
+                                    disabled={noStatusesSelected}
+                                  >Clear all</Button>
+                                  <Button size="sm" onClick={async () => {
+                                    const next = new Set(statusDraft)
+                                    let nextFilter: Set<number> | null = next
+                                    let statusIdsArg: number[] | undefined
+                                    let statusNullArg = false
+                                    if (statuses.length && next.size === statuses.length) {
+                                      nextFilter = null
+                                      statusIdsArg = undefined
+                                    } else if (next.size === 0) {
+                                      nextFilter = new Set()
+                                      statusNullArg = true
+                                    } else {
+                                      statusIdsArg = Array.from(next)
+                                    }
+                                    setStatusFilter(nextFilter)
+                                    setPage(1)
+                                    setStatusMenuOpen(false)
+                                    await load({ statusIds: statusIdsArg, statusNull: statusNullArg })
+                                  }}>Apply</Button>
+                                </div>
+                              </>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                      {!showFilterTrigger && <span>{c.label}</span>}
+                      {key && (
+                        <button
+                          type="button"
+                          aria-label={`Sort by ${c.label}`}
+                          onClick={() => toggleSort(c.id)}
+                          className="inline-flex items-center"
+                        >
+                          {!active && <ChevronsUpDown className="h-3.5 w-3.5 opacity-60" />}
+                          {active && (currentDir === 'asc' ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />)}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
-            <div>{r.isProspective ? 'Yes' : 'No'}</div>
-            <div>{r.updatedAt ? new Date(r.updatedAt).toLocaleString() : '-'}</div>
-            <div className="flex items-center justify-end">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="data-[state=open]:bg-muted text-muted-foreground"
-                    aria-label="Open row actions"
-                  >
-                    <MoreVertical className="h-4 w-4" />
-                    <span className="sr-only">Open menu</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-40">
-                  {r.origin === 'atlas' ? (
-                    <>
-                      <DropdownMenuItem disabled={!canProspective} onClick={() => { setEditAtlasRow(r); setEditAtlasName(r.displayName || ''); setEditAtlasStatusId(r.statusId ?? null); setEditAtlasNotes(''); setEditAtlasOpen(true) }}>
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem disabled={!canProspective} onClick={() => { setLinkRow(r); setLinkKimaiId(''); setLinkOpen(true) }}>
-                        Link
-                      </DropdownMenuItem>
-                    </>
-                  ) : (
-                    <DropdownMenuItem disabled={!canOverrides} onClick={() => { setEditKimaiRow(r); setEditKimaiStatusId(r.statusId ?? null); setEditKimaiMoney(''); setEditKimaiOpen(true) }}>
-                      Overrides
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
+          )
+        })()}
+        {filtered.map((r, idx) => {
+          const visible = allColumns.filter(c => c.id === 'actions' || visibleCols.has(c.id))
+          const count = visible.length
+          const gridCls = count === 1 ? 'grid-cols-1' : count === 2 ? 'grid-cols-2' : count === 3 ? 'grid-cols-3' : count === 4 ? 'grid-cols-4' : count === 5 ? 'grid-cols-5' : count === 6 ? 'grid-cols-6' : count === 7 ? 'grid-cols-7' : 'grid-cols-8'
+          return (
+            <div
+              key={idx}
+              className={`grid ${gridCls} gap-2 px-3 py-2 text-sm border-b last:border-b-0 hover:bg-muted/50 cursor-pointer`}
+              onClick={() => handleRowClick(r)}
+            >
+              {visible.map((c) => {
+                if (c.id === 'origin') return <div key={c.id}>{r.origin === 'atlas' ? 'Prospective' : 'Kimai'}</div>
+                if (c.id === 'id') return <div key={c.id}>{r.id}</div>
+                if (c.id === 'name') return <div key={c.id}>{r.displayName}</div>
+                if (c.id === 'status') return (
+                  <div key={c.id}>
+                    {r.statusId != null ? (
+                      <ProjectStatusBadge name={r.statusName} color={statuses.find(s => s.id === r.statusId)?.color || undefined} />
+                    ) : '-'}
+                  </div>
+                )
+                if (c.id === 'notes') return <div key={c.id} className="truncate" title={r.notes || ''}>{r.notes || '-'}</div>
+                if (c.id === 'prospective') return <div key={c.id}>{r.isProspective ? 'Yes' : 'No'}</div>
+                if (c.id === 'updated') return <div key={c.id}>{formatLocalPopover(r.updatedAt)}</div>
+                if (c.id === 'actions') return (
+                  <div key={c.id} className="flex items-center justify-end">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="data-[state=open]:bg-muted text-muted-foreground"
+                          aria-label="Open row actions"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                          <span className="sr-only">Open menu</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40">
+                        {r.origin === 'atlas' ? (
+                          <>
+                            <DropdownMenuItem disabled={!canProspective} onClick={() => { setEditAtlasRow(r); setEditAtlasName(r.displayName || ''); setEditAtlasStatusId(r.statusId ?? null); setEditAtlasNotes(r.notes || ''); setEditAtlasOpen(true) }}>
+                              Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem disabled={!canProspective} onClick={() => { setLinkRow(r); setLinkKimaiId(''); setLinkOpen(true) }}>
+                              Link
+                            </DropdownMenuItem>
+                          </>
+                        ) : (
+                          <DropdownMenuItem disabled={!canOverrides} onClick={() => { setEditKimaiRow(r); setEditKimaiStatusId(r.statusId ?? null); setEditKimaiMoney(''); setEditKimaiNotes(r.notes || ''); setEditKimaiOpen(true) }}>
+                            Edit
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                )
+                return <div key={c.id} />
+              })}
             </div>
-          </div>
-        ))}
+          )
+        })}
         {!filtered.length && (
           <div className="px-3 py-8 text-center text-sm text-muted-foreground">No projects</div>
         )}
@@ -356,7 +464,7 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
                 <SelectValue placeholder={pageSize} />
               </SelectTrigger>
               <SelectContent side="top">
-                {[10,20,50,100].map(n => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
+                {[10, 20, 50, 100].map(n => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -374,7 +482,7 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
               variant="outline"
               size="icon"
               className="size-8"
-              onClick={() => setPage(p => Math.max(1, p-1))}
+              onClick={() => setPage(p => Math.max(1, p - 1))}
               disabled={page === 1}
             >
               <span className="sr-only">Go to previous page</span>
@@ -429,7 +537,7 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
             </div>
             <div className="space-y-1">
               <div className="text-sm text-muted-foreground">Notes</div>
-              <Input value={createNotes} onChange={e => setCreateNotes(e.target.value)} disabled={saving} placeholder="Optional" />
+              <Textarea value={createNotes} onChange={e => setCreateNotes(e.target.value)} disabled={saving} placeholder="Optional" />
             </div>
           </div>
           <DialogFooter>
@@ -477,7 +585,7 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
             </div>
             <div className="space-y-1">
               <div className="text-sm text-muted-foreground">Notes</div>
-              <Input value={editAtlasNotes} onChange={e => setEditAtlasNotes(e.target.value)} disabled={saving} />
+              <Textarea value={editAtlasNotes} onChange={e => setEditAtlasNotes(e.target.value)} disabled={saving} placeholder="Add any relevant notes…" />
             </div>
           </div>
           <DialogFooter>
@@ -553,11 +661,22 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
                 </SelectContent>
               </Select>
             </div>
+
             <div className="space-y-1">
               <div className="text-sm text-muted-foreground">Money Collected</div>
               <Input value={editKimaiMoney} onChange={e => setEditKimaiMoney(e.target.value)} placeholder="0.00" disabled={saving} />
             </div>
+            <div className="space-y-1">
+              <div className="text-sm text-muted-foreground">Notes</div>
+              <Textarea value={editKimaiNotes} onChange={e => setEditKimaiNotes(e.target.value)} placeholder="Optional" disabled={saving} />
+            </div>
           </div>
+          {editKimaiRow?.comment && (
+            <div className="space-y-1">
+              <div className="text-sm text-muted-foreground">Kimai Comment</div>
+              <Textarea value={editKimaiRow.comment} readOnly disabled className="min-h-[80px]" />
+            </div>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditKimaiOpen(false)} disabled={saving}>Cancel</Button>
             <Button disabled={saving || !canOverrides} onClick={async () => {
@@ -565,6 +684,7 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
               const payload: any = {}
               if (editKimaiStatusId !== undefined) payload.status_id = editKimaiStatusId
               if (editKimaiMoney.trim() !== '') payload.money_collected = Number(parseFloat(editKimaiMoney))
+              payload.notes = editKimaiNotes
               try {
                 setSaving(true)
                 await api.v2.updateKimaiOverrides(editKimaiRow.kimaiId || editKimaiRow.id, payload)

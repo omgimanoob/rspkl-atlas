@@ -68,6 +68,44 @@ Expected:
 
 ---
 
+### Sync (admin)
+
+Requires an admin cookie (`-b cookies.txt`).
+
+##### Sync projects (full refresh)
+```bash
+curl -i -X POST http://localhost:$PORT/sync/projects -b cookies.txt
+```
+
+##### Sync timesheets (incremental)
+```bash
+curl -i -X POST http://localhost:$PORT/sync/timesheets -b cookies.txt
+```
+
+##### Sync users / activities / tags / customers / timesheet meta
+```bash
+curl -i -X POST http://localhost:$PORT/sync/users -b cookies.txt
+curl -i -X POST http://localhost:$PORT/sync/activities -b cookies.txt
+curl -i -X POST http://localhost:$PORT/sync/tags -b cookies.txt
+curl -i -X POST http://localhost:$PORT/sync/customers -b cookies.txt
+curl -i -X POST http://localhost:$PORT/sync/tsmeta -b cookies.txt
+```
+
+##### Clear a replica table (dangerous)
+```bash
+curl -i -X POST http://localhost:$PORT/sync/clear/timesheet_meta -b cookies.txt
+```
+Allowed table keys: `projects|timesheets|users|activities|tags|timesheet_tags|timesheet_meta|customers`.
+
+##### Sync health & verify
+```bash
+curl -sS http://localhost:$PORT/sync/health -b cookies.txt | jq '.'
+curl -sS http://localhost:$PORT/sync/verify -b cookies.txt | jq '.'
+```
+Expected:
+- Health: last-run timestamps and replica counts for each replica.
+- Verify: Kimai vs replica totals, and timesheets recent-window accuracy.
+
 ### Admin Users (requires rbac:admin)
 
 Use an admin account cookie (login first with an admin user). Cookies saved in `cookies.txt`.

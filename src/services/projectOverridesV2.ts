@@ -21,6 +21,7 @@ export class ProjectOverridesV2 {
     kimai_project_id: number,
     status_id?: number | null,
     money_collected?: number | null,
+    notes?: string | null,
     updated_by_user_id?: number | null,
   }) {
     const id = payload.kimai_project_id
@@ -38,6 +39,10 @@ export class ProjectOverridesV2 {
       fields.push('status_id = ?')
       values.push(payload.status_id)
     }
+    if (payload.notes !== undefined) {
+      fields.push('notes = ?')
+      values.push(payload.notes)
+    }
     if (payload.updated_by_user_id !== undefined) {
       fields.push('updated_by_user_id = ?')
       values.push(payload.updated_by_user_id)
@@ -54,6 +59,7 @@ export class ProjectOverridesV2 {
       const insertVals: any[] = [id]
       if (payload.money_collected !== undefined) { cols.push('money_collected'); qs.push('?'); insertVals.push(payload.money_collected) }
       if (payload.status_id !== undefined) { await StatusService.ensureSchema(); cols.push('status_id'); qs.push('?'); insertVals.push(payload.status_id) }
+      if (payload.notes !== undefined) { cols.push('notes'); qs.push('?'); insertVals.push(payload.notes) }
       if (payload.updated_by_user_id !== undefined) { cols.push('updated_by_user_id'); qs.push('?'); insertVals.push(payload.updated_by_user_id) }
       const sql = `INSERT INTO project_overrides (${cols.join(',')}) VALUES (${qs.join(',')})`;
       await atlasPool.query(sql, insertVals)
@@ -62,4 +68,3 @@ export class ProjectOverridesV2 {
     return await this.getByProjectId(id)
   }
 }
-

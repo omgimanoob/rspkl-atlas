@@ -8,6 +8,7 @@ const cmds = [
   'npm run sync:tags',
   'npm run sync:projects',
   'npm run sync:timesheets',
+  'npm run sync:timesheet_meta',
 ];
 
 function run(cmd: string) {
@@ -33,4 +34,3 @@ main().catch((e) => {
   console.error('[sync:all] Failed:', e?.message || e);
   process.exit(1);
 });
-

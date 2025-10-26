@@ -18,7 +18,8 @@ const PopoverContent = React.forwardRef<
       align={align}
       sideOffset={sideOffset}
       className={cn(
-        "z-50 w-80 rounded-md border bg-white p-4 shadow-md outline-none",
+        // No fixed width by default; let consumers control width via className
+        "z-50 rounded-md border bg-white p-4 shadow-md outline-none",
         className
       )}
       {...props}
@@ -28,4 +29,3 @@ const PopoverContent = React.forwardRef<
 PopoverContent.displayName = PopoverPrimitive.Content.displayName
 
 export { Popover, PopoverTrigger, PopoverContent }
-

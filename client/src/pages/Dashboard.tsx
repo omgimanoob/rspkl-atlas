@@ -1,9 +1,14 @@
 import { useEffect, useState } from 'react'
 import { api } from '../lib/api'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { StatusBadge } from '@/components/StatusBadge'
+import { Card, CardAction, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { formatLocalDateTime } from '@/lib/datetime'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { formatLocalDateTime, formatLocalPopover } from '@/lib/datetime'
+import { XCircle, CheckCircle2, MoreVertical, ExternalLink, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 type SyncHealth = {
@@ -20,13 +25,18 @@ type Verify = {
 export function Dashboard({ me }: { me: { email: string; roles: string[] } }) {
   const [health, setHealth] = useState<SyncHealth | null>(null)
   const [loading, setLoading] = useState(true)
+  const [syncingAll, setSyncingAll] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [verify, setVerify] = useState<Verify | null>(null)
+  const [healthz, setHealthz] = useState<{ ok: boolean; db: boolean } | null>(null)
   const canSync = me.roles.includes('admins') // rough check; server enforces perms
 
   async function refresh() {
     setLoading(true)
     setError(null)
+    // Clear ephemeral data so badges/cards show loading states while fetching
+    setVerify(null)
+    setHealthz(null)
     try {
       const h = await api.sync.health()
       setHealth(h)
@@ -35,6 +45,12 @@ export function Dashboard({ me }: { me: { email: string; roles: string[] } }) {
         setVerify(v)
       } catch {
         setVerify(null)
+      }
+      try {
+        const hz = await api.sync.healthz()
+        setHealthz(hz)
+      } catch {
+        setHealthz(null)
       }
     } catch (e: any) {
       const msg = e?.status === 403 ? 'No permission to view sync status' : 'Failed to load sync status'
@@ -63,33 +79,38 @@ export function Dashboard({ me }: { me: { email: string; roles: string[] } }) {
     const day = Math.floor(hr / 24)
     return `${day}d ago`
   }
+  // Use shared popover-style formatter for consistency
   const LastRun = ({ k, label = 'Last run:' }: { k: string; label?: string }) => {
     const v = lastVal(k)
     const display = timeAgo(v)
-    const full = v ? formatLocalDateTime(v) : '—'
+    const short = formatLocalPopover(v)
     return (
-      <TooltipProvider delayDuration={0}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div>{label} <span className="font-medium text-foreground">{display}</span></div>
-          </TooltipTrigger>
-          <TooltipContent>{full}</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <Popover>
+        <PopoverTrigger asChild>
+          <button type="button" className="text-left block">
+            {label} <span className="font-medium text-foreground">{display}</span>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent side="bottom" align="start" className="max-w-xs">
+          <div className="text-sm">{short}</div>
+        </PopoverContent>
+      </Popover>
     )
   }
   const LastModified = ({ iso, label = 'Last modified:' }: { iso?: string | null; label?: string }) => {
     const display = timeAgo(iso || null)
-    const full = iso ? formatLocalDateTime(iso) : '—'
+    const short = formatLocalPopover(iso || null)
     return (
-      <TooltipProvider delayDuration={0}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div>{label} <span className="font-medium text-foreground">{display}</span></div>
-          </TooltipTrigger>
-          <TooltipContent>{full}</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <Popover>
+        <PopoverTrigger asChild>
+          <button type="button" className="text-left">
+            {label} <span className="font-medium text-foreground">{display}</span>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent side="bottom" align="start" className="max-w-xs">
+          <div className="text-sm">{short}</div>
+        </PopoverContent>
+      </Popover>
     )
   }
   const Accuracy = ({ name, recent }: { name: string; recent?: boolean }) => {
@@ -113,29 +134,64 @@ export function Dashboard({ me }: { me: { email: string; roles: string[] } }) {
     )
   }
   const fmt = (n?: number) => typeof n === 'number' ? n.toLocaleString() : '0'
+  const healthzUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/healthz` : '/api/healthz'
 
   return (
     <div className="p-4 grid gap-4">
-      <div className="flex items-center justify-between">
-        <div className="text-base font-semibold">Sync Status</div>
+      {/* App Health — Option A: Inline badges under heading */}
+      <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => refresh()} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh'}</Button>
+          <div className="text-base font-semibold">App Health</div>
+          <a
+            href="/api/healthz"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md border bg-background text-foreground hover:bg-muted"
+            aria-label="Open /healthz in new window"
+          >
+            <ExternalLink className="h-4 w-4" />
+          </a>
+        </div>
+        <div className="flex items-center gap-2">
+          <StatusBadge
+            kind={healthz == null ? 'loading' : (healthz.ok ? 'ok' : 'error')}
+            label={healthz == null ? 'API' : (healthz.ok ? 'API OK' : 'API Degraded')}
+            popover={<>
+              Browser requested <code className="font-mono">GET {healthzUrl}</code>. {healthz == null ? 'Awaiting response…' : 'OK means the API endpoint responded 200 and basic checks passed.'}
+            </>}
+          />
+          <StatusBadge
+            kind={healthz == null ? 'loading' : (healthz.db ? 'ok' : 'error')}
+            label={healthz == null ? 'DB' : (healthz.db ? 'DB OK' : 'DB Down')}
+            popover={healthz == null ? 'Checking database connectivity…' : 'DB indicates server-to-database connectivity. OK means the API connected to Atlas DB successfully.'}
+          />
+        </div>
+      </div>
+
+      {/* Sync Status header and actions */}
+      <div className="flex items-center justify-between">
+        <div className="text-base font-semibold">Kimai Sync Status</div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => refresh()} disabled={loading || syncingAll}>{loading ? 'Refreshing…' : 'Refresh'}</Button>
           <Button variant="outline" size="sm" onClick={async () => {
             if (!canSync) return
             try {
+              setSyncingAll(true)
               // Trigger all syncs sequentially for clearer logging/order
               await api.sync.projects()
               await api.sync.timesheets()
               await api.sync.users()
               await api.sync.activities()
-              await api.sync.tags()
+              await api.sync.tsmeta()
               await api.sync.customers()
               toast.success('Sync all completed')
             } catch {
               toast.error('One or more syncs failed')
+            } finally {
+              setSyncingAll(false)
             }
             await refresh()
-          }} disabled={!canSync}>Sync All</Button>
+          }} disabled={!canSync || syncingAll || loading}>{syncingAll ? 'Syncing…' : 'Sync All'}</Button>
         </div>
       </div>
 
@@ -143,111 +199,115 @@ export function Dashboard({ me }: { me: { email: string; roles: string[] } }) {
         <div className="text-sm text-muted-foreground">{error}</div>
       )}
 
+      {/* Config-mapped cards for consistency */}
+      {!error && false && (
+        <div className="grid auto-rows-fr grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-4 [&>div[data-slot=card]]:bg-gradient-to-t [&>div[data-slot=card]]:from-primary/5 [&>div[data-slot=card]]:to-card [&>div[data-slot=card]]:shadow-xs dark:[&>div[data-slot=card]]:bg-card">
+          {/* Cards are generated above; refactor in progress to full mapping */}
+        </div>
+      )}
+
       {!error && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Projects</CardTitle></CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              <div>Replica count: <span className="font-medium text-foreground">{fmt(health?.counts?.projects)}</span></div>
-              <LastRun k="sync.projects.last_run" />
-              <LastModified iso={health?.replicaLast?.projects} />
-              {canSync && <Accuracy name="projects" />}
-              <div className="mt-2 flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={async () => { try { await api.sync.projects(); toast.success('Projects sync started'); await refresh() } catch { toast.error('Failed to trigger projects sync') } }} disabled={!canSync}>Sync</Button>
-                <Button variant="outline" size="sm" onClick={async () => {
-                  if (!canSync) return
-                  if (!confirm('Clear replica_kimai_projects? This cannot be undone.')) return
-                  try { await api.sync.clear('projects'); toast.success('Projects replica cleared'); await refresh() } catch { toast.error('Failed to clear projects replica') }
-                }} disabled={!canSync}>Clear</Button>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Timesheets</CardTitle></CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              <div>Replica count: <span className="font-medium text-foreground">{fmt(health?.counts?.timesheets)}</span></div>
-              <LastRun k="sync.timesheets.last_run" />
-              <LastModified iso={lastVal('sync.timesheets.last_modified_at') || undefined} />
-              {canSync && <Accuracy name="timesheets" recent />}
-              <div className="mt-2 flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={async () => { try { await api.sync.timesheets(); toast.success('Timesheets sync started'); await refresh() } catch { toast.error('Failed to trigger timesheets sync') } }} disabled={!canSync}>Sync</Button>
-                <Button variant="outline" size="sm" onClick={async () => {
-                  if (!canSync) return
-                  if (!confirm('Clear replica_kimai_timesheets? This cannot be undone.')) return
-                  try { await api.sync.clear('timesheets'); toast.success('Timesheets replica cleared'); await refresh() } catch { toast.error('Failed to clear timesheets replica') }
-                }} disabled={!canSync}>Clear</Button>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Users</CardTitle></CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              <div>Replica count: <span className="font-medium text-foreground">{fmt(health?.counts?.users)}</span></div>
-              <LastRun k="sync.users.last_run" />
-              <LastModified iso={health?.replicaLast?.users} />
-              {canSync && <Accuracy name="users" />}
-              <div className="mt-2 flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={async () => { try { await api.sync.users(); toast.success('Users sync started'); await refresh() } catch { toast.error('Failed to trigger users sync') } }} disabled={!canSync}>Sync</Button>
-                <Button variant="outline" size="sm" onClick={async () => {
-                  if (!canSync) return
-                  if (!confirm('Clear replica_kimai_users?')) return
-                  try { await api.sync.clear('users'); toast.success('Users replica cleared'); await refresh() } catch { toast.error('Failed to clear users replica') }
-                }} disabled={!canSync}>Clear</Button>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Activities</CardTitle></CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              <div>Replica count: <span className="font-medium text-foreground">{fmt(health?.counts?.activities)}</span></div>
-              <LastRun k="sync.activities.last_run" />
-              <LastModified iso={health?.replicaLast?.activities} />
-              {canSync && <Accuracy name="activities" />}
-              <div className="mt-2 flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={async () => { try { await api.sync.activities(); toast.success('Activities sync started'); await refresh() } catch { toast.error('Failed to trigger activities sync') } }} disabled={!canSync}>Sync</Button>
-                <Button variant="outline" size="sm" onClick={async () => {
-                  if (!canSync) return
-                  if (!confirm('Clear replica_kimai_activities?')) return
-                  try { await api.sync.clear('activities'); toast.success('Activities replica cleared'); await refresh() } catch { toast.error('Failed to clear activities replica') }
-                }} disabled={!canSync}>Clear</Button>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Tags</CardTitle></CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              <div>Tags: <span className="font-medium text-foreground">{fmt(health?.counts?.tags)}</span></div>
-              <div>Timesheet Tags: <span className="font-medium text-foreground">{fmt(health?.counts?.timesheet_tags)}</span></div>
-              <LastRun k="sync.tags.last_run" label="Last run:" />
-              <LastModified iso={health?.replicaLast?.tags} />
-              {canSync && <Accuracy name="tags" />}
-              <div className="mt-2 flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={async () => { try { await api.sync.tags(); toast.success('Tags sync started'); await refresh() } catch { toast.error('Failed to trigger tags sync') } }} disabled={!canSync}>Sync</Button>
-                <Button variant="outline" size="sm" onClick={async () => {
-                  if (!canSync) return
-                  if (!confirm('Clear replica_kimai_tags and replica_kimai_timesheet_tags?')) return
-                  try { await api.sync.clear('tags'); await api.sync.clear('timesheet_tags'); toast.success('Tags replicas cleared'); await refresh() } catch { toast.error('Failed to clear tags replicas') }
-                }} disabled={!canSync}>Clear</Button>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm">Customers</CardTitle></CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              <div>Replica count: <span className="font-medium text-foreground">{fmt(health?.counts?.customers)}</span></div>
-              <LastRun k="sync.customers.last_run" />
-              <LastModified iso={health?.replicaLast?.customers} />
-              {canSync && <Accuracy name="customers" />}
-              <div className="mt-2 flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={async () => { try { await api.sync.customers(); toast.success('Customers sync started'); await refresh() } catch { toast.error('Failed to trigger customers sync') } }} disabled={!canSync}>Sync</Button>
-                <Button variant="outline" size="sm" onClick={async () => {
-                  if (!canSync) return
-                  if (!confirm('Clear replica_kimai_customers?')) return
-                  try { await api.sync.clear('customers'); toast.success('Customers replica cleared'); await refresh() } catch { toast.error('Failed to clear customers replica') }
-                }} disabled={!canSync}>Clear</Button>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="grid auto-rows-fr grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-4 [&>div[data-slot=card]]:bg-gradient-to-t [&>div[data-slot=card]]:from-primary/5 [&>div[data-slot=card]]:to-card [&>div[data-slot=card]]:shadow-xs dark:[&>div[data-slot=card]]:bg-card">
+          {([
+            { key: 'timesheets', order: 1, title: 'Timesheets', countKey: 'timesheets', useRecent: true, lastRunKey: 'sync.timesheets.last_run', lastModifiedKey: 'sync.timesheets.last_modified_at', menu: [ { label: 'Sync', action: async () => api.sync.timesheets() }, { label: 'Clear', action: async () => { if (!confirm('Clear replica_kimai_timesheets? This cannot be undone.')) return; return api.sync.clear('timesheets') } } ] },
+            { key: 'timesheet_meta', order: 2, title: 'Timesheet Meta', countKey: 'timesheet_meta', useRecent: false, lastRunKey: 'sync.tsmeta.last_run', menu: [ { label: 'Sync', action: async () => api.sync.tsmeta() }, { label: 'Clear', action: async () => { if (!confirm('Clear replica_kimai_timesheet_meta?')) return; return api.sync.clear('timesheet_meta') } } ] },
+            { key: 'projects', order: 3, title: 'Projects', countKey: 'projects', useRecent: false, lastRunKey: 'sync.projects.last_run', menu: [ { label: 'Sync', action: async () => api.sync.projects() }, { label: 'Clear', action: async () => { if (!confirm('Clear replica_kimai_projects? This cannot be undone.')) return; return api.sync.clear('projects') } } ] },
+            { key: 'users', order: 4, title: 'Users', countKey: 'users', useRecent: false, lastRunKey: 'sync.users.last_run', menu: [ { label: 'Sync', action: async () => api.sync.users() }, { label: 'Clear', action: async () => { if (!confirm('Clear replica_kimai_users?')) return; return api.sync.clear('users') } } ] },
+            { key: 'activities', order: 5, title: 'Activities', countKey: 'activities', useRecent: false, lastRunKey: 'sync.activities.last_run', menu: [ { label: 'Sync', action: async () => api.sync.activities() }, { label: 'Clear', action: async () => { if (!confirm('Clear replica_kimai_activities?')) return; return api.sync.clear('activities') } } ] },
+            { key: 'customers', order: 6, title: 'Customers', countKey: 'customers', useRecent: false, lastRunKey: 'sync.customers.last_run', menu: [ { label: 'Sync', action: async () => api.sync.customers() }, { label: 'Clear', action: async () => { if (!confirm('Clear replica_kimai_customers?')) return; return api.sync.clear('customers') } } ] },
+          ] as const)
+            .slice()
+            .sort((a,b) => a.order - b.order)
+            .map((cfg) => (
+              <Card key={cfg.key} className="flex h-full flex-col">
+                <CardHeader className="pb-2 @container/card">
+                  <div className="flex items-start gap-2">
+                    <div>
+                      <CardDescription>{cfg.title}</CardDescription>
+                      <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">{fmt((health?.counts as any)?.[cfg.countKey])}</CardTitle>
+                    </div>
+                    <CardAction>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="data-[state=open]:bg-muted text-muted-foreground" aria-label={`Open ${cfg.title} menu`}>
+                            <MoreVertical className="h-4 w-4" />
+                            <span className="sr-only">Open menu</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          {cfg.menu.map((m, i) => (
+                            <DropdownMenuItem key={i} disabled={!canSync} onClick={async () => { try { const r = await m.action(); if ((r as any)?.message) toast.success((r as any).message); await refresh() } catch {} }}>{m.label}</DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </CardAction>
+                  </div>
+                  {/* Accuracy badge */}
+                  {(() => {
+                    if (!verify) return <Badge variant="outline" className="mt-1 text-muted-foreground"><Loader2 className="mr-1 h-4 w-4 animate-spin" /> Checking…</Badge>
+                    // For timesheets, prefer totals if totals mismatch; otherwise show recent window accuracy
+                    if (cfg.useRecent) {
+                      const totals = verify.totals.find(t => t.name === cfg.key)
+                      if (totals && !totals.ok) {
+                        const ok = totals.ok;
+                        const pctRaw = totals.kimai ? (Math.abs(totals.diff)/totals.kimai)*100 : 0;
+                        const pct = Math.min(99.99, Math.round(pctRaw * 100) / 100);
+                        return (
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Badge variant="outline" className={`mt-1 ${ok ? 'text-green-700 dark:text-green-300' : 'text-red-700'}`}>
+                                {ok ? <CheckCircle2 className="mr-1 h-4 w-4 text-green-600 dark:text-green-400" /> : <XCircle className="mr-1 h-4 w-4 text-red-600" />}
+                                {ok ? 'Accuracy OK' : `Mismatch by ${pct}%`}
+                              </Badge>
+                            </PopoverTrigger>
+                            <PopoverContent side="bottom" align="start" className="w-fit">
+                              <div className="text-sm">Totals: Replica {totals.replica} / Kimai {totals.kimai}</div>
+                            </PopoverContent>
+                          </Popover>
+                        )
+                      }
+                      const r = verify.recent; const ok = r.ok;
+                      return (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Badge variant="outline" className={`mt-1 ${ok ? 'text-green-700 dark:text-green-300' : 'text-red-700'}`}>
+                              {ok ? <CheckCircle2 className="mr-1 h-4 w-4 text-green-600 dark:text-green-400" /> : <XCircle className="mr-1 h-4 w-4 text-red-600" />}
+                              {ok ? 'Accuracy OK' : 'Mismatch'}
+                            </Badge>
+                          </PopoverTrigger>
+                          <PopoverContent side="bottom" align="start" className="w-fit">
+                            <div className="text-sm">
+                              <div>Totals: Replica {totals ? totals.replica : '-'} / Kimai {totals ? totals.kimai : '-'}</div>
+                              <div>Last {r.days}d: Replica {r.replica} / Kimai {r.kimai}</div>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      )
+                    }
+                    const row = verify.totals.find(t => t.name === cfg.key); if (!row) return null
+                    const ok = row.ok; const pctRaw = row.kimai ? (Math.abs(row.diff)/row.kimai)*100 : 0; const pct = Math.min(99.99, Math.round(pctRaw * 100) / 100)
+                    return (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Badge variant="outline" className={`cursor-pointer mt-1 ${ok ? 'text-green-700 dark:text-green-300' : 'text-red-700'}`}>
+                            {ok ? <CheckCircle2 className="mr-1 h-4 w-4 text-green-600 dark:text-green-400" /> : <XCircle className="mr-1 h-4 w-4 text-red-600" />}
+                            {ok ? 'Accuracy OK' : `Mismatch by ${pct}%`}
+                          </Badge>
+                        </PopoverTrigger>
+                        <PopoverContent side="bottom" align="start" className="w-fit"><div className="text-sm">Accuracy compares replica vs Kimai totals. Replica {row.replica} / Kimai {row.kimai}</div></PopoverContent>
+                      </Popover>
+                    )
+                  })()}
+                </CardHeader>
+                <CardContent className=" text-sm text-muted-foreground pt-2" />
+                <CardFooter>
+                  <LastRun k={cfg.lastRunKey as any} />
+                  {'lastModifiedKey' in cfg ? (
+                    <LastModified iso={lastVal((cfg as any).lastModifiedKey) || undefined} />
+                  ) : null}
+                </CardFooter>
+              </Card>
+            ))}
         </div>
       )}
     </div>

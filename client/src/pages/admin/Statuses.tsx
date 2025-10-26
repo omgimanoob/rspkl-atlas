@@ -8,7 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { toast } from 'sonner'
 
-type StatusRow = { id: number; name: string; code: string | null; is_active: number; sort_order: number | null }
+type StatusRow = { id: number; name: string; code: string | null; color?: string | null; is_active: number; sort_order: number | null }
 
 export function AdminStatuses() {
   const tableRef = useRef<HTMLTableElement | null>(null)
@@ -17,11 +17,13 @@ export function AdminStatuses() {
   const [name, setName] = useState('')
   const [code, setCode] = useState('')
   const [sortOrder, setSortOrder] = useState<string>('')
+  const [color, setColor] = useState<string>('')
   const [active, setActive] = useState(true)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editName, setEditName] = useState('')
   const [editCode, setEditCode] = useState('')
   const [editSort, setEditSort] = useState<string>('')
+  const [editColor, setEditColor] = useState<string>('')
   const [editActive, setEditActive] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -35,6 +37,7 @@ export function AdminStatuses() {
     setEditingId(r.id)
     setEditName(r.name)
     setEditCode(r.code || '')
+    setEditColor(r.color || '')
     setEditSort(r.sort_order != null ? String(r.sort_order) : '')
     setEditActive(!!r.is_active)
   }
@@ -43,7 +46,7 @@ export function AdminStatuses() {
     if (editingId == null) return
     try {
       setSaving(true)
-      const payload: any = { name: editName.trim(), code: editCode.trim() || null, is_active: !!editActive }
+      const payload: any = { name: editName.trim(), code: editCode.trim() || null, color: editColor.trim() || null, is_active: !!editActive }
       const so = editSort.trim(); if (so !== '') payload.sort_order = Number(so)
       const upd = await api.adminUpdateStatus(editingId, payload)
       toast.success('Status updated')
@@ -55,14 +58,14 @@ export function AdminStatuses() {
   }
 
   const onCreate = async () => {
-    const payload: any = { name: name.trim(), code: code.trim() || null, is_active: !!active }
+    const payload: any = { name: name.trim(), code: code.trim() || null, color: color.trim() || null, is_active: !!active }
     const so = sortOrder.trim(); if (so !== '') payload.sort_order = Number(so)
     if (!payload.name) return
     try {
       const created = await api.adminCreateStatus(payload)
       toast.success('Status created')
       setRows(prev => [...prev, created as any])
-      setName(''); setCode(''); setSortOrder(''); setActive(true)
+      setName(''); setCode(''); setColor(''); setSortOrder(''); setActive(true)
     } catch {
       toast.error('Failed to create status')
     }
@@ -78,6 +81,10 @@ export function AdminStatuses() {
       <div className="flex items-center gap-2 flex-wrap">
         <Input placeholder="Name" value={name} onChange={e => setName(e.target.value)} className="max-w-xs" />
         <Input placeholder="Code (optional)" value={code} onChange={e => setCode(e.target.value)} className="max-w-xs" />
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-muted-foreground">Color</label>
+          <input type="color" value={color || '#cccccc'} onChange={e => setColor(e.target.value)} className="h-9 w-12 p-1 border rounded" />
+        </div>
         <Input placeholder="Sort order (optional)" value={sortOrder} onChange={e => setSortOrder(e.target.value)} className="max-w-[140px]" />
         <div className="flex items-center gap-2"><Checkbox id="st-active" checked={active} onCheckedChange={v => setActive(!!v)} /><label htmlFor="st-active" className="text-sm">Active</label></div>
         <Button size="sm" onClick={onCreate}>Add</Button>
@@ -85,15 +92,24 @@ export function AdminStatuses() {
       <div className="overflow-hidden border rounded">
         <Table ref={tableRef as any} className="w-full">
           <TableHeader>
-            <TableRow className="bg-gray-50"><TableHead>ID</TableHead><TableHead>Name</TableHead><TableHead>Code</TableHead><TableHead>Active</TableHead><TableHead>Sort</TableHead><TableHead>Actions</TableHead></TableRow>
+            <TableRow className="bg-gray-50"><TableHead>ID</TableHead><TableHead>Name</TableHead><TableHead>Code</TableHead><TableHead>Color</TableHead><TableHead>Active</TableHead><TableHead>Sort</TableHead><TableHead>Actions</TableHead></TableRow>
           </TableHeader>
           <TableBody>
-            <TablePlaceholder loading={loading} hasRows={rows.length > 0} columns={['id','name','code','active','sort','actions']} skeletonRows={5} emptyMessage="No statuses" wide={['name']} tableRef={tableRef as any} storageKey="tblsizes:admin_statuses" />
+            <TablePlaceholder loading={loading} hasRows={rows.length > 0} columns={['id','name','code','color','active','sort','actions']} skeletonRows={5} emptyMessage="No statuses" wide={['name']} tableRef={tableRef as any} storageKey="tblsizes:admin_statuses" />
             {rows.length > 0 && rows.map(r => (
               <TableRow key={r.id}>
                 <TableCell>{r.id}</TableCell>
                 <TableCell>{editingId === r.id ? <Input value={editName} onChange={e => setEditName(e.target.value)} className="max-w-xs" /> : r.name}</TableCell>
                 <TableCell>{editingId === r.id ? <Input value={editCode} onChange={e => setEditCode(e.target.value)} className="max-w-xs" /> : (r.code || '-')}</TableCell>
+                <TableCell>
+                  {editingId === r.id ? (
+                    <input type="color" value={editColor || '#cccccc'} onChange={e => setEditColor(e.target.value)} className="h-8 w-10 p-1 border rounded" />
+                  ) : (
+                    r.color ? (
+                      <div className="inline-flex items-center gap-2"><span className="h-3 w-3 rounded-full inline-block" style={{ backgroundColor: r.color }} /> <span className="text-xs text-muted-foreground">{r.color}</span></div>
+                    ) : '-'
+                  )}
+                </TableCell>
                 <TableCell>{editingId === r.id ? (
                   <div className="flex items-center gap-2"><Checkbox checked={!!editActive} onCheckedChange={v => setEditActive(!!v)} /><span className="text-xs">Active</span></div>
                 ) : (

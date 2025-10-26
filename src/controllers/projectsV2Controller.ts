@@ -15,6 +15,8 @@ type ProjectDTO = {
   statusName: string | null
   isProspective: boolean
   moneyCollected: number | null
+  notes: string | null
+  comment: string | null
   createdAt: string | null
   updatedAt: string | null
 }
@@ -57,15 +59,27 @@ export async function listProjectsV2Handler(req: Request, res: Response): Promis
     let kimaiCount = 0, atlasCount = 0
     if (includeKimai) {
       const [rows]: any = await atlasPool.query(
-        `SELECT COUNT(*) AS cnt FROM replica_kimai_projects p WHERE (? = '' OR LOWER(p.name) LIKE CONCAT('%', ?, '%'))`,
-        [q, q]
+        `SELECT COUNT(*) AS cnt
+           FROM replica_kimai_projects p
+           LEFT JOIN project_overrides o ON o.kimai_project_id = p.id
+          WHERE (? = ''
+                 OR LOWER(p.name) LIKE CONCAT('%', ?, '%')
+                 OR LOWER(IFNULL(p.comment, '')) LIKE CONCAT('%', ?, '%')
+                 OR LOWER(IFNULL(o.notes, '')) LIKE CONCAT('%', ?, '%')
+          )`,
+        [q, q, q, q]
       )
       kimaiCount = Number(rows?.[0]?.cnt || 0)
     }
     if (includeAtlas) {
       const [rows]: any = await atlasPool.query(
-        `SELECT COUNT(*) AS cnt FROM atlas_projects a WHERE (? = '' OR LOWER(a.name) LIKE CONCAT('%', ?, '%'))`,
-        [q, q]
+        `SELECT COUNT(*) AS cnt
+           FROM atlas_projects a
+          WHERE (? = ''
+                 OR LOWER(a.name) LIKE CONCAT('%', ?, '%')
+                 OR LOWER(IFNULL(a.notes, '')) LIKE CONCAT('%', ?, '%')
+          )`,
+        [q, q, q]
       )
       atlasCount = Number(rows?.[0]?.cnt || 0)
     }
@@ -74,11 +88,20 @@ export async function listProjectsV2Handler(req: Request, res: Response): Promis
     // status facets (with q + include)
     const [facetRows]: any = await atlasPool.query(
       `SELECT status_id, COUNT(*) AS cnt FROM (
-         ${includeKimai ? `SELECT o.status_id AS status_id FROM replica_kimai_projects p LEFT JOIN project_overrides o ON o.kimai_project_id = p.id WHERE (? = '' OR LOWER(p.name) LIKE CONCAT('%', ?, '%'))` : 'SELECT NULL AS status_id WHERE 1=0'}
+         ${includeKimai ? `SELECT o.status_id AS status_id
+                           FROM replica_kimai_projects p
+                           LEFT JOIN project_overrides o ON o.kimai_project_id = p.id
+                          WHERE (? = ''
+                                 OR LOWER(p.name) LIKE CONCAT('%', ?, '%')
+                                 OR LOWER(IFNULL(p.comment, '')) LIKE CONCAT('%', ?, '%')
+                                 OR LOWER(IFNULL(o.notes, '')) LIKE CONCAT('%', ?, '%')
+                          )` : 'SELECT NULL AS status_id WHERE 1=0'}
          UNION ALL
-         ${includeAtlas ? `SELECT a.status_id AS status_id FROM atlas_projects a WHERE (? = '' OR LOWER(a.name) LIKE CONCAT('%', ?, '%'))` : 'SELECT NULL AS status_id WHERE 1=0'}
+         ${includeAtlas ? `SELECT a.status_id AS status_id
+                            FROM atlas_projects a
+                           WHERE (? = '' OR LOWER(a.name) LIKE CONCAT('%', ?, '%') OR LOWER(IFNULL(a.notes, '')) LIKE CONCAT('%', ?, '%'))` : 'SELECT NULL AS status_id WHERE 1=0'}
        ) u GROUP BY status_id`,
-      includeKimai && includeAtlas ? [q, q, q, q] : includeKimai ? [q, q] : includeAtlas ? [q, q] : []
+      includeKimai && includeAtlas ? [q, q, q, q, q, q, q] : includeKimai ? [q, q, q, q] : includeAtlas ? [q, q, q] : []
     )
     const statusFacets = (facetRows as any[]).map(r => ({ id: r.status_id == null ? -1 : Number(r.status_id), name: r.status_id == null ? null : (statusMap.get(Number(r.status_id)) || null), count: Number(r.cnt) }))
 
@@ -101,15 +124,23 @@ export async function listProjectsV2Handler(req: Request, res: Response): Promis
                 NULL AS atlasId,
                 p.name AS displayName,
                 o.status_id AS statusId,
+                s.name AS statusName,
                 o.money_collected AS moneyCollected,
                 0 AS isProspective,
+                o.notes AS notes,
+                p.comment AS comment,
                 o.created_at AS createdAt,
                 o.updated_at AS updatedAt
            FROM replica_kimai_projects p
            LEFT JOIN project_overrides o ON o.kimai_project_id = p.id
-          WHERE (? = '' OR LOWER(p.name) LIKE CONCAT('%', ?, '%'))`
+           LEFT JOIN project_statuses s ON s.id = o.status_id
+          WHERE (? = ''
+                 OR LOWER(p.name) LIKE CONCAT('%', ?, '%')
+                 OR LOWER(IFNULL(p.comment, '')) LIKE CONCAT('%', ?, '%')
+                 OR LOWER(IFNULL(o.notes, '')) LIKE CONCAT('%', ?, '%')
+          )`
       )
-      params.push(q, q)
+      params.push(q, q, q, q)
     }
     if (wantAtlas) {
       parts.push(
@@ -119,14 +150,18 @@ export async function listProjectsV2Handler(req: Request, res: Response): Promis
                 a.id AS atlasId,
                 a.name AS displayName,
                 a.status_id AS statusId,
+                s.name AS statusName,
                 NULL AS moneyCollected,
                 1 AS isProspective,
+                a.notes AS notes,
+                NULL AS comment,
                 a.created_at AS createdAt,
                 a.updated_at AS updatedAt
            FROM atlas_projects a
-          WHERE (? = '' OR LOWER(a.name) LIKE CONCAT('%', ?, '%'))`
+           LEFT JOIN project_statuses s ON s.id = a.status_id
+          WHERE (? = '' OR LOWER(a.name) LIKE CONCAT('%', ?, '%') OR LOWER(IFNULL(a.notes, '')) LIKE CONCAT('%', ?, '%'))`
       )
-      params.push(q, q)
+      params.push(q, q, q)
     }
     const base = parts.join(' UNION ALL ')
     if (!base) {
@@ -154,6 +189,11 @@ export async function listProjectsV2Handler(req: Request, res: Response): Promis
       const dir = (d || 'asc').toLowerCase() === 'desc' ? 'DESC' : 'ASC'
       if (k === 'displayName' || k === 'name') orderBy = `displayName ${dir}, id DESC`
       else if (k === 'updatedAt') orderBy = `updatedAt ${dir}, id DESC`
+      else if (k === 'statusId') orderBy = `statusId ${dir}, id DESC`
+      else if (k === 'statusName' || k === 'status') orderBy = `statusName ${dir}, id DESC`
+      else if (k === 'isProspective') orderBy = `isProspective ${dir}, id DESC`
+      else if (k === 'id') orderBy = `id ${dir}`
+      else if (k === 'notes') orderBy = `notes ${dir}, id DESC`
     }
 
     const [totRows]: any = await atlasPool.query(`SELECT COUNT(*) AS cnt FROM (${wrapped}) t`, params)
@@ -171,6 +211,8 @@ export async function listProjectsV2Handler(req: Request, res: Response): Promis
       statusName: r.statusId != null ? (statusMap.get(Number(r.statusId)) || null) : null,
       isProspective: !!r.isProspective,
       moneyCollected: r.moneyCollected != null ? Number(r.moneyCollected) : null,
+      notes: r.notes ?? null,
+      comment: r.comment ?? null,
       createdAt: r.createdAt || null,
       updatedAt: r.updatedAt || null,
     }))
@@ -206,7 +248,7 @@ export async function createProspectiveV2Handler(req: Request, res: Response): P
     const statusName = statusId ? (await StatusService.getById(statusId))?.name ?? null : null
     res.status(201).json({
       origin: 'atlas', id: -id, atlasId: id, displayName: name, statusId, statusName,
-      isProspective: true, moneyCollected: null, createdAt: null, updatedAt: null
+      isProspective: true, moneyCollected: null, notes: notes ?? null, createdAt: null, updatedAt: null
     })
     return
   } catch (e: any) {
@@ -273,11 +315,12 @@ export async function updateKimaiOverridesV2Handler(req: Request, res: Response)
   try {
     const kimaiId = Number(req.params.kimaiId)
     if (!Number.isFinite(kimaiId)) { res.status(400).json({ error: 'Bad Request', reason: 'invalid_id' }); return }
-    const { status_id, money_collected } = req.body || {}
+    const { status_id, money_collected, notes } = req.body || {}
     await ProjectsV2Schema.ensure()
     const payload: any = { kimai_project_id: kimaiId }
     if (status_id !== undefined) payload.status_id = status_id === null ? null : Number(status_id)
     if (money_collected !== undefined) payload.money_collected = money_collected === null ? null : Number(money_collected)
+    if (notes !== undefined) payload.notes = notes === null ? null : String(notes)
     await ProjectOverridesV2.upsert(payload)
     res.json({ ok: true })
     return

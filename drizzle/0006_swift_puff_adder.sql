@@ -1,0 +1,1 @@
+ALTER TABLE `replica_kimai_projects` ADD `comment` text;

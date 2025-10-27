@@ -10,9 +10,11 @@ import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { ProjectStatusBadge } from '@/components/ProjectStatusBadge'
+import { Amount } from '@/components/Amount'
 import { PaymentDialog } from '@/components/PaymentDialog'
 import { CheckCircle2, Loader2, MoreVertical, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, Plus, ChevronsUpDown, ArrowUp, ArrowDown, Columns as ColumnsIcon, ChevronDown } from 'lucide-react'
 import { formatLocalPopover } from '@/lib/datetime'
+import { TablePagination } from '@/components/TablePagination'
 
 const defaultVisibleColumns = [
   // 'origin',
@@ -47,7 +49,7 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
     { id: 'name', label: 'Name', sortable: true as const, sortKey: 'displayName' },
     { id: 'notes', label: 'Notes', sortable: true as const, sortKey: 'notes' },
     { id: 'status', label: 'Status', sortable: true as const, sortKey: 'statusName' },
-    { id: 'money', label: 'Money Collected', sortable: false as const },
+    { id: 'money', label: 'Money Collected', sortable: true as const, sortKey: 'moneyCollected' },
     { id: 'prospective', label: 'Prospective', sortable: true as const, sortKey: 'isProspective' },
     { id: 'updated', label: 'Updated', sortable: true as const, sortKey: 'updatedAt' },
     { id: 'actions', label: 'Actions', sortable: false as const },
@@ -86,9 +88,16 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
   const [editKimaiStatusId, setEditKimaiStatusId] = useState<number | null>(null)
   const [editKimaiMoney, setEditKimaiMoney] = useState('')
   const [editKimaiNotes, setEditKimaiNotes] = useState('')
-  const [showKimaiComment, setShowKimaiComment] = useState(false)
   const [payOpen, setPayOpen] = useState(false)
   const [payKimaiId, setPayKimaiId] = useState<number | null>(null)
+  const [recalcLoading, setRecalcLoading] = useState<Set<number>>(new Set())
+  const [dlgRecalcLoading, setDlgRecalcLoading] = useState(false)
+  // Inline Enter Payment (details) state
+  const [enterPayAmount, setEnterPayAmount] = useState('')
+  const [enterPayDate, setEnterPayDate] = useState(() => {
+    const d = new Date(); const y = d.getFullYear(); const m = String(d.getMonth() + 1).padStart(2, '0'); const day = String(d.getDate()).padStart(2, '0'); return `${y}-${m}-${day}`
+  })
+  const [enterPaySaving, setEnterPaySaving] = useState(false)
 
   function handleRowClick(r: any) {
     if (r.origin === 'atlas') {
@@ -104,7 +113,6 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
       setEditKimaiStatusId(r.statusId ?? null)
       setEditKimaiMoney(r.moneyCollected != null ? Number(r.moneyCollected).toFixed(2) : '')
       setEditKimaiNotes(r.notes || '')
-      setShowKimaiComment(false)
       setEditKimaiOpen(true)
     }
   }
@@ -196,6 +204,16 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
   }, [])
 
   const filtered = useMemo(() => items, [items])
+  const moneyWidthCh = useMemo(() => {
+    try {
+      const lens = items.map((r: any) => {
+        const n = Number(r.moneyCollected || 0)
+        const s = Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        return s.length + (n < 0 ? 1 : 0)
+      })
+      return Math.max(8, ...lens)
+    } catch { return 8 }
+  }, [items])
 
   return (
     <div className="p-4 flex flex-col gap-4">
@@ -236,7 +254,8 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
           </Button>
         </div>
       </div>
-      <div className="border rounded">
+      <div className="border rounded pb-16 overflow-x-auto">
+        <div className="min-w-full md:min-w-[960px]">
         {counts && (
           <div className="px-3 py-2 text-xs text-muted-foreground flex gap-4 border-b bg-muted">
             <div>Kimai: <span className="font-semibold">{counts.kimai}</span></div>
@@ -261,15 +280,15 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
             setPage(1)
           }
           return (
-            <div className={`grid ${gridCls} gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground bg-muted border-b sticky top-16 z-10`}>
+            <div className={`grid ${gridCls} gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground bg-muted border-b md:z-10`}>
               {visible.map((c) => {
                 const key = sortKey(c.id)
                 const active = key && currentKey === key
                 const isActions = c.id === 'actions'
                 const showFilterTrigger = c.id === 'status' || c.id === 'origin'
                 return (
-                  <div key={c.id} className={isActions ? 'text-right' : ''}>
-                    <div className="inline-flex items-center gap-1">
+                  <div key={c.id} className={`${isActions ? 'text-right' : ''} ${c.id === 'money' ? 'text-center' : ''}`}>
+                    <div className={`inline-flex items-center gap-1 ${c.id === 'money' ? 'justify-center' : ''}`}>
                       {showFilterTrigger && c.id === 'origin' && (
                         <DropdownMenu open={originMenuOpen} onOpenChange={(open) => {
                           setOriginMenuOpen(open)
@@ -432,11 +451,15 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
                   </div>
                 )
                 if (c.id === 'notes') return <div key={c.id} className="truncate" title={r.notes || ''}>{r.notes || '-'}</div>
-                if (c.id === 'money') return <div key={c.id}>{r.moneyCollected != null ? Number(r.moneyCollected).toFixed(2) : ''}</div>
+                if (c.id === 'money') {
+                  const pid = r.kimaiId || r.id
+                  const loadingAmt = recalcLoading.has(pid)
+                  return <div key={c.id} className="flex justify-center">{r.moneyCollected != null ? <Amount value={r.moneyCollected} loading={loadingAmt} widthCh={moneyWidthCh} /> : ''}</div>
+                }
                 if (c.id === 'prospective') return <div key={c.id}>{r.isProspective ? 'Yes' : 'No'}</div>
                 if (c.id === 'updated') return <div key={c.id}>{formatLocalPopover(r.updatedAt)}</div>
                 if (c.id === 'actions') return (
-                  <div key={c.id} className="flex items-center justify-end" onClick={(e) => e.stopPropagation()}>
+                  <div key={c.id} className="flex items-center justify-end">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
@@ -455,13 +478,13 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
                           <>
                             <DropdownMenuItem
                               disabled={!canProspective}
-                              onSelect={(e) => { e.preventDefault(); e.stopPropagation(); setEditAtlasRow(r); setEditAtlasName(r.displayName || ''); setEditAtlasStatusId(r.statusId ?? null); setEditAtlasNotes(r.notes || ''); setEditAtlasOpen(true) }}
+                              onClick={() => { setEditAtlasRow(r); setEditAtlasName(r.displayName || ''); setEditAtlasStatusId(r.statusId ?? null); setEditAtlasNotes(r.notes || ''); setEditAtlasOpen(true) }}
                             >
                               Edit
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               disabled={!canProspective}
-                              onSelect={(e) => { e.preventDefault(); e.stopPropagation(); setLinkRow(r); setLinkKimaiId(''); setLinkOpen(true) }}
+                              onClick={() => { setLinkRow(r); setLinkKimaiId(''); setLinkOpen(true) }}
                             >
                               Link
                             </DropdownMenuItem>
@@ -470,19 +493,28 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
                           <>
                             <DropdownMenuItem
                               disabled={!canOverrides}
-                              onSelect={(e) => { e.preventDefault(); e.stopPropagation(); setEditKimaiRow(r); setEditKimaiStatusId(r.statusId ?? null); setEditKimaiMoney(r.moneyCollected != null ? Number(r.moneyCollected).toFixed(2) : ''); setEditKimaiNotes(r.notes || ''); setShowKimaiComment(false); setEditKimaiOpen(true) }}
+                              onClick={() => { setEditKimaiRow(r); setEditKimaiStatusId(r.statusId ?? null); setEditKimaiMoney(r.moneyCollected != null ? Number(r.moneyCollected).toFixed(2) : ''); setEditKimaiNotes(r.notes || ''); setEditKimaiOpen(true) }}
                             >
                               Edit
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               disabled={!canOverrides}
-                              onSelect={(e) => { e.preventDefault(); e.stopPropagation(); setPayKimaiId(r.kimaiId || r.id); setPayOpen(true) }}
+                              onClick={() => { setPayKimaiId(r.kimaiId || r.id); setPayOpen(true) }}
                             >
                               Enter Payment
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               disabled={!canOverrides}
-                              onSelect={async (e) => { e.preventDefault(); e.stopPropagation(); try { await api.payments.recalc(r.kimaiId || r.id); toast.success('Recalculated'); await load() } catch { toast.error('Failed to recalculate') } }}
+                              onClick={async () => {
+                                const pid = r.kimaiId || r.id
+                                setRecalcLoading(prev => { const next = new Set(prev); next.add(pid); return next })
+                                try {
+                                  await api.payments.recalc(pid)
+                                  toast.success('Recalculated')
+                                  await load()
+                                } catch { toast.error('Failed to recalculate') }
+                                finally { setRecalcLoading(prev => { const next = new Set(prev); next.delete(pid); return next }) }
+                              }}
                             >
                               Recalculate
                             </DropdownMenuItem>
@@ -500,63 +532,9 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
         {!filtered.length && (
           <div className="px-3 py-8 text-center text-sm text-muted-foreground">No projects</div>
         )}
-      </div>
-      <div className="flex items-center justify-between mt-2">
-        <div className="text-sm text-muted-foreground">Page {page} of {Math.max(1, Math.ceil(total / pageSize))}</div>
-        <div className="flex items-center gap-8">
-          <div className="hidden items-center gap-2 lg:flex">
-            <Label htmlFor="pv2-rows-per-page" className="text-sm font-medium">Rows per page</Label>
-            <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1) }}>
-              <SelectTrigger size="sm" className="w-20" id="pv2-rows-per-page">
-                <SelectValue placeholder={pageSize} />
-              </SelectTrigger>
-              <SelectContent side="top">
-                {[10, 20, 50, 100].map(n => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              className="hidden h-8 w-8 p-0 lg:flex"
-              onClick={() => setPage(1)}
-              disabled={page === 1}
-            >
-              <span className="sr-only">Go to first page</span>
-              <ChevronsLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="size-8"
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
-            >
-              <span className="sr-only">Go to previous page</span>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="size-8"
-              onClick={() => setPage(p => p + 1)}
-              disabled={page >= Math.ceil(total / pageSize)}
-            >
-              <span className="sr-only">Go to next page</span>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              className="hidden h-8 w-8 p-0 lg:flex"
-              onClick={() => setPage(Math.max(1, Math.ceil(total / pageSize)))}
-              disabled={page >= Math.ceil(total / pageSize)}
-            >
-              <span className="sr-only">Go to last page</span>
-              <ChevronsRight className="h-4 w-4" />
-            </Button>
-          </div>
         </div>
       </div>
+      <TablePagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} onPageSizeChange={setPageSize} />
 
       {/* Edit Prospective Dialog */}
       {/* Create Prospective Dialog */}
@@ -587,7 +565,7 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
               <Textarea value={createNotes} onChange={e => setCreateNotes(e.target.value)} disabled={saving} placeholder="Optional" />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex flex-row gap-2 justify-end">
             <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={saving}>Cancel</Button>
             <Button disabled={saving || !canProspective} onClick={async () => {
               const name = createName.trim()
@@ -635,7 +613,7 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
               <Textarea value={editAtlasNotes} onChange={e => setEditAtlasNotes(e.target.value)} disabled={saving} placeholder="Add any relevant notes…" />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex flex-row gap-2 justify-end">
             <Button variant="outline" onClick={() => setEditAtlasOpen(false)} disabled={saving}>Cancel</Button>
             <Button disabled={saving || !canProspective} onClick={async () => {
               if (!editAtlasRow) return
@@ -667,7 +645,7 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
               <Input value={linkKimaiId} onChange={e => setLinkKimaiId(e.target.value)} placeholder="e.g., 1234" disabled={saving} />
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="flex flex-row gap-2 justify-end">
             <Button variant="outline" onClick={() => setLinkOpen(false)} disabled={saving}>Cancel</Button>
             <Button disabled={saving || !canProspective} onClick={async () => {
               if (!linkRow) return
@@ -690,7 +668,7 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
       </Dialog>
 
       {/* Edit Kimai Overrides Dialog */}
-      <Dialog open={editKimaiOpen} onOpenChange={setEditKimaiOpen}>
+      <Dialog open={editKimaiOpen} onOpenChange={(open) => { if (!open) { setEnterPayAmount('') } setEditKimaiOpen(open) }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Update Overrides</DialogTitle>
@@ -710,13 +688,25 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
             </div>
 
             <div className="space-y-1">
+              <div className="text-sm text-muted-foreground">Notes</div>
+              <Textarea value={editKimaiNotes} onChange={e => setEditKimaiNotes(e.target.value)} placeholder="Optional" disabled={saving} />
+            </div>
+            <div className="space-y-1">
               <div className="text-sm text-muted-foreground">Money Collected (read-only)</div>
               <div className="flex items-center gap-2">
                 <Input value={editKimaiMoney} readOnly disabled placeholder="0.00" className="flex-1" />
-                <Button type="button" variant="outline" size="icon" title="Recalculate" aria-label="Recalculate"
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  title="Recalculate"
+                  aria-label="Recalculate"
+                  disabled={dlgRecalcLoading || enterPaySaving}
                   onClick={async () => {
                     if (!editKimaiRow) return;
                     try {
+                      setDlgRecalcLoading(true)
+                      setEditKimaiMoney('')
                       const resp = await api.payments.recalc(editKimaiRow.kimaiId || editKimaiRow.id)
                       const val = Number(resp.money_collected || 0)
                       setEditKimaiMoney(val.toFixed(2))
@@ -725,29 +715,72 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
                       await load()
                     } catch {
                       toast.error('Failed to recalculate')
+                    } finally {
+                      setDlgRecalcLoading(false)
                     }
-                  }}>
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                  }}
+                >
+                  {dlgRecalcLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                  )}
                 </Button>
               </div>
             </div>
-            <div className="space-y-1">
-              <div className="text-sm text-muted-foreground">Notes</div>
-              <Textarea value={editKimaiNotes} onChange={e => setEditKimaiNotes(e.target.value)} placeholder="Optional" disabled={saving} />
-            </div>
+            {/* Inline Enter Payment */}
+            <details className="space-y-2">
+              <summary className="text-sm text-muted-foreground cursor-pointer select-none">Enter Payment</summary>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <div className="text-xs text-muted-foreground">Amount</div>
+                  <Input value={enterPayAmount} onChange={e => setEnterPayAmount(e.target.value)} placeholder="0.00" disabled={enterPaySaving} />
+                </div>
+                <div className="space-y-1">
+                  <div className="text-xs text-muted-foreground">Payment Date</div>
+                  <Input type="date" value={enterPayDate} onChange={e => setEnterPayDate(e.target.value)} disabled={enterPaySaving} />
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  disabled={enterPaySaving || !Number.isFinite(Number(parseFloat(enterPayAmount))) || !enterPayDate}
+                  onClick={async () => {
+                    if (!editKimaiRow) return
+                    const amt = Number(parseFloat(enterPayAmount))
+                    if (!Number.isFinite(amt)) { toast.error('Enter a valid amount'); return }
+                    if (!enterPayDate) { toast.error('Select a date'); return }
+                    try {
+                      setEnterPaySaving(true)
+                      const resp = await api.payments.create({ kimai_project_id: editKimaiRow.kimaiId || editKimaiRow.id, amount: amt, payment_date: enterPayDate })
+                      toast.success('Payment recorded')
+                      // Reset and refresh values
+                      setEnterPayAmount('')
+                      const d = new Date(); const y = d.getFullYear(); const m = String(d.getMonth() + 1).padStart(2, '0'); const day = String(d.getDate()).padStart(2, '0'); setEnterPayDate(`${y}-${m}-${day}`)
+                      // Reflect updated total in dialog immediately
+                      if (resp && typeof resp.money_collected !== 'undefined') {
+                        const total = Number(resp.money_collected || 0)
+                        setEditKimaiMoney(total.toFixed(2))
+                        setEditKimaiRow({ ...editKimaiRow, moneyCollected: total })
+                      }
+                      await load()
+                    } catch {
+                      toast.error('Failed to create payment')
+                    } finally {
+                      setEnterPaySaving(false)
+                    }
+                  }}
+                >
+                  {enterPaySaving ? 'Saving…' : 'Save'}
+                </Button>
+              </div>
+            </details>
           </div>
           {editKimaiRow?.comment && (
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">Kimai Comment</div>
-                <Button type="button" variant="ghost" size="sm" onClick={() => setShowKimaiComment(v => !v)}>
-                  {showKimaiComment ? 'Hide' : 'Show'}
-                </Button>
-              </div>
-              {showKimaiComment && (
-                <Textarea value={editKimaiRow.comment} readOnly disabled className="min-h-[80px]" />
-              )}
-            </div>
+            <details className="space-y-2">
+              <summary className="text-sm text-muted-foreground cursor-pointer select-none">Kimai Comment</summary>
+              <Textarea value={editKimaiRow.comment} readOnly disabled className="min-h-[80px]" />
+            </details>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditKimaiOpen(false)} disabled={saving}>Cancel</Button>

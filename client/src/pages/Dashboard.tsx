@@ -91,7 +91,7 @@ export function Dashboard({ me }: { me: { email: string; roles: string[] } }) {
             {label} <span className="font-medium text-foreground">{display}</span>
           </button>
         </PopoverTrigger>
-        <PopoverContent side="bottom" align="start" className="max-w-xs">
+        <PopoverContent side="bottom" align="start" className="max-w-xs bg-popover text-popover-foreground border shadow-md">
           <div className="text-sm">{short}</div>
         </PopoverContent>
       </Popover>
@@ -107,7 +107,7 @@ export function Dashboard({ me }: { me: { email: string; roles: string[] } }) {
             {label} <span className="font-medium text-foreground">{display}</span>
           </button>
         </PopoverTrigger>
-        <PopoverContent side="bottom" align="start" className="max-w-xs">
+        <PopoverContent side="bottom" align="start" className="max-w-xs bg-popover text-popover-foreground border shadow-md">
           <div className="text-sm">{short}</div>
         </PopoverContent>
       </Popover>
@@ -157,13 +157,39 @@ export function Dashboard({ me }: { me: { email: string; roles: string[] } }) {
             kind={healthz == null ? 'loading' : (healthz.ok ? 'ok' : 'error')}
             label={healthz == null ? 'API' : (healthz.ok ? 'API OK' : 'API Degraded')}
             popover={<>
-              Browser requested <code className="font-mono">GET {healthzUrl}</code>. {healthz == null ? 'Awaiting response…' : 'OK means the API endpoint responded 200 and basic checks passed.'}
+              <div className="space-y-1">
+                <div>
+                  This checks the RSPKL Atlas API (server) at
+                  {' '}<code className="font-mono">{healthzUrl}</code>.
+                </div>
+                <div>
+                  {healthz == null
+                    ? 'Awaiting response…'
+                    : 'OK means the Atlas API process is up and responded 200 to /api/healthz.'}
+                </div>
+              </div>
             </>}
           />
           <StatusBadge
             kind={healthz == null ? 'loading' : (healthz.db ? 'ok' : 'error')}
             label={healthz == null ? 'DB' : (healthz.db ? 'DB OK' : 'DB Down')}
-            popover={healthz == null ? 'Checking database connectivity…' : 'DB indicates server-to-database connectivity. OK means the API connected to Atlas DB successfully.'}
+            popover={
+              healthz == null
+                ? 'Checking database connectivity…'
+                : (
+                  <div className="space-y-1">
+                    <div>DB indicates server-to-database connectivity from the Atlas API.</div>
+                    <div>
+                      This check attempts to connect to both databases:
+                      <ul className="list-disc pl-5">
+                        <li>Atlas DB (application database)</li>
+                        <li>Kimai DB (source Kimai database)</li>
+                      </ul>
+                    </div>
+                    <div>OK means both Atlas DB and Kimai DB were reachable.</div>
+                  </div>
+                )
+            }
           />
         </div>
       </div>
@@ -255,12 +281,12 @@ export function Dashboard({ me }: { me: { email: string; roles: string[] } }) {
                         return (
                           <Popover>
                             <PopoverTrigger asChild>
-                              <Badge variant="outline" className={`mt-1 ${ok ? 'text-green-700 dark:text-green-300' : 'text-red-700'}`}>
+                              <Badge variant="outline" className={`cursor-pointer mt-1 ${ok ? 'text-green-700 dark:text-green-300' : 'text-red-700'}`}>
                                 {ok ? <CheckCircle2 className="mr-1 h-4 w-4 text-green-600 dark:text-green-400" /> : <XCircle className="mr-1 h-4 w-4 text-red-600" />}
                                 {ok ? 'Accuracy OK' : `Mismatch by ${pct}%`}
                               </Badge>
                             </PopoverTrigger>
-                            <PopoverContent side="bottom" align="start" className="w-fit">
+                            <PopoverContent side="bottom" align="start" className="w-fit bg-popover text-popover-foreground border shadow-md">
                               <div className="text-sm">Totals: Replica {totals.replica} / Kimai {totals.kimai}</div>
                             </PopoverContent>
                           </Popover>
@@ -270,12 +296,12 @@ export function Dashboard({ me }: { me: { email: string; roles: string[] } }) {
                       return (
                         <Popover>
                           <PopoverTrigger asChild>
-                            <Badge variant="outline" className={`mt-1 ${ok ? 'text-green-700 dark:text-green-300' : 'text-red-700'}`}>
+                            <Badge variant="outline" className={`cursor-pointer mt-1 ${ok ? 'text-green-700 dark:text-green-300' : 'text-red-700'}`}>
                               {ok ? <CheckCircle2 className="mr-1 h-4 w-4 text-green-600 dark:text-green-400" /> : <XCircle className="mr-1 h-4 w-4 text-red-600" />}
                               {ok ? 'Accuracy OK' : 'Mismatch'}
                             </Badge>
                           </PopoverTrigger>
-                          <PopoverContent side="bottom" align="start" className="w-fit">
+                          <PopoverContent side="bottom" align="start" className="w-fit bg-popover text-popover-foreground border shadow-md">
                             <div className="text-sm">
                               <div>Totals: Replica {totals ? totals.replica : '-'} / Kimai {totals ? totals.kimai : '-'}</div>
                               <div>Last {r.days}d: Replica {r.replica} / Kimai {r.kimai}</div>
@@ -294,7 +320,7 @@ export function Dashboard({ me }: { me: { email: string; roles: string[] } }) {
                             {ok ? 'Accuracy OK' : `Mismatch by ${pct}%`}
                           </Badge>
                         </PopoverTrigger>
-                        <PopoverContent side="bottom" align="start" className="w-fit"><div className="text-sm">Accuracy compares replica vs Kimai totals. Replica {row.replica} / Kimai {row.kimai}</div></PopoverContent>
+                        <PopoverContent side="bottom" align="start" className="w-fit bg-popover text-popover-foreground border shadow-md"><div className="text-sm">Accuracy compares replica vs Kimai totals. Replica {row.replica} / Kimai {row.kimai}</div></PopoverContent>
                       </Popover>
                     )
                   })()}

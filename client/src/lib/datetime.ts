@@ -41,3 +41,36 @@ export function formatLocalPopover(value: string | number | Date | null | undefi
   if (h === 0) h = 12
   return `${dd}/${mm}/${yy} ${h}:${m} ${ampm}`
 }
+
+// Variant with 4-digit year: dd/mm/yyyy h:mm AM/PM
+export function formatLocalPopoverYYYY(value: string | number | Date | null | undefined): string {
+  if (!value) return '—'
+  const d = new Date(value)
+  if (isNaN(d.getTime())) return '—'
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const yyyy = String(d.getFullYear())
+  let h = d.getHours()
+  const m = String(d.getMinutes()).padStart(2, '0')
+  const ampm = h >= 12 ? 'PM' : 'AM'
+  h = h % 12
+  if (h === 0) h = 12
+  return `${dd}/${mm}/${yyyy} ${h}:${m} ${ampm}`
+}
+
+// Pure date variant with 4-digit year, no time: dd/mm/yyyy
+export function formatDateDDMMYYYY(value: string | number | Date | null | undefined): string {
+  if (!value && value !== 0) return '—'
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const y = value.slice(0, 4)
+    const m = value.slice(5, 7)
+    const d = value.slice(8, 10)
+    return `${d}/${m}/${y}`
+  }
+  const d = new Date(value as any)
+  if (isNaN(d.getTime())) return '—'
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const yyyy = String(d.getFullYear())
+  return `${dd}/${mm}/${yyyy}`
+}

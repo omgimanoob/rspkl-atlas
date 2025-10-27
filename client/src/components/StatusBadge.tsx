@@ -1,6 +1,5 @@
 import * as React from 'react'
 import { CheckCircle2, XCircle, Loader2 } from 'lucide-react'
-import { badgeVariants } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 
@@ -27,8 +26,7 @@ export function StatusBadge({
     <button
       type="button"
       className={cn(
-        badgeVariants({ variant: 'outline' }),
-        'inline-flex items-center',
+        'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors',
         color,
         className,
       )}
@@ -49,10 +47,9 @@ export function StatusBadge({
   return (
     <Popover>
       <PopoverTrigger asChild>{content}</PopoverTrigger>
-      <PopoverContent side="bottom" align="start" className="w-fit">
+      <PopoverContent side="bottom" align="start" className="w-fit bg-popover text-popover-foreground border shadow-md">
         <div className="text-sm">{popover}</div>
       </PopoverContent>
     </Popover>
   )
 }
-

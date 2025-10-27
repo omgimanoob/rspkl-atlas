@@ -194,6 +194,7 @@ export async function listProjectsV2Handler(req: Request, res: Response): Promis
       else if (k === 'isProspective') orderBy = `isProspective ${dir}, id DESC`
       else if (k === 'id') orderBy = `id ${dir}`
       else if (k === 'notes') orderBy = `notes ${dir}, id DESC`
+      else if (k === 'moneyCollected') orderBy = `moneyCollected ${dir}, id DESC`
     }
 
     const [totRows]: any = await atlasPool.query(`SELECT COUNT(*) AS cnt FROM (${wrapped}) t`, params)

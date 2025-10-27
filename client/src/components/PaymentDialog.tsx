@@ -93,14 +93,14 @@ export function PaymentDialog({ open, onOpenChange, defaultKimaiId, onSaved }: {
           <DialogTitle>Enter Payment</DialogTitle>
           <DialogDescription>Record a payment against a Kimai project.</DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <div className="text-sm text-muted-foreground">Select Project</div>
-            <Input placeholder="Search by name/comment/notes…" value={query} onChange={e => setQuery(e.target.value)} />
-            <div className="border rounded h-48 overflow-auto">
-              {loading && <div className="px-3 py-2 text-sm text-muted-foreground">Loading…</div>}
-              {!loading && filtered.length === 0 && <div className="px-3 py-2 text-sm text-muted-foreground">No matches</div>}
-              {!loading && filtered.map(p => {
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <div className="text-sm text-muted-foreground">Select Project</div>
+              <Input placeholder="Search by name/comment/notes…" value={query} onChange={e => setQuery(e.target.value)} />
+              <div className="border rounded h-48 overflow-auto">
+                {loading && <div className="px-3 py-2 text-sm text-muted-foreground">Loading…</div>}
+                {!loading && filtered.length === 0 && <div className="px-3 py-2 text-sm text-muted-foreground">No matches</div>}
+                {!loading && filtered.map(p => {
                 const id = p.kimaiId || p.id
                 const name = p.displayName || p.name || `#${id}`
                 const comment = p.comment || ''
@@ -114,20 +114,22 @@ export function PaymentDialog({ open, onOpenChange, defaultKimaiId, onSaved }: {
               })}
             </div>
           </div>
-          <div className="space-y-1">
-            <div className="text-sm text-muted-foreground">Amount</div>
-            <Input value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" />
-          </div>
-          <div className="space-y-1">
-            <div className="text-sm text-muted-foreground">Payment Date</div>
-            <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
-          </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <div className="text-sm text-muted-foreground">Amount</div>
+                <Input value={amount} onChange={e => setAmount(e.target.value)} placeholder="0.00" />
+              </div>
+              <div className="space-y-1">
+                <div className="text-sm text-muted-foreground">Payment Date</div>
+                <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
+              </div>
+            </div>
           <div className="space-y-1">
             <div className="text-sm text-muted-foreground">Notes</div>
             <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Optional" />
           </div>
         </div>
-        <DialogFooter>
+        <DialogFooter className="flex flex-row gap-2 justify-end">
           <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={saving}>Cancel</Button>
           <Button disabled={saving || !isValid} onClick={async () => {
             if (!Number.isFinite(Number(kimaiId))) { toast.error('Select a project'); return }

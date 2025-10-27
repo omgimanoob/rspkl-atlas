@@ -6,6 +6,7 @@ import {
   Settings2,
   Home,
   FolderKanban,
+  Banknote,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -42,7 +43,7 @@ const data = {
   navMain: [
     { title: 'Home', url: '/', icon: Home },
     { title: 'Projects', url: '/projects-v2', icon: FolderKanban },
-    { title: 'Payments', url: '/payments', icon: FolderKanban },
+    { title: 'Payments', url: '/payments', icon: Banknote },
   ],
   projects: [
     // {

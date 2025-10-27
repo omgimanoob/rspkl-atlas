@@ -4,13 +4,15 @@ import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+// Removed inline pagination controls; using TablePagination
 import { Textarea } from '@/components/ui/textarea'
 import { PaymentDialog } from '@/components/PaymentDialog'
+import { Amount } from '@/components/Amount'
+import { TablePagination } from '@/components/TablePagination'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { ChevronsUpDown, ArrowUp, ArrowDown, Columns as ColumnsIcon, ChevronDown, Plus, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from 'lucide-react'
+import { ChevronsUpDown, ArrowUp, ArrowDown, Columns as ColumnsIcon, ChevronDown, Plus } from 'lucide-react'
+import { formatLocalPopoverYYYY, formatDateDDMMYYYY } from '@/lib/datetime'
 
 const defaultVisibleColumns = [
   'projectId',
@@ -32,6 +34,16 @@ export function Payments({ me }: { me?: { email: string; roles: string[] } }) {
   const [pageSize, setPageSize] = useState(20)
   const [total, setTotal] = useState(0)
   const [sort, setSort] = useState<string>('payment_date:desc')
+  const amountWidthCh = useMemo(() => {
+    try {
+      const lens = items.map(r => {
+        const n = Number(r.amount) || 0
+        const s = Math.abs(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        return s.length + (n < 0 ? 1 : 0)
+      })
+      return Math.max(8, ...lens)
+    } catch { return 8 }
+  }, [items])
   const allColumns = useMemo(() => ([
     { id: 'projectId', label: 'Project ID', sortable: false as const },
     { id: 'projectName', label: 'Project Name', sortable: true as const, sortKey: 'project_name' },
@@ -47,7 +59,7 @@ export function Payments({ me }: { me?: { email: string; roles: string[] } }) {
         const arr = JSON.parse(raw)
         if (Array.isArray(arr) && arr.length) return new Set(arr)
       }
-    } catch {}
+    } catch { }
     return new Set(defaultVisibleColumns)
   })
   const isAdmin = !!me?.roles?.includes('admins')
@@ -61,7 +73,7 @@ export function Payments({ me }: { me?: { email: string; roles: string[] } }) {
 
   // Persist columns
   useEffect(() => {
-    try { localStorage.setItem('payments:cols', JSON.stringify(Array.from(visibleCols))) } catch {}
+    try { localStorage.setItem('payments:cols', JSON.stringify(Array.from(visibleCols))) } catch { }
   }, [visibleCols])
   useEffect(() => {
     try {
@@ -70,7 +82,7 @@ export function Payments({ me }: { me?: { email: string; roles: string[] } }) {
         const arr = JSON.parse(raw)
         if (Array.isArray(arr) && arr.length) setVisibleCols(new Set(arr))
       }
-    } catch {}
+    } catch { }
   }, [])
 
   async function load(params: { q?: string } = {}) {
@@ -123,70 +135,72 @@ export function Payments({ me }: { me?: { email: string; roles: string[] } }) {
           </Button>
         </div>
       </div>
-      <div className="border rounded">
-        {(() => {
-          const visible = allColumns.filter(c => visibleCols.has(c.id))
-          const count = visible.length
-          const gridCls = count === 1 ? 'grid-cols-1' : count === 2 ? 'grid-cols-2' : count === 3 ? 'grid-cols-3' : count === 4 ? 'grid-cols-4' : count === 5 ? 'grid-cols-5' : 'grid-cols-6'
-          const sortKey = (id: string) => (allColumns.find(c => c.id === id) as any)?.sortKey as string | undefined
-          const currentKey = sort.split(':')[0]
-          const currentDir = (sort.split(':')[1] || 'asc') as 'asc' | 'desc'
-          const toggleSort = (id: string) => {
-            const key = sortKey(id)
-            if (!key) return
-            let dir: 'asc' | 'desc' = 'asc'
-            if (currentKey === key) dir = currentDir === 'asc' ? 'desc' : 'asc'
-            else dir = key === 'payment_date' ? 'desc' : 'asc'
-            setSort(`${key}:${dir}`)
-            setPage(1)
-          }
-          return (
-            <>
-              <div className={`grid ${gridCls} gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground bg-muted border-b sticky top-16 z-10`}>
-                {visible.map((c) => {
-                  const key = sortKey(c.id)
-                  const active = key && currentKey === key
-                  return (
-                    <div key={c.id}>
-                      <div className="inline-flex items-center gap-1">
-                        <span>{c.label}</span>
-                        {c.sortable && (
-                          <button className="inline-flex items-center" onClick={() => toggleSort(c.id)} aria-label="Sort">
-                            {!active && <ChevronsUpDown className="h-4 w-4" />}
-                            {active && currentDir === 'asc' && <ArrowUp className="h-4 w-4" />}
-                            {active && currentDir === 'desc' && <ArrowDown className="h-4 w-4" />}
-                          </button>
-                        )}
+      <div className="border rounded pb-16 overflow-x-auto">
+        <div className="min-w-full md:min-w-[720px]">
+          {(() => {
+            const visible = allColumns.filter(c => visibleCols.has(c.id))
+            const count = visible.length
+            const gridCls = count === 1 ? 'grid-cols-1' : count === 2 ? 'grid-cols-2' : count === 3 ? 'grid-cols-3' : count === 4 ? 'grid-cols-4' : count === 5 ? 'grid-cols-5' : 'grid-cols-6'
+            const sortKey = (id: string) => (allColumns.find(c => c.id === id) as any)?.sortKey as string | undefined
+            const currentKey = sort.split(':')[0]
+            const currentDir = (sort.split(':')[1] || 'asc') as 'asc' | 'desc'
+            const toggleSort = (id: string) => {
+              const key = sortKey(id)
+              if (!key) return
+              let dir: 'asc' | 'desc' = 'asc'
+              if (currentKey === key) dir = currentDir === 'asc' ? 'desc' : 'asc'
+              else dir = key === 'payment_date' ? 'desc' : 'asc'
+              setSort(`${key}:${dir}`)
+              setPage(1)
+            }
+            return (
+              <>               
+                <div className={`grid ${gridCls} gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground bg-muted border-b`}>
+                  {visible.map((c) => {
+                    const key = sortKey(c.id)
+                    const active = key && currentKey === key
+                    return (
+                      <div key={c.id} className={c.id === 'amount' ? 'text-center' : ''}>
+                        <div className={`inline-flex items-center gap-1 ${c.id === 'amount' ? 'justify-center' : ''}`}>
+                          <span>{c.label}</span>
+                          {c.sortable && (
+                            <button className="inline-flex items-center" onClick={() => toggleSort(c.id)} aria-label="Sort">
+                              {!active && <ChevronsUpDown className="h-4 w-4" />}
+                              {active && currentDir === 'asc' && <ArrowUp className="h-4 w-4" />}
+                              {active && currentDir === 'desc' && <ArrowDown className="h-4 w-4" />}
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )
-                })}
-              </div>
-              {/* Rows */}
-              {loading ? (
-                <div className="p-4 text-sm text-muted-foreground">Loading…</div>
-              ) : items.length === 0 ? (
-                <div className="p-4 text-sm text-muted-foreground">No payments</div>
-              ) : (
-                items.map((r, idx) => {
-                  return (
-                    <div key={r.id || idx} className={`grid ${gridCls} gap-2 px-3 py-2 border-b text-sm cursor-pointer hover:bg-muted/50`} onClick={() => { setViewRow(r); setViewOpen(true) }}>
-                      {visible.map(c => {
-                        if (c.id === 'projectId') return <div key={c.id} className="truncate" title={String(r.kimai_project_id)}>{r.kimai_project_id}</div>
-                        if (c.id === 'projectName') return <div key={c.id} className="truncate" title={r.project_name || ''}>{r.project_name || '-'}</div>
-                        if (c.id === 'amount') return <div key={c.id}>{Number(r.amount).toFixed(2)}</div>
-                        if (c.id === 'paymentDate') return <div key={c.id}>{String(r.payment_date).slice(0, 10)}</div>
-                        if (c.id === 'notes') return <div key={c.id} className="truncate" title={r.notes || ''}>{r.notes || ''}</div>
-                        if (c.id === 'createdBy') return <div key={c.id} className="truncate" title={r.created_by_display || ''}>{r.created_by_display || ''}</div>
-                        return <div key={c.id}></div>
-                      })}
-                    </div>
-                  )
-                })
-              )}
-            </>
-          )
-        })()}
+                    )
+                  })}
+                </div>
+                {/* Rows */}
+                {loading ? (
+                  <div className="p-4 text-sm text-muted-foreground">Loading…</div>
+                ) : items.length === 0 ? (
+                  <div className="p-4 text-sm text-muted-foreground">No payments</div>
+                ) : (
+                  items.map((r, idx) => {
+                    return (
+                      <div key={r.id || idx} className={`grid ${gridCls} gap-2 px-3 py-2 border-b text-sm cursor-pointer hover:bg-muted/50`} onClick={() => { setViewRow(r); setViewOpen(true) }}>
+                        {visible.map(c => {
+                          if (c.id === 'projectId') return <div key={c.id} className="truncate" title={String(r.kimai_project_id)}>{r.kimai_project_id}</div>
+                          if (c.id === 'projectName') return <div key={c.id} className="truncate" title={r.project_name || ''}>{r.project_name || '-'}</div>
+                          if (c.id === 'amount') return <div key={c.id} className="flex justify-center"><Amount value={r.amount} widthCh={amountWidthCh} /></div>
+                          if (c.id === 'paymentDate') return <div key={c.id}>{String(r.payment_date).slice(0, 10)}</div>
+                          if (c.id === 'notes') return <div key={c.id} className="truncate" title={r.notes || ''}>{r.notes || ''}</div>
+                          if (c.id === 'createdBy') return <div key={c.id} className="truncate" title={r.created_by_display || ''}>{r.created_by_display || ''}</div>
+                          return <div key={c.id}></div>
+                        })}
+                      </div>
+                    )
+                  })
+                )}
+              </>
+            )
+          })()}
+        </div>
       </div>
 
       <PaymentDialog open={createOpen} onOpenChange={setCreateOpen} defaultKimaiId={createKimaiId ?? undefined} onSaved={() => load()} />
@@ -199,11 +213,11 @@ export function Payments({ me }: { me?: { email: string; roles: string[] } }) {
             <DialogDescription>Payment details</DialogDescription>
           </DialogHeader>
           <div className="space-y-2 text-sm">
-            <div><span className="text-muted-foreground">Project:</span> <span className="font-medium">{viewRow?.kimai_project_id}</span> — {viewRow?.project_name || '-'}</div>
-            <div><span className="text-muted-foreground">Amount:</span> <span className="font-medium">{viewRow ? Number(viewRow.amount).toFixed(2) : ''}</span></div>
-            <div><span className="text-muted-foreground">Date:</span> <span>{viewRow?.payment_date?.slice(0,10) || ''}</span></div>
+            <div><span className="text-muted-foreground">Project:</span> <span className="font-medium">{viewRow?.project_name || '-'}</span></div>
+            <div><span className="text-muted-foreground">Amount:</span> <span className={`font-medium ${Number(viewRow?.amount || 0) > 0 ? 'text-green-600' : Number(viewRow?.amount || 0) < 0 ? 'text-red-600' : ''}`}>{viewRow ? Number(viewRow.amount).toFixed(2) : ''}</span></div>
+            <div><span className="text-muted-foreground">Date:</span> <span>{viewRow?.payment_date ? formatDateDDMMYYYY(viewRow.payment_date) : ''}</span></div>
             {viewRow?.created_by_display && <div><span className="text-muted-foreground">Created By:</span> <span>{viewRow.created_by_display}</span></div>}
-            <div><span className="text-muted-foreground">Created At:</span> <span>{viewRow?.created_at || ''}</span></div>
+            <div><span className="text-muted-foreground">Created At:</span> <span>{viewRow?.created_at ? formatLocalPopoverYYYY(viewRow.created_at) : ''}</span></div>
             {viewRow?.notes && (
               <div className="space-y-1">
                 <div className="text-muted-foreground">Notes</div>
@@ -216,62 +230,7 @@ export function Payments({ me }: { me?: { email: string; roles: string[] } }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <div className="flex items-center justify-between mt-2">
-        <div className="text-sm text-muted-foreground">Page {page} of {Math.max(1, Math.ceil(total / pageSize))}</div>
-        <div className="flex items-center gap-8">
-          <div className="hidden items-center gap-2 lg:flex">
-            <Label htmlFor="payments-rows-per-page" className="text-sm font-medium">Rows per page</Label>
-            <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1) }}>
-              <SelectTrigger size="sm" className="w-20" id="payments-rows-per-page">
-                <SelectValue placeholder={pageSize} />
-              </SelectTrigger>
-              <SelectContent side="top">
-                {[10, 20, 50, 100].map(n => <SelectItem key={n} value={String(n)}>{n}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              className="hidden h-8 w-8 p-0 lg:flex"
-              onClick={() => setPage(1)}
-              disabled={page === 1}
-            >
-              <span className="sr-only">Go to first page</span>
-              <ChevronsLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="size-8"
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
-            >
-              <span className="sr-only">Go to previous page</span>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              className="size-8"
-              onClick={() => setPage(p => p + 1)}
-              disabled={page >= Math.ceil(total / pageSize)}
-            >
-              <span className="sr-only">Go to next page</span>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              className="hidden h-8 w-8 p-0 lg:flex"
-              onClick={() => setPage(Math.max(1, Math.ceil(total / pageSize)))}
-              disabled={page >= Math.ceil(total / pageSize)}
-            >
-              <span className="sr-only">Go to last page</span>
-              <ChevronsRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </div>
+      <TablePagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} onPageSizeChange={setPageSize} />
     </div>
   )
 }

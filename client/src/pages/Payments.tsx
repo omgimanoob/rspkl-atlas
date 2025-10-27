@@ -99,7 +99,7 @@ export function Payments({ me }: { me?: { email: string; roles: string[] } }) {
   return (
     <div className="p-4 flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 hidden sm:inline">
           <div className="text-base font-semibold">Payments</div>
         </div>
         <div className="flex items-center gap-2">
@@ -109,7 +109,6 @@ export function Payments({ me }: { me?: { email: string; roles: string[] } }) {
               <Button variant="outline" size="sm">
                 <ColumnsIcon className="h-4 w-4" />
                 <span className="hidden lg:inline">Customize Columns</span>
-                <span className="lg:hidden">Columns</span>
                 <ChevronDown className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -135,8 +134,8 @@ export function Payments({ me }: { me?: { email: string; roles: string[] } }) {
           </Button>
         </div>
       </div>
-      <div className="border rounded pb-16 overflow-x-auto">
-        <div className="min-w-full md:min-w-[720px]">
+      <div className="border rounded  overflow-x-auto">
+        <div className="w-max md:w-full">
           {(() => {
             const visible = allColumns.filter(c => visibleCols.has(c.id))
             const count = visible.length
@@ -185,12 +184,12 @@ export function Payments({ me }: { me?: { email: string; roles: string[] } }) {
                     return (
                       <div key={r.id || idx} className={`grid ${gridCls} gap-2 px-3 py-2 border-b text-sm cursor-pointer hover:bg-muted/50`} onClick={() => { setViewRow(r); setViewOpen(true) }}>
                         {visible.map(c => {
-                          if (c.id === 'projectId') return <div key={c.id} className="truncate" title={String(r.kimai_project_id)}>{r.kimai_project_id}</div>
-                          if (c.id === 'projectName') return <div key={c.id} className="truncate" title={r.project_name || ''}>{r.project_name || '-'}</div>
+                        if (c.id === 'projectId') return <div key={c.id} className="whitespace-nowrap md:truncate" title={String(r.kimai_project_id)}>{r.kimai_project_id}</div>
+                        if (c.id === 'projectName') return <div key={c.id} className="whitespace-nowrap md:truncate" title={r.project_name || ''}>{r.project_name || '-'}</div>
                           if (c.id === 'amount') return <div key={c.id} className="flex justify-center"><Amount value={r.amount} widthCh={amountWidthCh} /></div>
-                          if (c.id === 'paymentDate') return <div key={c.id}>{String(r.payment_date).slice(0, 10)}</div>
-                          if (c.id === 'notes') return <div key={c.id} className="truncate" title={r.notes || ''}>{r.notes || ''}</div>
-                          if (c.id === 'createdBy') return <div key={c.id} className="truncate" title={r.created_by_display || ''}>{r.created_by_display || ''}</div>
+                        if (c.id === 'paymentDate') return <div key={c.id} className="whitespace-nowrap">{String(r.payment_date).slice(0, 10)}</div>
+                        if (c.id === 'notes') return <div key={c.id} className="whitespace-nowrap md:truncate" title={r.notes || ''}>{r.notes || ''}</div>
+                        if (c.id === 'createdBy') return <div key={c.id} className="whitespace-nowrap md:truncate" title={r.created_by_display || ''}>{r.created_by_display || ''}</div>
                           return <div key={c.id}></div>
                         })}
                       </div>

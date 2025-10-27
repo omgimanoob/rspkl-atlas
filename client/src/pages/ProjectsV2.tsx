@@ -61,7 +61,7 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
         const arr = JSON.parse(raw)
         if (Array.isArray(arr)) return new Set(arr.filter((x: any) => typeof x === 'string'))
       }
-    } catch {}
+    } catch { }
     return new Set(defaultVisibleColumns)
   })
   const isAdmin = !!me?.roles?.includes('admins')
@@ -218,7 +218,7 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
   return (
     <div className="p-4 flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 hidden sm:inline">
           <div className="text-base font-semibold">Projects</div>
         </div>
         <div className="flex items-center gap-2">
@@ -228,7 +228,6 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
               <Button variant="outline" size="sm">
                 <ColumnsIcon className="h-4 w-4" />
                 <span className="hidden lg:inline">Customize Columns</span>
-                <span className="lg:hidden">Columns</span>
                 <ChevronDown className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -254,284 +253,286 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
           </Button>
         </div>
       </div>
-      <div className="border rounded pb-16 overflow-x-auto">
-        <div className="min-w-full md:min-w-[960px]">
-        {counts && (
-          <div className="px-3 py-2 text-xs text-muted-foreground flex gap-4 border-b bg-muted">
-            <div>Kimai: <span className="font-semibold">{counts.kimai}</span></div>
-            <div>Prospective: <span className="font-semibold">{counts.atlas}</span></div>
-            <div>Total: <span className="font-semibold">{total}</span></div>
-          </div>
-        )}
-        {(() => {
-          const visible = allColumns.filter(c => c.id === 'actions' || visibleCols.has(c.id))
-          const count = visible.length
-          const gridCls = count === 1 ? 'grid-cols-1' : count === 2 ? 'grid-cols-2' : count === 3 ? 'grid-cols-3' : count === 4 ? 'grid-cols-4' : count === 5 ? 'grid-cols-5' : count === 6 ? 'grid-cols-6' : count === 7 ? 'grid-cols-7' : 'grid-cols-8'
-          const sortKey = (id: string) => (allColumns.find(c => c.id === id) as any)?.sortKey as string | undefined
-          const currentKey = sort.split(':')[0]
-          const currentDir = (sort.split(':')[1] || 'asc') as 'asc' | 'desc'
-          const toggleSort = (id: string) => {
-            const key = sortKey(id)
-            if (!key) return
-            let dir: 'asc' | 'desc' = 'asc'
-            if (currentKey === key) dir = currentDir === 'asc' ? 'desc' : 'asc'
-            else dir = key === 'updatedAt' ? 'desc' : 'asc'
-            setSort(`${key}:${dir}`)
-            setPage(1)
-          }
-          return (
-            <div className={`grid ${gridCls} gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground bg-muted border-b md:z-10`}>
-              {visible.map((c) => {
-                const key = sortKey(c.id)
-                const active = key && currentKey === key
-                const isActions = c.id === 'actions'
-                const showFilterTrigger = c.id === 'status' || c.id === 'origin'
-                return (
-                  <div key={c.id} className={`${isActions ? 'text-right' : ''} ${c.id === 'money' ? 'text-center' : ''}`}>
-                    <div className={`inline-flex items-center gap-1 ${c.id === 'money' ? 'justify-center' : ''}`}>
-                      {showFilterTrigger && c.id === 'origin' && (
-                        <DropdownMenu open={originMenuOpen} onOpenChange={(open) => {
-                          setOriginMenuOpen(open)
-                          if (open) setOriginDraft({ kimai: includeKimai, atlas: includeAtlas })
-                        }}>
-                          <DropdownMenuTrigger asChild>
-                            <button type="button" className="hover:underline">{c.label}</button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start">
-                            <DropdownMenuLabel>Include</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuCheckboxItem
-                              checked={originDraft.kimai}
-                              onSelect={event => event.preventDefault()}
-                              onCheckedChange={v => setOriginDraft(d => ({ ...d, kimai: Boolean(v) }))}
-                            >
-                              Kimai
-                            </DropdownMenuCheckboxItem>
-                            <DropdownMenuCheckboxItem
-                              checked={originDraft.atlas}
-                              onSelect={event => event.preventDefault()}
-                              onCheckedChange={v => setOriginDraft(d => ({ ...d, atlas: Boolean(v) }))}
-                            >
-                              Prospective (Atlas)
-                            </DropdownMenuCheckboxItem>
-                            <DropdownMenuSeparator />
-                            <div className="px-2 py-2 flex items-center justify-end gap-2">
-                              <Button variant="ghost" size="sm" onClick={() => setOriginDraft({ kimai: true, atlas: true })} disabled={bothOriginsSelected}>Select both</Button>
-                              <Button size="sm" onClick={async () => {
-                                setIncludeKimai(originDraft.kimai)
-                                setIncludeAtlas(originDraft.atlas)
-                                setPage(1)
-                                setOriginMenuOpen(false)
-                                const nextInclude: Array<'kimai' | 'atlas'> = []
-                                if (originDraft.kimai) nextInclude.push('kimai')
-                                if (originDraft.atlas) nextInclude.push('atlas')
-                                await load({
-                                  statusIds: statusFilterState.ids,
-                                  statusNull: statusFilterState.wantsNull,
-                                  include: nextInclude,
-                                })
-                              }}>Apply</Button>
-                            </div>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
-                      {showFilterTrigger && c.id === 'status' && (
-                        <DropdownMenu open={statusMenuOpen} onOpenChange={(open) => {
-                          setStatusMenuOpen(open)
-                          if (open) {
-                            if (statusFilter === null) {
-                              setStatusDraft(new Set(statusIdsAll))
-                            } else if (statusFilter.size) {
-                              setStatusDraft(new Set(statusFilter))
-                            } else {
-                              setStatusDraft(new Set())
-                            }
-                          }
-                        }}>
-                          <DropdownMenuTrigger asChild>
-                            <button type="button" className="hover:underline">{c.label}</button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Filter by status</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            {statuses.length === 0 && <div className="px-2 py-1 text-xs text-muted-foreground">No statuses</div>}
-                            {statuses.map(s => (
+      <div className="border rounded overflow-x-auto">
+        {/* <div className="sm:min-w-[960px] md:w-full"> */}
+        <div className="w-[800px] md:w-full relative">
+
+          {counts && (
+            <div className="px-3 py-2 text-xs text-muted-foreground flex gap-4 border-b bg-muted">
+              <div>Kimai: <span className="font-semibold">{counts.kimai}</span></div>
+              <div>Prospective: <span className="font-semibold">{counts.atlas}</span></div>
+              <div>Total: <span className="font-semibold">{total}</span></div>
+            </div>
+          )}
+          {(() => {
+            const visible = allColumns.filter(c => c.id === 'actions' || visibleCols.has(c.id))
+            const count = visible.length
+            const gridCls = count === 1 ? 'grid-cols-1' : count === 2 ? 'grid-cols-2' : count === 3 ? 'grid-cols-3' : count === 4 ? 'grid-cols-4' : count === 5 ? 'grid-cols-5' : count === 6 ? 'grid-cols-6' : count === 7 ? 'grid-cols-7' : 'grid-cols-8'
+            const sortKey = (id: string) => (allColumns.find(c => c.id === id) as any)?.sortKey as string | undefined
+            const currentKey = sort.split(':')[0]
+            const currentDir = (sort.split(':')[1] || 'asc') as 'asc' | 'desc'
+            const toggleSort = (id: string) => {
+              const key = sortKey(id)
+              if (!key) return
+              let dir: 'asc' | 'desc' = 'asc'
+              if (currentKey === key) dir = currentDir === 'asc' ? 'desc' : 'asc'
+              else dir = key === 'updatedAt' ? 'desc' : 'asc'
+              setSort(`${key}:${dir}`)
+              setPage(1)
+            }
+            return (
+              <div className={`grid ${gridCls} gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground bg-muted border-b md:z-10`}>
+                {visible.map((c) => {
+                  const key = sortKey(c.id)
+                  const active = key && currentKey === key
+                  const isActions = c.id === 'actions'
+                  const showFilterTrigger = c.id === 'status' || c.id === 'origin'
+                  return (
+                    <div key={c.id} className={`${isActions ? 'text-right' : ''} ${c.id === 'money' ? 'text-center' : ''}`}>
+                      <div className={`inline-flex items-center gap-1 ${c.id === 'money' ? 'justify-center' : ''}`}>
+                        {showFilterTrigger && c.id === 'origin' && (
+                          <DropdownMenu open={originMenuOpen} onOpenChange={(open) => {
+                            setOriginMenuOpen(open)
+                            if (open) setOriginDraft({ kimai: includeKimai, atlas: includeAtlas })
+                          }}>
+                            <DropdownMenuTrigger asChild>
+                              <button type="button" className="hover:underline">{c.label}</button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start">
+                              <DropdownMenuLabel>Include</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
                               <DropdownMenuCheckboxItem
-                                key={s.id}
-                                checked={statusDraft.has(s.id)}
-                                onCheckedChange={(v) => {
-                                  const next = new Set(statusDraft)
-                                  if (v) next.add(s.id); else next.delete(s.id)
-                                  setStatusDraft(next)
-                                }}
-                                onSelect={(event) => event.preventDefault()}
+                                checked={originDraft.kimai}
+                                onSelect={event => event.preventDefault()}
+                                onCheckedChange={v => setOriginDraft(d => ({ ...d, kimai: Boolean(v) }))}
                               >
-                                <div className="flex w-full justify-between"><span>{s.name || `#${s.id}`}</span></div>
+                                Kimai
                               </DropdownMenuCheckboxItem>
-                            ))}
-                            {statuses.length > 0 && (
-                              <>
-                                <DropdownMenuSeparator />
-                                <div className="px-2 py-2 flex items-center justify-end gap-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setStatusDraft(new Set(statusIdsAll))}
-                                    disabled={allStatusesSelected}
-                                  >Select all</Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setStatusDraft(new Set())}
-                                    disabled={noStatusesSelected}
-                                  >Clear all</Button>
-                                  <Button size="sm" onClick={async () => {
-                                    const next = new Set(statusDraft)
-                                    let nextFilter: Set<number> | null = next
-                                    let statusIdsArg: number[] | undefined
-                                    let statusNullArg = false
-                                    if (statuses.length && next.size === statuses.length) {
-                                      nextFilter = null
-                                      statusIdsArg = undefined
-                                    } else if (next.size === 0) {
-                                      nextFilter = new Set()
-                                      statusNullArg = true
-                                    } else {
-                                      statusIdsArg = Array.from(next)
-                                    }
-                                    setStatusFilter(nextFilter)
-                                    setPage(1)
-                                    setStatusMenuOpen(false)
-                                    await load({ statusIds: statusIdsArg, statusNull: statusNullArg })
-                                  }}>Apply</Button>
-                                </div>
-                              </>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
-                      {!showFilterTrigger && <span>{c.label}</span>}
-                      {key && (
-                        <button
-                          type="button"
-                          aria-label={`Sort by ${c.label}`}
-                          onClick={() => toggleSort(c.id)}
-                          className="inline-flex items-center"
-                        >
-                          {!active && <ChevronsUpDown className="h-3.5 w-3.5 opacity-60" />}
-                          {active && (currentDir === 'asc' ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />)}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )
-        })()}
-        {filtered.map((r, idx) => {
-          const visible = allColumns.filter(c => c.id === 'actions' || visibleCols.has(c.id))
-          const count = visible.length
-          const gridCls = count === 1 ? 'grid-cols-1' : count === 2 ? 'grid-cols-2' : count === 3 ? 'grid-cols-3' : count === 4 ? 'grid-cols-4' : count === 5 ? 'grid-cols-5' : count === 6 ? 'grid-cols-6' : count === 7 ? 'grid-cols-7' : 'grid-cols-8'
-          return (
-            <div
-              key={idx}
-              className={`grid ${gridCls} gap-2 px-3 py-2 text-sm border-b last:border-b-0 hover:bg-muted/50 cursor-pointer`}
-              onClick={() => handleRowClick(r)}
-            >
-              {visible.map((c) => {
-                if (c.id === 'origin') return <div key={c.id}>{r.origin === 'atlas' ? 'Prospective' : 'Kimai'}</div>
-                if (c.id === 'id') return <div key={c.id}>{r.id}</div>
-                if (c.id === 'name') return <div key={c.id}>{r.displayName}</div>
-                if (c.id === 'status') return (
-                  <div key={c.id}>
-                    {r.statusId != null ? (
-                      <ProjectStatusBadge name={r.statusName} color={statuses.find(s => s.id === r.statusId)?.color || undefined} />
-                    ) : '-'}
-                  </div>
-                )
-                if (c.id === 'notes') return <div key={c.id} className="truncate" title={r.notes || ''}>{r.notes || '-'}</div>
-                if (c.id === 'money') {
-                  const pid = r.kimaiId || r.id
-                  const loadingAmt = recalcLoading.has(pid)
-                  return <div key={c.id} className="flex justify-center">{r.moneyCollected != null ? <Amount value={r.moneyCollected} loading={loadingAmt} widthCh={moneyWidthCh} /> : ''}</div>
-                }
-                if (c.id === 'prospective') return <div key={c.id}>{r.isProspective ? 'Yes' : 'No'}</div>
-                if (c.id === 'updated') return <div key={c.id}>{formatLocalPopover(r.updatedAt)}</div>
-                if (c.id === 'actions') return (
-                  <div key={c.id} className="flex items-center justify-end">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="data-[state=open]:bg-muted text-muted-foreground"
-                          aria-label="Open row actions"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <MoreVertical className="h-4 w-4" />
-                          <span className="sr-only">Open menu</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-40" onClick={(e) => e.stopPropagation()}>
-                        {r.origin === 'atlas' ? (
-                          <>
-                            <DropdownMenuItem
-                              disabled={!canProspective}
-                              onClick={() => { setEditAtlasRow(r); setEditAtlasName(r.displayName || ''); setEditAtlasStatusId(r.statusId ?? null); setEditAtlasNotes(r.notes || ''); setEditAtlasOpen(true) }}
-                            >
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              disabled={!canProspective}
-                              onClick={() => { setLinkRow(r); setLinkKimaiId(''); setLinkOpen(true) }}
-                            >
-                              Link
-                            </DropdownMenuItem>
-                          </>
-                        ) : (
-                          <>
-                            <DropdownMenuItem
-                              disabled={!canOverrides}
-                              onClick={() => { setEditKimaiRow(r); setEditKimaiStatusId(r.statusId ?? null); setEditKimaiMoney(r.moneyCollected != null ? Number(r.moneyCollected).toFixed(2) : ''); setEditKimaiNotes(r.notes || ''); setEditKimaiOpen(true) }}
-                            >
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              disabled={!canOverrides}
-                              onClick={() => { setPayKimaiId(r.kimaiId || r.id); setPayOpen(true) }}
-                            >
-                              Enter Payment
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              disabled={!canOverrides}
-                              onClick={async () => {
-                                const pid = r.kimaiId || r.id
-                                setRecalcLoading(prev => { const next = new Set(prev); next.add(pid); return next })
-                                try {
-                                  await api.payments.recalc(pid)
-                                  toast.success('Recalculated')
-                                  await load()
-                                } catch { toast.error('Failed to recalculate') }
-                                finally { setRecalcLoading(prev => { const next = new Set(prev); next.delete(pid); return next }) }
-                              }}
-                            >
-                              Recalculate
-                            </DropdownMenuItem>
-                          </>
+                              <DropdownMenuCheckboxItem
+                                checked={originDraft.atlas}
+                                onSelect={event => event.preventDefault()}
+                                onCheckedChange={v => setOriginDraft(d => ({ ...d, atlas: Boolean(v) }))}
+                              >
+                                Prospective (Atlas)
+                              </DropdownMenuCheckboxItem>
+                              <DropdownMenuSeparator />
+                              <div className="px-2 py-2 flex items-center justify-end gap-2">
+                                <Button variant="ghost" size="sm" onClick={() => setOriginDraft({ kimai: true, atlas: true })} disabled={bothOriginsSelected}>Select both</Button>
+                                <Button size="sm" onClick={async () => {
+                                  setIncludeKimai(originDraft.kimai)
+                                  setIncludeAtlas(originDraft.atlas)
+                                  setPage(1)
+                                  setOriginMenuOpen(false)
+                                  const nextInclude: Array<'kimai' | 'atlas'> = []
+                                  if (originDraft.kimai) nextInclude.push('kimai')
+                                  if (originDraft.atlas) nextInclude.push('atlas')
+                                  await load({
+                                    statusIds: statusFilterState.ids,
+                                    statusNull: statusFilterState.wantsNull,
+                                    include: nextInclude,
+                                  })
+                                }}>Apply</Button>
+                              </div>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                )
-                return <div key={c.id} />
-              })}
-            </div>
-          )
-        })}
-        {!filtered.length && (
-          <div className="px-3 py-8 text-center text-sm text-muted-foreground">No projects</div>
-        )}
+                        {showFilterTrigger && c.id === 'status' && (
+                          <DropdownMenu open={statusMenuOpen} onOpenChange={(open) => {
+                            setStatusMenuOpen(open)
+                            if (open) {
+                              if (statusFilter === null) {
+                                setStatusDraft(new Set(statusIdsAll))
+                              } else if (statusFilter.size) {
+                                setStatusDraft(new Set(statusFilter))
+                              } else {
+                                setStatusDraft(new Set())
+                              }
+                            }
+                          }}>
+                            <DropdownMenuTrigger asChild>
+                              <button type="button" className="hover:underline">{c.label}</button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Filter by status</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              {statuses.length === 0 && <div className="px-2 py-1 text-xs text-muted-foreground">No statuses</div>}
+                              {statuses.map(s => (
+                                <DropdownMenuCheckboxItem
+                                  key={s.id}
+                                  checked={statusDraft.has(s.id)}
+                                  onCheckedChange={(v) => {
+                                    const next = new Set(statusDraft)
+                                    if (v) next.add(s.id); else next.delete(s.id)
+                                    setStatusDraft(next)
+                                  }}
+                                  onSelect={(event) => event.preventDefault()}
+                                >
+                                  <div className="flex w-full justify-between"><span>{s.name || `#${s.id}`}</span></div>
+                                </DropdownMenuCheckboxItem>
+                              ))}
+                              {statuses.length > 0 && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <div className="px-2 py-2 flex items-center justify-end gap-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => setStatusDraft(new Set(statusIdsAll))}
+                                      disabled={allStatusesSelected}
+                                    >Select all</Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => setStatusDraft(new Set())}
+                                      disabled={noStatusesSelected}
+                                    >Clear all</Button>
+                                    <Button size="sm" onClick={async () => {
+                                      const next = new Set(statusDraft)
+                                      let nextFilter: Set<number> | null = next
+                                      let statusIdsArg: number[] | undefined
+                                      let statusNullArg = false
+                                      if (statuses.length && next.size === statuses.length) {
+                                        nextFilter = null
+                                        statusIdsArg = undefined
+                                      } else if (next.size === 0) {
+                                        nextFilter = new Set()
+                                        statusNullArg = true
+                                      } else {
+                                        statusIdsArg = Array.from(next)
+                                      }
+                                      setStatusFilter(nextFilter)
+                                      setPage(1)
+                                      setStatusMenuOpen(false)
+                                      await load({ statusIds: statusIdsArg, statusNull: statusNullArg })
+                                    }}>Apply</Button>
+                                  </div>
+                                </>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
+                        {!showFilterTrigger && <span>{c.label}</span>}
+                        {key && (
+                          <button
+                            type="button"
+                            aria-label={`Sort by ${c.label}`}
+                            onClick={() => toggleSort(c.id)}
+                            className="inline-flex items-center"
+                          >
+                            {!active && <ChevronsUpDown className="h-3.5 w-3.5 opacity-60" />}
+                            {active && (currentDir === 'asc' ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />)}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })()}
+          {filtered.map((r, idx) => {
+            const visible = allColumns.filter(c => c.id === 'actions' || visibleCols.has(c.id))
+            const count = visible.length
+            const gridCls = count === 1 ? 'grid-cols-1' : count === 2 ? 'grid-cols-2' : count === 3 ? 'grid-cols-3' : count === 4 ? 'grid-cols-4' : count === 5 ? 'grid-cols-5' : count === 6 ? 'grid-cols-6' : count === 7 ? 'grid-cols-7' : 'grid-cols-8'
+            return (
+              <div
+                key={idx}
+                className={`grid ${gridCls} gap-2 px-3 py-2 text-sm border-b last:border-b-0 hover:bg-muted/50 cursor-pointer`}
+                onClick={() => handleRowClick(r)}
+              >
+                {visible.map((c) => {
+                  if (c.id === 'origin') return <div key={c.id}>{r.origin === 'atlas' ? 'Prospective' : 'Kimai'}</div>
+                  if (c.id === 'id') return <div key={c.id}>{r.id}</div>
+                  if (c.id === 'name') return <div key={c.id} className="whitespace-nowrap truncate" title={r.displayName}>{r.displayName}</div>
+                  if (c.id === 'status') return (
+                    <div key={c.id}>
+                      {r.statusId != null ? (
+                        <ProjectStatusBadge name={r.statusName} color={statuses.find(s => s.id === r.statusId)?.color || undefined} />
+                      ) : '-'}
+                    </div>
+                  )
+                  if (c.id === 'notes') return <div key={c.id} className="whitespace-nowrap truncate" title={r.notes || ''}>{r.notes || '-'}</div>
+                  if (c.id === 'money') {
+                    const pid = r.kimaiId || r.id
+                    const loadingAmt = recalcLoading.has(pid)
+                    return <div key={c.id} className="flex justify-center">{r.moneyCollected != null ? <Amount value={r.moneyCollected} loading={loadingAmt} widthCh={moneyWidthCh} /> : ''}</div>
+                  }
+                  if (c.id === 'prospective') return <div key={c.id}>{r.isProspective ? 'Yes' : 'No'}</div>
+                  if (c.id === 'updated') return <div key={c.id} className="whitespace-nowrap">{formatLocalPopover(r.updatedAt)}</div>
+                  if (c.id === 'actions') return (
+                    <div key={c.id} className="flex items-center justify-end">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="data-[state=open]:bg-muted text-muted-foreground"
+                            aria-label="Open row actions"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                            <span className="sr-only">Open menu</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40" onClick={(e) => e.stopPropagation()}>
+                          {r.origin === 'atlas' ? (
+                            <>
+                              <DropdownMenuItem
+                                disabled={!canProspective}
+                                onClick={() => { setEditAtlasRow(r); setEditAtlasName(r.displayName || ''); setEditAtlasStatusId(r.statusId ?? null); setEditAtlasNotes(r.notes || ''); setEditAtlasOpen(true) }}
+                              >
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                disabled={!canProspective}
+                                onClick={() => { setLinkRow(r); setLinkKimaiId(''); setLinkOpen(true) }}
+                              >
+                                Link
+                              </DropdownMenuItem>
+                            </>
+                          ) : (
+                            <>
+                              <DropdownMenuItem
+                                disabled={!canOverrides}
+                                onClick={() => { setEditKimaiRow(r); setEditKimaiStatusId(r.statusId ?? null); setEditKimaiMoney(r.moneyCollected != null ? Number(r.moneyCollected).toFixed(2) : ''); setEditKimaiNotes(r.notes || ''); setEditKimaiOpen(true) }}
+                              >
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                disabled={!canOverrides}
+                                onClick={() => { setPayKimaiId(r.kimaiId || r.id); setPayOpen(true) }}
+                              >
+                                Enter Payment
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                disabled={!canOverrides}
+                                onClick={async () => {
+                                  const pid = r.kimaiId || r.id
+                                  setRecalcLoading(prev => { const next = new Set(prev); next.add(pid); return next })
+                                  try {
+                                    await api.payments.recalc(pid)
+                                    toast.success('Recalculated')
+                                    await load()
+                                  } catch { toast.error('Failed to recalculate') }
+                                  finally { setRecalcLoading(prev => { const next = new Set(prev); next.delete(pid); return next }) }
+                                }}
+                              >
+                                Recalculate
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  )
+                  return <div key={c.id} />
+                })}
+              </div>
+            )
+          })}
+          {!filtered.length && (
+            <div className="px-3 py-8 text-center text-sm text-muted-foreground">No projects</div>
+          )}
         </div>
       </div>
       <TablePagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} onPageSizeChange={setPageSize} />
@@ -723,7 +724,7 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
                   {dlgRecalcLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>
                   )}
                 </Button>
               </div>

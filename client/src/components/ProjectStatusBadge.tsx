@@ -12,7 +12,7 @@ export function ProjectStatusBadge({ name, color, className }: { name?: string |
       className,
     )}>
       <span className="h-2.5 w-2.5 rounded-full" style={dotStyle} />
-      <span>{label}</span>
+      <span className="whitespace-nowrap">{label}</span>
     </span>
   )
 }

@@ -199,6 +199,7 @@ export const replicaKimaiUsers = mysqlTable(
   {
     id: int('id').primaryKey(),
     username: varchar('username', { length: 191 }),
+    alias: varchar('alias', { length: 60 }),
     email: varchar('email', { length: 191 }),
     enabled: tinyint('enabled'),
     color: varchar('color', { length: 7 }),
@@ -234,6 +235,33 @@ export const replicaKimaiTags = mysqlTable(
     color: varchar('color', { length: 7 }),
     syncedAt: timestamp('synced_at').notNull().defaultNow(),
   }
+);
+
+// Kimai teams replica
+export const replicaKimaiTeams = mysqlTable(
+  'replica_kimai_teams',
+  {
+    id: int('id').primaryKey(),
+    name: varchar('name', { length: 100 }),
+    color: varchar('color', { length: 7 }),
+    syncedAt: timestamp('synced_at').notNull().defaultNow(),
+  }
+);
+
+// Kimai users<->teams mapping replica
+export const replicaKimaiUsersTeams = mysqlTable(
+  'replica_kimai_users_teams',
+  {
+    id: int('id').primaryKey(),
+    userId: int('user_id').notNull(),
+    teamId: int('team_id').notNull(),
+    teamlead: tinyint('teamlead').notNull().default(0),
+    syncedAt: timestamp('synced_at').notNull().defaultNow(),
+  },
+  (t) => ({
+    ixUser: index('ix_replica_users_teams_user').on(t.userId),
+    ixTeam: index('ix_replica_users_teams_team').on(t.teamId),
+  })
 );
 
 export const replicaKimaiTimesheetTags = mysqlTable(
@@ -272,6 +300,54 @@ export const replicaKimaiCustomers = mysqlTable(
     currency: varchar('currency', { length: 8 }),
     syncedAt: timestamp('synced_at').notNull().defaultNow(),
   }
+);
+
+// ---------------------------------------------------------------------------
+// Studios and relations
+// ---------------------------------------------------------------------------
+
+export const studios = mysqlTable(
+  'studios',
+  {
+    id: bigint('id', { mode: 'number', unsigned: true }).primaryKey().autoincrement(),
+    name: varchar('name', { length: 128 }).notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow().onUpdateNow(),
+  },
+  (t) => ({
+    uxStudioName: uniqueIndex('ux_studios_name').on(t.name),
+  })
+);
+
+// Map which replica_kimai_users are directors for which studio
+export const studioDirectors = mysqlTable(
+  'studio_directors',
+  {
+    studioId: bigint('studio_id', { mode: 'number', unsigned: true }).notNull(),
+    replicaKimaiUserId: int('replica_kimai_user_id').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.studioId, t.replicaKimaiUserId], name: 'pk_studio_directors' }),
+    ixUser: index('ix_studio_directors_user').on(t.replicaKimaiUserId),
+    ixStudio: index('ix_studio_directors_studio').on(t.studioId),
+  })
+);
+
+// Map which Kimai teams are under which studio
+// We store the Kimai team id directly (from kimai2_teams)
+export const studioTeams = mysqlTable(
+  'studio_teams',
+  {
+    studioId: bigint('studio_id', { mode: 'number', unsigned: true }).notNull(),
+    kimaiTeamId: int('kimai_team_id').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.studioId, t.kimaiTeamId], name: 'pk_studio_teams' }),
+    ixTeam: index('ix_studio_teams_team').on(t.kimaiTeamId),
+    ixStudio: index('ix_studio_teams_studio').on(t.studioId),
+  })
 );
 
 // Overrides projects (overlay over Kimai projects)

@@ -22,6 +22,7 @@ import { AdminPermissions } from '@/pages/admin/Permissions'
 import { AdminGrants } from '@/pages/admin/Grants'
 import { AdminStatuses } from '@/pages/admin/Statuses'
 import { Payments } from '@/pages/Payments'
+import { Studios } from '@/pages/Studios'
 
 export default function App() {
   // Normalize path to avoid double-slash routing misses (e.g., //reset/request)
@@ -125,6 +126,17 @@ export default function App() {
             <>
               <PageHeader trail={[{ label: 'Home', href: '/' }, { label: 'Payments', current: true }]} />
               <Payments me={me!} />
+            </>
+          ),
+        },
+        {
+          path: 'studios',
+          element: (
+            <>
+              <PageHeader trail={[{ label: 'Home', href: '/' }, { label: 'Studios', current: true }]} />
+              <RequireRoles me={me!} anyOf={['admins']}>
+                <Studios />
+              </RequireRoles>
             </>
           ),
         },

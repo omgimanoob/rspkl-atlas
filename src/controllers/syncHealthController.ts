@@ -12,6 +12,8 @@ export async function syncHealthHandler(_req, res) {
       'sync.users.last_run',
       'sync.activities.last_run',
       'sync.tags.last_run',
+      'sync.teams.last_run',
+      'sync.teams_users.last_run',
     ];
     const [stateRows]: any = await atlasPool.query(
       `SELECT state_key, state_value, updated_at FROM sync_state WHERE state_key IN (${keys.map(() => '?').join(',')})`,
@@ -29,6 +31,8 @@ export async function syncHealthHandler(_req, res) {
       timesheet_tags: 'replica_kimai_timesheet_tags',
       timesheet_meta: 'replica_kimai_timesheet_meta',
       customers: 'replica_kimai_customers',
+      teams: 'replica_kimai_teams',
+      users_teams: 'replica_kimai_users_teams',
     };
     const counts: Record<string, number> = {};
     const replicaLast: Record<string, string | null> = {};
@@ -98,6 +102,14 @@ export async function syncVerifyHandler(_req, res) {
     const kTags = await countOne(kimaiPool, 'SELECT COUNT(*) AS cnt FROM kimai2_tags')
     const rTags = await countOne(atlasPool, 'SELECT COUNT(*) AS cnt FROM replica_kimai_tags')
     totals.push({ name: 'tags', kimai: kTags, replica: rTags, diff: rTags - kTags, ok: withinTolerance(kTags, rTags, TOLERANCE) })
+    // Teams (total)
+    const kTeams = await countOne(kimaiPool, 'SELECT COUNT(*) AS cnt FROM kimai2_teams')
+    const rTeams = await countOne(atlasPool, 'SELECT COUNT(*) AS cnt FROM replica_kimai_teams')
+    totals.push({ name: 'teams', kimai: kTeams, replica: rTeams, diff: rTeams - kTeams, ok: withinTolerance(kTeams, rTeams, TOLERANCE) })
+    // Users-Teams (total)
+    const kUT = await countOne(kimaiPool, 'SELECT COUNT(*) AS cnt FROM kimai2_users_teams')
+    const rUT = await countOne(atlasPool, 'SELECT COUNT(*) AS cnt FROM replica_kimai_users_teams')
+    totals.push({ name: 'users_teams', kimai: kUT, replica: rUT, diff: rUT - kUT, ok: withinTolerance(kUT, rUT, TOLERANCE) })
     // Timesheet meta (total)
     const kTsMeta = await countOne(kimaiPool, 'SELECT COUNT(*) AS cnt FROM kimai2_timesheet_meta')
     const rTsMeta = await countOne(atlasPool, 'SELECT COUNT(*) AS cnt FROM replica_kimai_timesheet_meta')

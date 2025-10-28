@@ -89,6 +89,20 @@ export const api = {
       return http<{ ok: true; kimai_project_id: number; money_collected: number }>(`/api/payments/recalc/${kimaiId}`, { method: 'POST' })
     },
   },
+  studios: {
+    list() { return http<{ items: Array<{ id: number; name: string; team_count?: number; director_count?: number }> }>(`/api/studios`) },
+    create(name: string) { return http<{ id: number; name: string }>(`/api/studios`, { method: 'POST', body: JSON.stringify({ name }) }) },
+    update(id: number, name: string) { return http<{ id: number; name: string }>(`/api/studios/${id}`, { method: 'PUT', body: JSON.stringify({ name }) }) },
+    remove(id: number) { return http<{ ok: boolean }>(`/api/studios/${id}`, { method: 'DELETE' }) },
+    teams(id: number) { return http<{ items: Array<{ team_id: number; name: string; color?: string | null }> }>(`/api/studios/${id}/teams`) },
+    addTeam(id: number, teamId: number) { return http<{ ok: boolean }>(`/api/studios/${id}/teams`, { method: 'POST', body: JSON.stringify({ kimai_team_id: teamId }) }) },
+    removeTeam(id: number, teamId: number) { return http<{ ok: boolean }>(`/api/studios/${id}/teams/${teamId}`, { method: 'DELETE' }) },
+    directors(id: number) { return http<{ items: Array<{ user_id: number; username?: string | null; email?: string | null }> }>(`/api/studios/${id}/directors`) },
+    addDirector(id: number, userId: number) { return http<{ ok: boolean }>(`/api/studios/${id}/directors`, { method: 'POST', body: JSON.stringify({ replica_kimai_user_id: userId }) }) },
+    removeDirector(id: number, userId: number) { return http<{ ok: boolean }>(`/api/studios/${id}/directors/${userId}`, { method: 'DELETE' }) },
+  },
+  teams() { return http<{ items: Array<{ id: number; name: string; color?: string | null }> }>(`/api/teams`) },
+  kimaiUsers() { return http<{ items: Array<{ id: number; username: string; alias?: string | null; email: string; enabled: number }> }>(`/api/kimai-users`) },
   sync: {
     healthz() {
       return http<{ ok: boolean; db: boolean }>(
@@ -124,6 +138,18 @@ export const api = {
         { method: 'POST' }
       )
     },
+    teams() {
+      return http<{ message: string }>(
+        '/api/sync/teams',
+        { method: 'POST' }
+      )
+    },
+    teamsUsers() {
+      return http<{ message: string }>(
+        '/api/sync/teams-users',
+        { method: 'POST' }
+      )
+    },
     tags() {
       return http<{ message: string }>(
         '/api/sync/tags',
@@ -147,7 +173,7 @@ export const api = {
         '/api/sync/verify'
       )
     },
-    clear(kind: 'projects' | 'timesheets' | 'users' | 'activities' | 'tags' | 'timesheet_tags' | 'customers') {
+    clear(kind: 'projects' | 'timesheets' | 'users' | 'activities' | 'tags' | 'timesheet_tags' | 'customers' | 'teams' | 'users_teams') {
       return http<{ ok: true; table: string }>(`/api/sync/clear/${encodeURIComponent(kind)}`, { method: 'POST' })
     }
   },

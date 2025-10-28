@@ -71,6 +71,20 @@
       "when": 1761516961904,
       "tag": "0009_yielding_big_bertha",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1761671401868,
+      "tag": "0010_nostalgic_peter_parker",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1761674686202,
+      "tag": "0011_low_white_queen",
+      "breakpoints": true
     }
   ]
 }

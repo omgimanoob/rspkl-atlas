@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { db } from '../src/db/client';
-import { roles, permissions, rolePermissions } from '../src/db/schema';
+import { roles, permissions, rolePermissions, studios, studioTeams, studioDirectors } from '../src/db/schema';
 import { sql, inArray, eq } from 'drizzle-orm';
 import { StatusService } from '../src/services/statusService';
 
@@ -100,6 +100,51 @@ async function main() {
     }
   } catch (e: any) {
     console.warn('[seed] Status seeding skipped:', e?.message || e);
+  }
+
+  // Studios and initial mappings
+  try {
+    const studioDefs: Array<{ name: string; teamIds: number[]; directorIds: number[] }> = [
+      { name: 'Studio One', teamIds: [46,47,48,49,50,51,52,53,54,55,57,60,61,62], directorIds: [17] },
+      { name: 'Studio Two', teamIds: [34,35,36,37,38,39,45], directorIds: [55] },
+      { name: 'Studio Three', teamIds: [22,23,24,25,26,27,28,44], directorIds: [58] },
+    ];
+
+    // Upsert studios by name
+    for (const s of studioDefs) {
+      await db
+        .insert(studios)
+        .values({ name: s.name })
+        .onDuplicateKeyUpdate({ set: { name: sql`VALUES(name)` } });
+    }
+    // Read back ids
+    const created = await db.select().from(studios);
+    const idByName = new Map(created.map(s => [s.name as string, s.id as number]));
+
+    // Seed mappings (use no-op on duplicate to emulate INSERT IGNORE)
+    const teamRows: Array<{ studioId: number; kimaiTeamId: number }> = [];
+    const directorRows: Array<{ studioId: number; replicaKimaiUserId: number }> = [];
+    for (const s of studioDefs) {
+      const sid = idByName.get(s.name);
+      if (!sid) continue;
+      for (const tid of s.teamIds) teamRows.push({ studioId: sid, kimaiTeamId: tid });
+      for (const uid of s.directorIds) directorRows.push({ studioId: sid, replicaKimaiUserId: uid });
+    }
+    for (const chunk of chunked(teamRows, 100)) {
+      await db
+        .insert(studioTeams)
+        .values(chunk)
+        .onDuplicateKeyUpdate({ set: { studioId: sql`studio_id`, kimaiTeamId: sql`kimai_team_id` } });
+    }
+    for (const chunk of chunked(directorRows, 100)) {
+      await db
+        .insert(studioDirectors)
+        .values(chunk)
+        .onDuplicateKeyUpdate({ set: { studioId: sql`studio_id`, replicaKimaiUserId: sql`replica_kimai_user_id` } });
+    }
+    console.log('[seed] Seeded studios, teams, and directors.');
+  } catch (e: any) {
+    console.warn('[seed] Studios seeding skipped:', e?.message || e);
   }
 }
 

@@ -75,6 +75,8 @@ export async function syncMetrics() {
     'sync.users.last_run',
     'sync.activities.last_run',
     'sync.tags.last_run',
+    'sync.teams.last_run',
+    'sync.teams_users.last_run',
   ];
   let state: Record<string, any> = {};
   try {
@@ -93,7 +95,9 @@ export async function syncMetrics() {
       UNION ALL SELECT 'activities', COUNT(*) FROM replica_kimai_activities
       UNION ALL SELECT 'tags', COUNT(*) FROM replica_kimai_tags
       UNION ALL SELECT 'timesheet_tags', COUNT(*) FROM replica_kimai_timesheet_tags
-      UNION ALL SELECT 'customers', COUNT(*) FROM replica_kimai_customers`;
+      UNION ALL SELECT 'customers', COUNT(*) FROM replica_kimai_customers
+      UNION ALL SELECT 'teams', COUNT(*) FROM replica_kimai_teams
+      UNION ALL SELECT 'users_teams', COUNT(*) FROM replica_kimai_users_teams`;
     const [rows]: any = await atlasPool.query(countsSql);
     counts = {};
     for (const r of rows) counts[r.name] = Number(r.cnt) || 0;

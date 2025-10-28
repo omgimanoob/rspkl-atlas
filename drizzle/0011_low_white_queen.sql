@@ -1,0 +1,1 @@
+ALTER TABLE `replica_kimai_users` ADD `alias` varchar(60);

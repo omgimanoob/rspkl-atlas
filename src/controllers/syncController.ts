@@ -199,6 +199,8 @@ const REPLICA_TABLES: Record<string, string> = {
   timesheet_tags: 'replica_kimai_timesheet_tags',
   timesheet_meta: 'replica_kimai_timesheet_meta',
   customers: 'replica_kimai_customers',
+  teams: 'replica_kimai_teams',
+  users_teams: 'replica_kimai_users_teams',
 };
 
 export async function clearReplicaHandler(req, res) {
@@ -469,5 +471,31 @@ export async function syncTimesheetMetaHandler(req, res) {
   } catch (e: any) {
     console.error('[syncTimesheetMeta] failed:', e?.message || e);
     res.status(500).json({ error: 'Sync timesheet meta failed' });
+  }
+}
+
+import { syncTeams, syncUsersTeams } from '../services/teamsSync';
+
+export async function syncTeamsHandler(req, res) {
+  try {
+    console.log('[sync:teams] API full refresh (staging-and-swap)');
+    const total = await syncTeams();
+    await recordAudit(req as any, 200, crypto.createHash('sha256').update('syncTeams').digest('hex'));
+    res.json({ message: `Teams synced: ${total}` });
+  } catch (e: any) {
+    console.error('[syncTeams] failed:', e?.message || e);
+    res.status(500).json({ error: 'Sync teams failed' });
+  }
+}
+
+export async function syncUsersTeamsHandler(req, res) {
+  try {
+    console.log('[sync:teams:users] API full refresh (staging-and-swap)');
+    const total = await syncUsersTeams();
+    await recordAudit(req as any, 200, crypto.createHash('sha256').update('syncUsersTeams').digest('hex'));
+    res.json({ message: `User-Teams synced: ${total}` });
+  } catch (e: any) {
+    console.error('[syncUsersTeams] failed:', e?.message || e);
+    res.status(500).json({ error: 'Sync users_teams failed' });
   }
 }

@@ -8,10 +8,10 @@ async function createStaging(live: string, stg: string) {
 
 async function insertBatch(table: string, rows: any[]) {
   if (!rows.length) return;
-  const cols = ['id','username','email','enabled','color','account','system_account','supervisor_id','timezone'];
+  const cols = ['id','username','alias','email','enabled','color','account','system_account','supervisor_id','timezone'];
   const ph = '(' + cols.map(() => '?').join(',') + ')';
   const values: any[] = [];
-  for (const r of rows) values.push(r.id, r.username, r.email, r.enabled, r.color, r.account, r.system_account, r.supervisor_id, null);
+  for (const r of rows) values.push(r.id, r.username, r.alias ?? null, r.email, r.enabled, r.color, r.account, r.system_account, r.supervisor_id, null);
   const sql = `INSERT INTO \`${table}\` (${cols.join(',')}) VALUES ${rows.map(() => ph).join(',')}`;
   await atlasPool.query(sql, values);
 }
@@ -27,7 +27,7 @@ async function main() {
   const live = 'replica_kimai_users';
   const stg = 'replica_kimai_users_stg';
   await createStaging(live, stg);
-  const [rows]: any = await kimaiPool.query('SELECT id, username, email, enabled, color, account, system_account, supervisor_id FROM kimai2_users');
+  const [rows]: any = await kimaiPool.query('SELECT id, username, alias, email, enabled, color, account, system_account, supervisor_id FROM kimai2_users');
   await insertBatch(stg, rows);
   await swapTables(live, stg);
   console.log(`[sync:users] Swap complete. Rows: ${rows.length}`);

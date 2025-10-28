@@ -7,6 +7,7 @@ import {
   Home,
   FolderKanban,
   Banknote,
+  Building2,
 } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
@@ -69,6 +70,9 @@ export function AppSidebar({ me, onLogout, ...props }: React.ComponentProps<type
   const user = { name: displayName, email: me.email, avatar: '' }
   const admin = me.roles.includes('admins')
   const nav = [...data.navMain] as any[]
+  if (admin) {
+    nav.push({ title: 'Studios', url: '/studios', icon: Building2 })
+  }
   if (admin) {
     nav.push({
       title: 'Admin',

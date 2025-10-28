@@ -1,7 +1,7 @@
 // index.ts
 import express from 'express';
 import { getProjectsHandler, getDetailedTimesheetsHandler } from './controllers/projectsController';
-import { syncTimesheetsHandler, clearReplicaHandler, syncUsersHandler, syncActivitiesHandler, syncTagsHandler, syncCustomersHandler, syncTimesheetMetaHandler } from './controllers/syncController';
+import { syncTimesheetsHandler, clearReplicaHandler, syncUsersHandler, syncActivitiesHandler, syncTagsHandler, syncCustomersHandler, syncTimesheetMetaHandler, syncTeamsHandler, syncUsersTeamsHandler } from './controllers/syncController';
 import { getSunburstHandler } from './controllers/biController';
 import { updateProjectStatusHandler, updateProjectOverridesHandler } from './controllers/projectOverridesController';
 import { authMiddleware } from './middleware/auth';
@@ -50,6 +50,20 @@ import {
   deleteUserHandler,
 } from './controllers/usersController';
 import { listPaymentsHandler, createPaymentHandler, recalcPaymentTotalsHandler } from './controllers/paymentsController';
+import {
+  listStudiosHandler,
+  createStudioHandler,
+  updateStudioHandler,
+  deleteStudioHandler,
+  listReplicaTeamsHandler,
+  listStudioTeamsHandler,
+  addStudioTeamHandler,
+  removeStudioTeamHandler,
+  listReplicaUsersHandler,
+  listStudioDirectorsHandler,
+  addStudioDirectorHandler,
+  removeStudioDirectorHandler,
+} from './controllers/studiosController'
 
 
 export const app = express();
@@ -129,6 +143,8 @@ app.post('/sync/activities', syncLimiter, ...permit('sync:execute', 'write'), sy
 app.post('/sync/tags', syncLimiter, ...permit('sync:execute', 'write'), syncTagsHandler);
 app.post('/sync/customers', syncLimiter, ...permit('sync:execute', 'write'), syncCustomersHandler);
 app.post('/sync/tsmeta', syncLimiter, ...permit('sync:execute', 'write'), syncTimesheetMetaHandler);
+app.post('/sync/teams', syncLimiter, ...permit('sync:execute', 'write'), syncTeamsHandler);
+app.post('/sync/teams-users', syncLimiter, ...permit('sync:execute', 'write'), syncUsersTeamsHandler);
 app.post('/sync/clear/:table', syncLimiter, ...permit('sync:execute', 'write'), clearReplicaHandler);
 app.post('/sync/projects', syncLimiter, ...permit('sync:execute', 'write'), syncProjectsHandler);
 app.get('/sync/health', ...permit('sync:execute', 'read'), syncHealthHandler);
@@ -196,6 +212,20 @@ app.put('/v2/projects/:kimaiId/overrides', writeLimiter, ...permit('overrides:up
 app.get('/payments', ...permit('payments:view', 'read'), listPaymentsHandler);
 app.post('/payments', writeLimiter, ...permit('payments:create', 'write'), createPaymentHandler);
 app.post('/payments/recalc/:kimaiId', writeLimiter, ...permit('payments:create', 'write'), recalcPaymentTotalsHandler);
+
+// Studios (admin-only for now)
+app.get('/studios', ...permit('rbac:admin', 'read'), listStudiosHandler)
+app.post('/studios', writeLimiter, ...permit('rbac:admin', 'write'), createStudioHandler)
+app.put('/studios/:id', writeLimiter, ...permit('rbac:admin', 'write'), updateStudioHandler)
+app.delete('/studios/:id', writeLimiter, ...permit('rbac:admin', 'write'), deleteStudioHandler)
+app.get('/teams', ...permit('rbac:admin', 'read'), listReplicaTeamsHandler)
+app.get('/studios/:id/teams', ...permit('rbac:admin', 'read'), listStudioTeamsHandler)
+app.post('/studios/:id/teams', writeLimiter, ...permit('rbac:admin', 'write'), addStudioTeamHandler)
+app.delete('/studios/:id/teams/:teamId', writeLimiter, ...permit('rbac:admin', 'write'), removeStudioTeamHandler)
+app.get('/kimai-users', ...permit('rbac:admin', 'read'), listReplicaUsersHandler)
+app.get('/studios/:id/directors', ...permit('rbac:admin', 'read'), listStudioDirectorsHandler)
+app.post('/studios/:id/directors', writeLimiter, ...permit('rbac:admin', 'write'), addStudioDirectorHandler)
+app.delete('/studios/:id/directors/:userId', writeLimiter, ...permit('rbac:admin', 'write'), removeStudioDirectorHandler)
 
 // Minimal metrics endpoint (no auth; safe aggregate counters only)
 import { metricsSnapshot, syncMetrics } from './services/metrics';

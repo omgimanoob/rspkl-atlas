@@ -207,6 +207,8 @@ export function Dashboard({ me }: { me: { email: string; roles: string[] } }) {
               await api.sync.projects()
               await api.sync.timesheets()
               await api.sync.users()
+              await api.sync.teams()
+              await api.sync.teamsUsers()
               await api.sync.activities()
               await api.sync.tsmeta()
               await api.sync.customers()
@@ -241,6 +243,8 @@ export function Dashboard({ me }: { me: { email: string; roles: string[] } }) {
             { key: 'users', order: 4, title: 'Users', countKey: 'users', useRecent: false, lastRunKey: 'sync.users.last_run', menu: [ { label: 'Sync', action: async () => api.sync.users() }, { label: 'Clear', action: async () => { if (!confirm('Clear replica_kimai_users?')) return; return api.sync.clear('users') } } ] },
             { key: 'activities', order: 5, title: 'Activities', countKey: 'activities', useRecent: false, lastRunKey: 'sync.activities.last_run', menu: [ { label: 'Sync', action: async () => api.sync.activities() }, { label: 'Clear', action: async () => { if (!confirm('Clear replica_kimai_activities?')) return; return api.sync.clear('activities') } } ] },
             { key: 'customers', order: 6, title: 'Customers', countKey: 'customers', useRecent: false, lastRunKey: 'sync.customers.last_run', menu: [ { label: 'Sync', action: async () => api.sync.customers() }, { label: 'Clear', action: async () => { if (!confirm('Clear replica_kimai_customers?')) return; return api.sync.clear('customers') } } ] },
+            { key: 'teams', order: 7, title: 'Teams', countKey: 'teams', useRecent: false, lastRunKey: 'sync.teams.last_run', menu: [ { label: 'Sync', action: async () => api.sync.teams() }, { label: 'Clear', action: async () => { if (!confirm('Clear replica_kimai_teams?')) return; return api.sync.clear('teams') } } ] },
+            { key: 'users_teams', order: 8, title: 'User Teams', countKey: 'users_teams', useRecent: false, lastRunKey: 'sync.teams_users.last_run', menu: [ { label: 'Sync', action: async () => api.sync.teamsUsers() }, { label: 'Clear', action: async () => { if (!confirm('Clear replica_kimai_users_teams?')) return; return api.sync.clear('users_teams') } } ] },
           ] as const)
             .slice()
             .sort((a,b) => a.order - b.order)

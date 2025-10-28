@@ -4,6 +4,8 @@ import { spawn } from 'child_process';
 const cmds = [
   'npm run sync:customers',
   'npm run sync:users',
+  'npm run sync:teams',
+  'npm run sync:teams:users',
   'npm run sync:activities',
   'npm run sync:tags',
   'npm run sync:projects',

@@ -22,6 +22,8 @@
     "sync:timesheets": "ts-node scripts/sync-timesheets.ts",
     "sync:users": "ts-node scripts/sync-users.ts",
     "sync:activities": "ts-node scripts/sync-activities.ts",
+    "sync:teams": "ts-node scripts/sync-teams.ts",
+    "sync:teams:users": "ts-node scripts/sync-teams-users.ts",
     "sync:tags": "ts-node scripts/sync-tags.ts",
     "sync:customers": "ts-node scripts/sync-customers.ts",
     "sync:timesheet_meta": "ts-node scripts/sync-timesheet-meta.ts",

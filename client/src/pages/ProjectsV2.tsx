@@ -227,7 +227,7 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
                 <ColumnsIcon className="h-4 w-4" />
-                <span className="hidden lg:inline">Customize Columns</span>
+                <span className="hidden sm:inline">Customize Columns</span>
                 <ChevronDown className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -248,8 +248,8 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
           </DropdownMenu>
           <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)} disabled={!canProspective}>
             <Plus className="h-4 w-4" />
-            <span className="hidden lg:inline">New Prospective</span>
-            <span className="sr-only lg:hidden">New Prospective</span>
+            <span className="hidden sm:inline">New Prospective</span>
+            <span className="sr-only sm:hidden">New Prospective</span>
           </Button>
         </div>
       </div>

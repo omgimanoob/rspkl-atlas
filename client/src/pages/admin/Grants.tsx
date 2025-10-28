@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { TablePlaceholder } from '@/components/TablePlaceholder'
+import { TablePagination } from '@/components/TablePagination'
 import { toast } from 'sonner'
 
 export function AdminGrants() {
@@ -13,6 +14,12 @@ export function AdminGrants() {
   const [payload, setPayload] = useState<any>({ subject_type: 'user', subject_id: '', permission: '', resource_type: '', resource_id: '' })
   const load = async () => { try { setRows(await api.adminListGrants()) } finally { setLoading(false) } }
   useEffect(() => { load() }, [])
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
+  const total = rows.length
+  const start = (page - 1) * pageSize
+  const end = start + pageSize
+  const visible = rows.slice(start, end)
   return (
     <div className="p-4 space-y-3">
       <div className="grid grid-cols-1 md:grid-cols-5 gap-2 items-end">
@@ -44,10 +51,11 @@ export function AdminGrants() {
           <Button size="sm" onClick={async () => { try { await api.adminCreateGrant(payload); toast.success('Grant created'); await load() } catch { toast.error('Failed to create grant') } }}>Create Grant</Button>
         </div>
       </div>
-      <div className="overflow-hidden border rounded">
+      <div className="border rounded overflow-x-auto">
+        <div className="w-max md:w-full">
         <Table ref={tableRef as any} className="w-full">
-          <TableHeader>
-            <TableRow className="bg-gray-50">
+          <TableHeader className="bg-muted">
+            <TableRow className="bg-muted text-xs font-semibold text-muted-foreground">
               <TableHead>ID</TableHead>
               <TableHead>Subject</TableHead>
               <TableHead>Permission</TableHead>
@@ -56,8 +64,8 @@ export function AdminGrants() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            <TablePlaceholder loading={loading} hasRows={rows.length > 0} columns={['id','subject','permission','resource','actions']} skeletonRows={5} emptyMessage="No grants" wide={['subject','resource']} tableRef={tableRef as any} storageKey="tblsizes:admin_grants" />
-            {rows.length > 0 && rows.map((r: any) => (
+            <TablePlaceholder loading={loading} hasRows={rows.length > 0} columns={['id','subject','permission','resource','actions']} skeletonRows={pageSize} emptyMessage="No grants" wide={['subject','resource']} tableRef={tableRef as any} storageKey="tblsizes:admin_grants" />
+            {visible.length > 0 && visible.map((r: any) => (
               <TableRow key={r.id}>
                 <TableCell>{r.id}</TableCell>
                 <TableCell>{r.subjectType} #{r.subjectId}</TableCell>
@@ -70,7 +78,9 @@ export function AdminGrants() {
             ))}
           </TableBody>
         </Table>
+        </div>
       </div>
+      <TablePagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} onPageSizeChange={setPageSize} />
     </div>
   )
 }

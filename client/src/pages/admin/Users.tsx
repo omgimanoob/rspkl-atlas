@@ -10,7 +10,9 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
 import { formatLocalCompact } from '@/lib/datetime'
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Columns3, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { TablePagination } from '@/components/TablePagination'
+import { Columns as ColumnsIcon, ChevronDown, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, ArrowUpDown, ArrowUp, ArrowDown, Plus } from 'lucide-react'
 import { validatePasswordClient } from '@/lib/password'
 import { PasswordField } from '@/components/PasswordField'
 import { useEffect as useEffectReact, useState as useStateReact } from 'react'
@@ -170,15 +172,28 @@ export function AdminUsers({ currentUserId }: { currentUserId: number }) {
     <div className="p-4 space-y-3">
       <div className="flex items-center justify-between gap-3 py-2">
         <div className="flex items-center gap-2">
-          <Input placeholder="Search by email…" value={q} onChange={e => setQ(e.target.value)} className="max-w-xs" />
-          <Button size="sm" onClick={() => { setPage(1); load() }}>Filter</Button>
+          <Input
+            placeholder="Search by email…"
+            value={q}
+            onChange={e => setQ(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') { setPage(1); load() } }}
+            className="max-w-xs"
+          />
         </div>
         <div className="flex items-center gap-2">
-          <Button size="sm" onClick={() => { setCreateOpen(true); setCreateErrEmail(null); setCreateErrPwd(null); setCreateSelectedRoles(new Set()) }}>Create User</Button>
+          <Button size="sm" onClick={() => { setCreateOpen(true); setCreateErrEmail(null); setCreateErrPwd(null); setCreateSelectedRoles(new Set()) }}>
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">Create User</span>
+            <span className="sr-only sm:hidden">Create User</span>
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setColVis({ ...defaultVis })}>Reset</Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2"><Columns3 className="h-4 w-4" /> Columns</Button>
+              <Button variant="outline" size="sm" className="gap-2">
+                <ColumnsIcon className="h-4 w-4" />
+                <span className="hidden sm:inline">Customize Columns</span>
+                <ChevronDown className="h-4 w-4" />
+              </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
@@ -198,53 +213,54 @@ export function AdminUsers({ currentUserId }: { currentUserId: number }) {
         </div>
       </div>
 
-      <div className="overflow-hidden border rounded">
+      <div className="border rounded overflow-x-auto">
+        <div className="w-max md:w-full">
         <Table ref={(el) => { (tableRef as any).current = el }} className="w-full">
-          <TableHeader>
-            <TableRow className="bg-gray-50">
+          <TableHeader className="bg-muted">
+            <TableRow className="bg-muted text-xs font-semibold text-muted-foreground">
               {colVis.id && (
                 <TableHead>
-                  <button className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-gray-600" onClick={() => toggleSort('id')}>
+                  <button className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground" onClick={() => toggleSort('id')}>
                     ID {sortKey === 'id' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3" />}
                   </button>
                 </TableHead>
               )}
               {colVis.email && (
                 <TableHead>
-                  <button className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-gray-600" onClick={() => toggleSort('email')}>
+                  <button className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground" onClick={() => toggleSort('email')}>
                     Email {sortKey === 'email' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3" />}
                   </button>
                 </TableHead>
               )}
               {colVis.display_name && (
                 <TableHead>
-                  <button className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-gray-600" onClick={() => toggleSort('display_name')}>
+                  <button className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground" onClick={() => toggleSort('display_name')}>
                     Display Name {sortKey === 'display_name' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3" />}
                   </button>
                 </TableHead>
               )}
               {colVis.roles && (
                 <TableHead>
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-gray-600">Roles</span>
+                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground">Roles</span>
                 </TableHead>
               )}
               {colVis.is_active && (
                 <TableHead>
-                  <button className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-gray-600" onClick={() => toggleSort('is_active')}>
+                  <button className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground" onClick={() => toggleSort('is_active')}>
                     Active {sortKey === 'is_active' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3" />}
                   </button>
                 </TableHead>
               )}
               {colVis.created_at && (
                 <TableHead>
-                  <button className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-gray-600" onClick={() => toggleSort('created_at')}>
+                  <button className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground" onClick={() => toggleSort('created_at')}>
                     Created {sortKey === 'created_at' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3" />}
                   </button>
                 </TableHead>
               )}
               {colVis.updated_at && (
                 <TableHead>
-                  <button className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wide text-gray-600" onClick={() => toggleSort('updated_at')}>
+                  <button className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground" onClick={() => toggleSort('updated_at')}>
                     Updated {sortKey === 'updated_at' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3" />}
                   </button>
                 </TableHead>
@@ -264,7 +280,6 @@ export function AdminUsers({ currentUserId }: { currentUserId: number }) {
               storageKey="tblsizes:admin_users"
             />
             {rows.length > 0 && sortedRows.map(r => (
-              <>
                 <TableRow key={r.id}>
                   {colVis.id && <TableCell>{r.id}</TableCell>}
                   {colVis.email && <TableCell>{r.email}</TableCell>}
@@ -276,7 +291,7 @@ export function AdminUsers({ currentUserId }: { currentUserId: number }) {
                           ? <span className="text-xs text-gray-500">-</span>
                           : (userRolesMap[r.id] || []).map(code => {
                               const label = allRoles.find(ar => ar.code === code)?.name || code
-                              return <span key={code} className="inline-block text-xs px-2 py-0.5 bg-gray-100 rounded">{label}</span>
+                              return <Badge key={code} variant="outline" className="text-xs py-0.5">{label}</Badge>
                             })}
                       </div>
                     </TableCell>
@@ -307,44 +322,12 @@ export function AdminUsers({ currentUserId }: { currentUserId: number }) {
                     </div>
                   </TableCell>}
                 </TableRow>
-              </>
             ))}
           </TableBody>
         </Table>
-      </div>
-
-      <div className="sticky bottom-0 bg-white border-t mt-2 flex items-center justify-between gap-2 py-3 px-2 z-10">
-        <div className="text-sm text-gray-600">
-          <span className="hidden sm:inline">Page {page} of {totalPages} ({total} total)</span>
-          <span className="inline sm:hidden">{page}/{totalPages}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="hidden sm:block">
-            <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(1) }}>
-              <SelectTrigger className="h-8 w-[140px]">
-                <SelectValue placeholder="Rows per page" />
-              </SelectTrigger>
-              <SelectContent>
-                {[10,20,50,100].map(n => <SelectItem key={n} value={String(n)}>{n} rows</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center gap-1">
-            <Button variant="outline" size="sm" onClick={() => setPage(1)} disabled={page <= 1}>
-              <ChevronsLeft className="h-4 w-4" />
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => setPage(totalPages)} disabled={page >= totalPages}>
-              <ChevronsRight className="h-4 w-4" />
-            </Button>
-          </div>
         </div>
       </div>
+      <TablePagination page={page} pageSize={pageSize} total={total} onPageChange={setPage} onPageSizeChange={setPageSize} />
 
       <Dialog open={editOpen} onOpenChange={(o) => { if (!saving) { setEditOpen(o); if (!o) { setEditRoleNames(new Set()); setRoleTogglePending(new Set()); } } }}>
         <DialogContent onInteractOutside={(e) => { if (saving) e.preventDefault() }} onEscapeKeyDown={(e) => { if (saving) e.preventDefault() }}>

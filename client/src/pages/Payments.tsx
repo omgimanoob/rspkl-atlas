@@ -108,7 +108,7 @@ export function Payments({ me }: { me?: { email: string; roles: string[] } }) {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
                 <ColumnsIcon className="h-4 w-4" />
-                <span className="hidden lg:inline">Customize Columns</span>
+                <span className="hidden sm:inline">Customize Columns</span>
                 <ChevronDown className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -129,8 +129,8 @@ export function Payments({ me }: { me?: { email: string; roles: string[] } }) {
           </DropdownMenu>
           <Button variant="outline" size="sm" onClick={() => setCreateOpen(true)} disabled={!canCreate}>
             <Plus className="h-4 w-4" />
-            <span className="hidden lg:inline">Enter payment</span>
-            <span className="sr-only lg:hidden">Enter payment</span>
+            <span className="hidden sm:inline">Enter payment</span>
+            <span className="sr-only sm:hidden">Enter payment</span>
           </Button>
         </div>
       </div>

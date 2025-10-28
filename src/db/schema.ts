@@ -276,7 +276,7 @@ export const replicaKimaiCustomers = mysqlTable(
 
 // Overrides projects (overlay over Kimai projects)
 export const overridesProjects = mysqlTable(
-  'overrides_projects',
+  'project_overrides',
   {
     id: bigint('id', { mode: 'number', unsigned: true }).primaryKey().autoincrement(),
     kimaiProjectId: bigint('kimai_project_id', { mode: 'number', unsigned: true }),
@@ -292,8 +292,8 @@ export const overridesProjects = mysqlTable(
     updatedAt: timestamp('updated_at').notNull().defaultNow().onUpdateNow(),
   },
   (t) => ({
-    uxProject: uniqueIndex('ux_overrides_projects_kimai_project').on(t.kimaiProjectId),
-    ixProspective: index('ix_overrides_projects_prospective').on(t.isProspective),
+    uxProject: uniqueIndex('ux_project_overrides_kimai_project').on(t.kimaiProjectId),
+    ixProspective: index('ix_project_overrides_prospective').on(t.isProspective),
   })
 );
 

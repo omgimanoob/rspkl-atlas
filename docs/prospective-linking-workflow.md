@@ -3,7 +3,7 @@
 This document describes the lifecycle for Atlas-native Prospective Projects and the mechanism to link them to a Kimai project, including validation and an optional create-and-link orchestration.
 
 ## Terms
-- Prospective (Atlas-native): Row in `overrides_projects` with `kimai_project_id = NULL`, `is_prospective = 0`, and `extras_json.name` for display.
+- Prospective (Atlas-native): Row in `project_overrides` with `kimai_project_id = NULL`, `is_prospective = 0`, and `extras_json.name` for display.
 - Kimai project: Row in `kimai2_projects` (Kimai DB) or a project created via Kimai’s API.
 
 ## Goals

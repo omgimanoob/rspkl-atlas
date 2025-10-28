@@ -3,21 +3,21 @@ import { StatusService } from './statusService';
 
 export class ProjectOverrides {
   static async getAll() {
-    const [rows] = await atlasPool.query('SELECT * FROM overrides_projects');
+    const [rows] = await atlasPool.query('SELECT * FROM project_overrides');
     return rows;
   }
 
   static async updateStatusId(kimai_project_id: number, status_id?: number | null) {
     await StatusService.ensureSchema();
     await atlasPool.query(
-      `UPDATE overrides_projects SET status_id = ? WHERE kimai_project_id = ?`,
+      `UPDATE project_overrides SET status_id = ? WHERE kimai_project_id = ?`,
       [status_id ?? null, kimai_project_id]
     );
   }
 
   static async getByProjectId(kimai_project_id: number) {
     const [rows] = await atlasPool.query<any[]>(
-      `SELECT * FROM overrides_projects WHERE kimai_project_id = ?
+      `SELECT * FROM project_overrides WHERE kimai_project_id = ?
        ORDER BY updated_at DESC, id DESC
        LIMIT 1`,
       [kimai_project_id]
@@ -59,7 +59,7 @@ export class ProjectOverrides {
 
     if (existing) {
       if (fields.length > 0) {
-        const sql = `UPDATE overrides_projects SET ${fields.join(', ')} WHERE kimai_project_id = ?`;
+        const sql = `UPDATE project_overrides SET ${fields.join(', ')} WHERE kimai_project_id = ?`;
         await atlasPool.query(sql, [...values, id]);
       }
     } else {
@@ -71,7 +71,7 @@ export class ProjectOverrides {
       if (payload.status_id !== undefined) { await StatusService.ensureSchema(); cols.push('status_id'); qs.push('?'); insertVals.push(payload.status_id); }
       if (payload.is_prospective !== undefined) { cols.push('is_prospective'); qs.push('?'); insertVals.push(payload.is_prospective ? 1 : 0); }
       if (payload.created_by_user_id !== undefined) { cols.push('created_by_user_id'); qs.push('?'); insertVals.push(payload.created_by_user_id); }
-      const sql = `INSERT INTO overrides_projects (${cols.join(',')}) VALUES (${qs.join(',')})`;
+      const sql = `INSERT INTO project_overrides (${cols.join(',')}) VALUES (${qs.join(',')})`;
       await atlasPool.query(sql, insertVals);
     }
 

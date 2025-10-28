@@ -10,7 +10,7 @@ Key points:
 - UI provides a Payments page with search, sorting, and a create dialog.
 
 ## Decisions
-- Table name: use `project_overrides` (not `overrides` / `overrides_projects`).
+- Table name: use `project_overrides` (not `overrides` / `project_overrides`).
 - Aggregation column: `project_overrides.money_collected` already exists; no migration required.
 - Scope: only create and list payments (no edit/delete).
 - Currency: single currency for all amounts; normal decimal handling.

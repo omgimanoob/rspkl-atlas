@@ -55,12 +55,12 @@ export const StatusService = {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;`);
     // Add color column if missing (for upgraded installs)
     try { await atlasPool.query('ALTER TABLE project_statuses ADD COLUMN color VARCHAR(7) NULL AFTER code'); } catch {}
-    // Add status_id column to overrides_projects if missing
+    // Add status_id column to project_overrides if missing
     try {
-      await atlasPool.query('ALTER TABLE overrides_projects ADD COLUMN status_id INT NULL');
+      await atlasPool.query('ALTER TABLE project_overrides ADD COLUMN status_id INT NULL');
     } catch {}
     // Optional: index for status_id
-    try { await atlasPool.query('CREATE INDEX ix_overrides_projects_status_id ON overrides_projects (status_id)'); } catch {}
+    try { await atlasPool.query('CREATE INDEX ix_project_overrides_status_id ON project_overrides (status_id)'); } catch {}
   },
 
   async list(): Promise<ProjectStatusRow[]> {

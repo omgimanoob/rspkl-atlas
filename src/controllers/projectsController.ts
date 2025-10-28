@@ -41,7 +41,7 @@ export async function getProjectsHandler(req: Request, res: Response): Promise<v
         const [withJoin]: any = await atlasPool.query(
           `SELECT o.id AS override_id, o.status_id, o.is_prospective, o.money_collected, o.notes,
                   o.updated_by_user_id, o.extras_json, o.created_at, o.updated_at, s.name AS status_name
-             FROM overrides_projects o
+             FROM project_overrides o
              LEFT JOIN project_statuses s ON s.id = o.status_id
             WHERE o.kimai_project_id IS NULL
             ORDER BY o.updated_at DESC, o.id DESC`
@@ -52,7 +52,7 @@ export async function getProjectsHandler(req: Request, res: Response): Promise<v
         const [noJoin]: any = await atlasPool.query(
           `SELECT o.id AS override_id, o.status_id, o.is_prospective, o.money_collected, o.notes,
                   o.updated_by_user_id, o.extras_json, o.created_at, o.updated_at
-             FROM overrides_projects o
+             FROM project_overrides o
             WHERE o.kimai_project_id IS NULL
             ORDER BY o.updated_at DESC, o.id DESC`
         );
@@ -63,7 +63,7 @@ export async function getProjectsHandler(req: Request, res: Response): Promise<v
         const [simple]: any = await atlasPool.query(
           `SELECT id AS override_id, status_id, is_prospective, money_collected, notes, created_by_user_id,
                   updated_by_user_id, extras_json, created_at, updated_at
-             FROM overrides_projects
+             FROM project_overrides
             WHERE kimai_project_id IS NULL
             ORDER BY updated_at DESC, id DESC`
         );
@@ -110,7 +110,7 @@ export async function getProjectsHandler(req: Request, res: Response): Promise<v
         const [simple]: any = await atlasPool.query(
           `SELECT id AS override_id, status_id, is_prospective, money_collected, notes,
                   updated_by_user_id, extras_json, created_at, updated_at
-             FROM overrides_projects
+             FROM project_overrides
             WHERE kimai_project_id IS NULL
             ORDER BY updated_at DESC, id DESC`
         );

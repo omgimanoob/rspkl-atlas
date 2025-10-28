@@ -1,4 +1,4 @@
-CREATE TABLE `overrides_projects` (
+CREATE TABLE `project_overrides` (
 	`id` bigint unsigned AUTO_INCREMENT NOT NULL,
 	`kimai_project_id` bigint unsigned,
 	`money_collected` varchar(64),
@@ -11,8 +11,8 @@ CREATE TABLE `overrides_projects` (
 	`extras_json` varchar(2048),
 	`created_at` timestamp NOT NULL DEFAULT (now()),
 	`updated_at` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
-	CONSTRAINT `overrides_projects_id` PRIMARY KEY(`id`),
-	CONSTRAINT `ux_overrides_projects_kimai_project` UNIQUE(`kimai_project_id`)
+	CONSTRAINT `project_overrides_id` PRIMARY KEY(`id`),
+	CONSTRAINT `ux_project_overrides_kimai_project` UNIQUE(`kimai_project_id`)
 );
 --> statement-breakpoint
 CREATE TABLE `replica_kimai_customers` (
@@ -25,5 +25,5 @@ CREATE TABLE `replica_kimai_customers` (
 	CONSTRAINT `replica_kimai_customers_id` PRIMARY KEY(`id`)
 );
 --> statement-breakpoint
-CREATE INDEX `ix_overrides_projects_status` ON `overrides_projects` (`status`);--> statement-breakpoint
-CREATE INDEX `ix_overrides_projects_prospective` ON `overrides_projects` (`is_prospective`);
+CREATE INDEX `ix_project_overrides_status` ON `project_overrides` (`status`);--> statement-breakpoint
+CREATE INDEX `ix_project_overrides_prospective` ON `project_overrides` (`is_prospective`);

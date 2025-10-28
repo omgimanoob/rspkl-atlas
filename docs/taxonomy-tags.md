@@ -19,7 +19,7 @@ Tables
   - `id` (PK)
   - `taxonomy_term_id` (FK → taxonomy_terms.id)
   - `kimai_project_id` (nullable, bigint unsigned)
-  - `override_project_id` (nullable, bigint unsigned) — FK → overrides_projects.id
+  - `override_project_id` (nullable, bigint unsigned) — FK → project_overrides.id
   - timestamps
   - Unique constraints to prevent duplicates:
     - Unique (taxonomy_term_id, kimai_project_id) when kimai_project_id is not null

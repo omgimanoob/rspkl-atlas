@@ -1,2 +1,2 @@
-DROP INDEX `ix_overrides_projects_status` ON `overrides_projects`;--> statement-breakpoint
-ALTER TABLE `overrides_projects` DROP COLUMN `status`;
+DROP INDEX `ix_project_overrides_status` ON `project_overrides`;--> statement-breakpoint
+ALTER TABLE `project_overrides` DROP COLUMN `status`;

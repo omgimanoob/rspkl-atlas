@@ -301,7 +301,7 @@ export async function linkProspectiveV2Handler(req: Request, res: Response): Pro
     if (!rows || !rows.length) { res.status(404).json({ error: 'Not Found' }); return }
     if (rows[0].kimai_project_id) { res.status(409).json({ error: 'Conflict', reason: 'already_linked' }); return }
     // conflict check for target kimai id
-    const [dups]: any = await atlasPool.query('SELECT id FROM overrides_projects WHERE kimai_project_id = ? LIMIT 1', [kimaiId])
+    const [dups]: any = await atlasPool.query('SELECT id FROM project_overrides WHERE kimai_project_id = ? LIMIT 1', [kimaiId])
     if (dups && dups.length) { res.status(409).json({ error: 'Conflict', reason: 'override_exists_for_project' }); return }
     await atlasPool.query('UPDATE atlas_projects SET kimai_project_id = ?, linked_at = CURRENT_TIMESTAMP WHERE id = ?', [kimaiId, atlasId])
     res.json({ ok: true, atlasId, kimaiId })

@@ -43,7 +43,7 @@ describe('Prospective create (POST /prospective)', () => {
   afterAll(async () => {
     await agent.post('/auth/logout').expect(200)
     if (createdId) {
-      try { await (atlasPool as any).query('DELETE FROM overrides_projects WHERE id = ?', [createdId]) } catch {}
+      try { await (atlasPool as any).query('DELETE FROM project_overrides WHERE id = ?', [createdId]) } catch {}
     }
   })
 

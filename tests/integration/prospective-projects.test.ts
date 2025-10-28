@@ -38,7 +38,7 @@ describe('Prospective projects admin API', () => {
   afterAll(async () => {
     // Best effort cleanup of the created prospective row
     if (createdId) {
-      try { await atlasPool.query('DELETE FROM overrides_projects WHERE id = ?', [createdId]); } catch {}
+      try { await atlasPool.query('DELETE FROM project_overrides WHERE id = ?', [createdId]); } catch {}
     }
   });
 
@@ -54,7 +54,7 @@ describe('Prospective projects admin API', () => {
   it('links a prospective project to a Kimai project id', async () => {
     const kimaiId = 90000000 + Math.floor(Math.random() * 999999); // reduce collision risk across runs
     // Ensure there is not an existing override for that id (tests run against a persistent DB)
-    await atlasPool.query('DELETE FROM overrides_projects WHERE kimai_project_id = ?', [kimaiId]);
+    await atlasPool.query('DELETE FROM project_overrides WHERE kimai_project_id = ?', [kimaiId]);
     const link = await agent.post(`/admin/prospective/${createdId}/link`).send({ kimai_project_id: kimaiId }).expect(200);
     expect(link.body.kimai_project_id).toBe(kimaiId);
     expect(link.body.is_prospective).toBe(false);

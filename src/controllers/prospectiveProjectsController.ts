@@ -28,7 +28,7 @@ export async function createProspectiveHandler(req, res) {
       statusId = row.id
       statusName = row.name
     }
-    const sql = `INSERT INTO overrides_projects (kimai_project_id, status_id, is_prospective, notes, extras_json)
+    const sql = `INSERT INTO project_overrides (kimai_project_id, status_id, is_prospective, notes, extras_json)
                  VALUES (NULL, ?, ?, ?, ?)`;
     const params = [ statusId, isProspective, notes ?? null, extras ];
     const [result]: any = await atlasPool.query(sql, params);
@@ -45,7 +45,7 @@ export async function listProspectiveHandler(_req, res) {
   try {
     const [rows]: any = await atlasPool.query(
       `SELECT o.id, o.kimai_project_id, o.status_id, s.name AS status_name, o.is_prospective, o.notes, o.extras_json
-       FROM overrides_projects o
+       FROM project_overrides o
        LEFT JOIN project_statuses s ON s.id = o.status_id
        WHERE o.kimai_project_id IS NULL
        ORDER BY o.updated_at DESC, o.id DESC`
@@ -76,14 +76,14 @@ export async function linkProspectiveHandler(req, res) {
     const kimaiId = Number(req.body?.kimai_project_id);
     if (!Number.isFinite(kimaiId)) return res.status(400).json({ error: 'Bad Request', reason: 'invalid_kimai_project_id' });
     // Ensure row exists and is prospective
-    const [rows]: any = await atlasPool.query('SELECT id, kimai_project_id FROM overrides_projects WHERE id = ?', [id]);
+    const [rows]: any = await atlasPool.query('SELECT id, kimai_project_id FROM project_overrides WHERE id = ?', [id]);
     if (!rows.length) return res.status(404).json({ error: 'Not Found' });
     if (rows[0].kimai_project_id) return res.status(400).json({ error: 'Bad Request', reason: 'already_linked' });
     // Ensure no other override already linked to this kimai project
-    const [dups]: any = await atlasPool.query('SELECT id FROM overrides_projects WHERE kimai_project_id = ? LIMIT 1', [kimaiId]);
+    const [dups]: any = await atlasPool.query('SELECT id FROM project_overrides WHERE kimai_project_id = ? LIMIT 1', [kimaiId]);
     if (dups.length) return res.status(409).json({ error: 'Conflict', reason: 'override_exists_for_project' });
     await atlasPool.query(
-      'UPDATE overrides_projects SET kimai_project_id = ?, is_prospective = 0 WHERE id = ?',
+      'UPDATE project_overrides SET kimai_project_id = ?, is_prospective = 0 WHERE id = ?',
       [kimaiId, id]
     );
     incProspectiveLink();

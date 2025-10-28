@@ -20,7 +20,7 @@ Atlas’ third core function is to provide well‑modeled, queryable data for an
   - `kimai2_timesheet_meta` → `replica_kimai_timesheet_meta`
   - (Optional) `kimai2_customers` → `replica_kimai_customers`
 - Build enriched views:
-  - `vw_projects` — `replica_kimai_projects` LEFT JOIN `overrides_projects` + tags + payments rollup
+  - `vw_projects` — `replica_kimai_projects` LEFT JOIN `project_overrides` + tags + payments rollup
   - `vw_timesheet_facts` — `replica_kimai_timesheets` JOIN `replica_kimai_projects/users/activities` + aggregated tags + enriched project columns
 
 ## Data Flow
@@ -60,7 +60,7 @@ Indexes
 ## Enriched Views
 - `vw_projects`
   - Base: `replica_kimai_projects p`
-  - LEFT JOIN `overrides_projects o` ON `o.kimai_project_id = p.id`
+  - LEFT JOIN `project_overrides o` ON `o.kimai_project_id = p.id`
   - LEFT JOIN `project_tags pt` → `taxonomy_terms` → `taxonomies` (aggregate terms per project)
   - LEFT JOIN `project_payments_rollup r` by project
   - Selected fields: p.*, o.money_collected (cached), o.status_id, o.is_prospective, tags (array/string agg), payments total(s)

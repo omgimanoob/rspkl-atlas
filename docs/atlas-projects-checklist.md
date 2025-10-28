@@ -4,11 +4,11 @@ Goal: Enable creating and managing projects that do NOT originate from Kimai (ak
 
 Scope and assumptions
 - Kimai projects are already implemented: read-only replicas + overrides and a unified Projects view.
-- Atlas-native projects use the existing `overrides_projects` table with `kimai_project_id = NULL` until linked.
+- Atlas-native projects use the existing `project_overrides` table with `kimai_project_id = NULL` until linked.
 - Status taxonomy is managed via `project_statuses` and `status_id` (UI resolves the status name for display — no denormalized string stored).
 
 ## Phase 1 — Data Model & Migrations
-- [x] Use `overrides_projects` for Atlas-native projects (non-Kimai):
+- [x] Use `project_overrides` for Atlas-native projects (non-Kimai):
   - `kimai_project_id` NULL
   - `status_id` (FK to `project_statuses`)
   - `is_prospective` = 1 by default (Atlas-native Prospective rows)
@@ -25,7 +25,7 @@ Scope and assumptions
 - [x] Merge logic for Kimai+overrides (keeps override precedence when non-null)
 - [ ] Add thin repository for Atlas-native projects:
   - `listAtlasProjects()` — rows where `kimai_project_id IS NULL`
-  - `createAtlasProject({ name, statusId?, notes? })` — write to `overrides_projects` with `is_prospective = 1`, `extras_json: { name }`, set `status_id` (and `status` denormalized) when provided
+  - `createAtlasProject({ name, statusId?, notes? })` — write to `project_overrides` with `is_prospective = 1`, `extras_json: { name }`, set `status_id` (and `status` denormalized) when provided
   - `updateAtlasProject(id, { name?, statusId?, notes?, money_collected?, is_prospective? })`
   - `deleteAtlasProject(id)` — soft delete or hard delete (decide policy; see Phase 5)
   - `linkAtlasProject(id, kimai_project_id)` — move from Atlas-native to linked Kimai row

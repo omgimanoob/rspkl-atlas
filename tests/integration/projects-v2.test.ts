@@ -58,7 +58,7 @@ describe('Projects v2 – sorting and filters', () => {
   afterAll(async () => {
     // Cleanup created atlas rows
     for (const id of createdAtlasIds) {
-      try { await atlasPool.query('DELETE FROM overrides_projects WHERE id = ?', [id]) } catch {}
+      try { await atlasPool.query('DELETE FROM project_overrides WHERE id = ?', [id]) } catch {}
     }
     await agent.post('/auth/logout').expect(200)
   })

@@ -1,4 +1,4 @@
-# Atlas Overrides – `overrides_projects` Data Model
+# Atlas Overrides – `project_overrides` Data Model
 
 Purpose: One of Atlas’ core goals is to fill gaps in data that Kimai does not provide. Today, identified missing fields include:
 - `project.money_collected`
@@ -18,7 +18,7 @@ Secondary goal: Allow users to add Prospective Projects that do not yet exist in
 
 ## Table Schema (Proposed)
 
-Physical table: `overrides_projects` (in Atlas DB)
+Physical table: `project_overrides` (in Atlas DB)
 
 Columns
 - `id` bigint unsigned PK auto‑increment
@@ -52,7 +52,7 @@ Invariants
 ### `money_collected` semantics
 - Treat `money_collected` as a cached/denormalized value derived from authoritative payment sources (e.g., accounting/AR system).
 - If/when a payments feed is integrated, recompute and persist `money_collected` on a schedule or on change events.
-- Manual edits in `overrides_projects` act as an explicit override; set to null to fall back to computed value.
+- Manual edits in `project_overrides` act as an explicit override; set to null to fall back to computed value.
 - Do not rely on `money_collected` here as the source‑of‑truth for financial reporting; it is for operational views and filtering.
 
 ## Drizzle Schema (TypeScript Skeleton)
@@ -61,7 +61,7 @@ import {
   mysqlTable, bigint, varchar, tinyint, decimal, timestamp, json, uniqueIndex, index
 } from 'drizzle-orm/mysql-core';
 
-export const overridesProjects = mysqlTable('overrides_projects', {
+export const overridesProjects = mysqlTable('project_overrides', {
   id: bigint('id', { mode: 'number', unsigned: true }).primaryKey().autoincrement(),
   kimaiProjectId: bigint('kimai_project_id', { mode: 'number', unsigned: true }).notNull(),
   moneyCollected: decimal('money_collected', { precision: 12, scale: 2 }),
@@ -75,16 +75,16 @@ export const overridesProjects = mysqlTable('overrides_projects', {
   updatedAt: timestamp('updated_at').notNull().defaultNow().onUpdateNow(),
   extrasJson: json('extras_json'),
 }, (t) => ({
-  uxProject: uniqueIndex('ux_overrides_projects_kimai_project').on(t.kimaiProjectId),
+  uxProject: uniqueIndex('ux_project_overrides_kimai_project').on(t.kimaiProjectId),
   // ixStatus removed; use index on status_id if needed
-  ixProspective: index('ix_overrides_projects_prospective').on(t.isProspective),
+  ixProspective: index('ix_project_overrides_prospective').on(t.isProspective),
 }));
 ```
 
 ## Merge Semantics
-- Read path: Fetch Kimai project, then overlay any non‑null values from `overrides_projects`.
+- Read path: Fetch Kimai project, then overlay any non‑null values from `project_overrides`.
   - Example: if `money_collected` is non‑null in overrides, return that; else return Kimai’s value (if any) or null.
-- Write path: Mutations only touch `overrides_projects`; never write to Kimai.
+- Write path: Mutations only touch `project_overrides`; never write to Kimai.
 - Null clearing: Setting a field to null removes the override and restores upstream behavior.
 
 ## API Usage (Current)
@@ -114,7 +114,7 @@ Both endpoints should:
   - Others
 - We use a dedicated lookup table:
   - Table `project_statuses(id, name, code, is_active, sort_order, created_at, updated_at)`
-  - Reference via `status_id` (nullable) in `overrides_projects`; the UI resolves the name for display.
+  - Reference via `status_id` (nullable) in `project_overrides`; the UI resolves the name for display.
   - Expose statuses via an admin endpoint to manage the list.
 
 ## UI Integration Plan — Create Prospective from Projects Page
@@ -127,7 +127,7 @@ Phases
     - Add a non‑admin read endpoint for statuses used by the UI:
       - `GET /statuses` — permission `project:read` (read‑only copy of admin list).
     - Add a dedicated creation endpoint (permission‑gated) for Atlas‑native rows:
-      - `POST /prospective` — permission `prospective:create` (no resource scope; creates `overrides_projects` row with `kimai_project_id=NULL`, `status_id?`, `notes?`, and `extras_json.name`).
+      - `POST /prospective` — permission `prospective:create` (no resource scope; creates `project_overrides` row with `kimai_project_id=NULL`, `status_id?`, `notes?`, and `extras_json.name`).
       - Validation: reject non‑null/true `is_prospective`; enforce that `is_prospective` is stored as `0` on these rows.
     - Keep existing admin endpoints under `/admin/prospective` for ops tooling.
   - Client (Projects page):
@@ -174,11 +174,11 @@ Atlas distinguishes two project types, surfaced together in the Projects list wh
   - Edit action in UI updates overrides only; Kimai data remains read-only.
   - `id` is the Kimai project id (positive integer).
 - Atlas-native Prospective projects (origin: `atlas`)
-  - Created in Atlas (`overrides_projects` with `kimai_project_id=NULL`).
+  - Created in Atlas (`project_overrides` with `kimai_project_id=NULL`).
   - `is_prospective` is always `1` for Atlas-native rows.
   - Appear in mixed list when `includeProspective=1` is passed to `GET /projects`.
   - UI treats them as read-only in the main grid; a dedicated Prospective view can provide edit/link actions.
-  - `id` is a negative virtual id derived from the override row id: `-overrides_projects.id` (prevents collision with Kimai ids).
+  - `id` is a negative virtual id derived from the override row id: `-project_overrides.id` (prevents collision with Kimai ids).
 
 Notes
 - The mixed `/projects` payload includes an `origin` field to distinguish types.

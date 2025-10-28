@@ -1,7 +1,7 @@
--- Drop overrides_projects.status column and related index; use status_id only
-ALTER TABLE overrides_projects
-  DROP INDEX ix_overrides_projects_status;
+-- Drop project_overrides.status column and related index; use status_id only
+ALTER TABLE project_overrides
+  DROP INDEX ix_project_overrides_status;
 
-ALTER TABLE overrides_projects
+ALTER TABLE project_overrides
   DROP COLUMN status;
 

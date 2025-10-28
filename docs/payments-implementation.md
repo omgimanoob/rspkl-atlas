@@ -105,11 +105,11 @@ Linking to projects
 
 Rollup job (cron/task)
 - Periodically recompute `project_payments_rollup` from `payments`.
-- Optionally update `overrides_projects.money_collected` with the rolled‑up display amount (converted from minor units).
-- Respect manual overrides: if `overrides_projects.money_collected` is non‑null and a policy flag is set, preserve manual value and expose both numbers in UI for reconciliation.
+- Optionally update `project_overrides.money_collected` with the rolled‑up display amount (converted from minor units).
+- Respect manual overrides: if `project_overrides.money_collected` is non‑null and a policy flag is set, preserve manual value and expose both numbers in UI for reconciliation.
 
 Policy flags (config)
-- `PAYMENTS_UPDATE_OVERRIDES` (default: false) — when true, write rolled‑up amount to `overrides_projects.money_collected` if it is null.
+- `PAYMENTS_UPDATE_OVERRIDES` (default: false) — when true, write rolled‑up amount to `project_overrides.money_collected` if it is null.
 - `PAYMENTS_DISPLAY_CURRENCY` — default currency for display when multiple currencies exist.
 
 ## API Endpoints (Admin)

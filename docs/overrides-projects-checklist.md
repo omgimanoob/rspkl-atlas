@@ -1,9 +1,9 @@
 # Overrides – Implementation Checklist
 
-Actionable tasks to implement and evolve the `overrides_projects` model that fills gaps not present in Kimai. See design: `docs/overrides-projects.md`.
+Actionable tasks to implement and evolve the `project_overrides` model that fills gaps not present in Kimai. See design: `docs/overrides-projects.md`.
 
 ## Phase 1 – Schema & Migration
-- [x] Table `overrides_projects` (Atlas DB) with core fields:
+- [x] Table `project_overrides` (Atlas DB) with core fields:
   - [x] `kimai_project_id` (FK-less reference), `money_collected` (decimal), `status_id` (int), `is_prospective` (tinyint), `notes`, `source`, `updated_by_*`, timestamps, `extras_json`.
   - [x] Unique index on `kimai_project_id` (one override row per Kimai project).
 - [x] Prospective projects: allow `kimai_project_id` to be NULL; unique index applies only when not NULL (MySQL unique index permits multiple NULLs).
@@ -11,7 +11,7 @@ Actionable tasks to implement and evolve the `overrides_projects` model that fil
 
 ## Phase 2 – Services & Repository
 - [x] Read overrides for projects; merge logic only applies non-null overrides.
-- [x] Update endpoints write to `overrides_projects` only (never Kimai).
+- [x] Update endpoints write to `project_overrides` only (never Kimai).
 - [x] Helper to compute/normalize project id from request payload.
 
 ## Phase 3 – API Endpoints (Write)

@@ -26,7 +26,7 @@ jest.mock('../../src/services/timesheetSync', () => ({
   },
 }));
 
-// Mock overrides service to avoid dependence on overrides_projects table
+// Mock overrides service to avoid dependence on project_overrides table
 jest.mock('../../src/services/projectOverrides', () => ({
   ProjectOverrides: {
     getAll: jest.fn().mockResolvedValue([]),

@@ -28,7 +28,7 @@ Auth & RBAC
 - `rbac_audit_logs` — RBAC decision/mutation logs (allow/deny/mutate/reason)
 
 Overrides & Projects
-- `overrides_projects` — overlay fields missing from Kimai: `money_collected` (cached), `status_id`, `is_prospective`, notes, source, updated_by, timestamps, extras JSON
+- `project_overrides` — overlay fields missing from Kimai: `money_collected` (cached), `status_id`, `is_prospective`, notes, source, updated_by, timestamps, extras JSON
   - Design and schema: see `docs/overrides-projects.md`
 
 Taxonomy & Tags

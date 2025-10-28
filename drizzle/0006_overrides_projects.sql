@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS `overrides_projects` (
+CREATE TABLE IF NOT EXISTS `project_overrides` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `kimai_project_id` bigint unsigned NULL,
   `money_collected` decimal(12,2) NULL,
@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS `overrides_projects` (
   `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
 );
-CREATE UNIQUE INDEX `ux_overrides_projects_kimai_project` ON `overrides_projects` (`kimai_project_id`);
-CREATE INDEX `ix_overrides_projects_status` ON `overrides_projects` (`status`);
-CREATE INDEX `ix_overrides_projects_prospective` ON `overrides_projects` (`is_prospective`);
+CREATE UNIQUE INDEX `ux_project_overrides_kimai_project` ON `project_overrides` (`kimai_project_id`);
+CREATE INDEX `ix_project_overrides_status` ON `project_overrides` (`status`);
+CREATE INDEX `ix_project_overrides_prospective` ON `project_overrides` (`is_prospective`);
 

@@ -25,4 +25,4 @@ This is a reference of the Kimai database table `kimai2_projects` as observed. U
 Notes:
 - Keys reflect Kimai's indexing (e.g., `PRI` = primary key, `MUL` = indexed).
 - Defaults and nullability are shown as in the provided structure.
-- Atlas should treat this as read-only and overlay additional data via `overrides_projects` as needed.
+- Atlas should treat this as read-only and overlay additional data via `project_overrides` as needed.

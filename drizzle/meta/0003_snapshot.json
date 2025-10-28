@@ -85,8 +85,8 @@
       "uniqueConstraints": {},
       "checkConstraint": {}
     },
-    "overrides_projects": {
-      "name": "overrides_projects",
+    "project_overrides": {
+      "name": "project_overrides",
       "columns": {
         "id": {
           "name": "id",
@@ -177,22 +177,22 @@
         }
       },
       "indexes": {
-        "ux_overrides_projects_kimai_project": {
-          "name": "ux_overrides_projects_kimai_project",
+        "ux_project_overrides_kimai_project": {
+          "name": "ux_project_overrides_kimai_project",
           "columns": [
             "kimai_project_id"
           ],
           "isUnique": true
         },
-        "ix_overrides_projects_status": {
-          "name": "ix_overrides_projects_status",
+        "ix_project_overrides_status": {
+          "name": "ix_project_overrides_status",
           "columns": [
             "status"
           ],
           "isUnique": false
         },
-        "ix_overrides_projects_prospective": {
-          "name": "ix_overrides_projects_prospective",
+        "ix_project_overrides_prospective": {
+          "name": "ix_project_overrides_prospective",
           "columns": [
             "is_prospective"
           ],
@@ -201,8 +201,8 @@
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
-        "overrides_projects_id": {
-          "name": "overrides_projects_id",
+        "project_overrides_id": {
+          "name": "project_overrides_id",
           "columns": [
             "id"
           ]

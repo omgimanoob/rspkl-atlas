@@ -47,26 +47,26 @@ export const ProjectsV2Schema = {
         MODIFY COLUMN updated_at TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)`)
     } catch {}
 
-    // Optional migration from overrides_projects if target tables are empty
+    // Optional migration from project_overrides if target tables are empty
     const [cntAtlas]: any = await atlasPool.query('SELECT COUNT(*) AS c FROM atlas_projects')
     const [cntOverrides]: any = await atlasPool.query('SELECT COUNT(*) AS c FROM project_overrides')
     const needMig = Number(cntAtlas?.[0]?.c || 0) === 0 && Number(cntOverrides?.[0]?.c || 0) === 0
     if (needMig) {
       try {
-        // atlas-native from overrides_projects
+        // atlas-native from project_overrides
         await atlasPool.query(
           `INSERT INTO atlas_projects (name, status_id, notes, created_at, updated_at, extras_json)
            SELECT COALESCE(JSON_UNQUOTE(JSON_EXTRACT(extras_json, '$.name')), 'Prospective Project') AS name,
                   status_id, notes, created_at, updated_at, extras_json
-             FROM overrides_projects WHERE kimai_project_id IS NULL`
+             FROM project_overrides WHERE kimai_project_id IS NULL`
         )
       } catch {}
       try {
-        // project overrides from overrides_projects
+        // project overrides from project_overrides
         await atlasPool.query(
           `INSERT INTO project_overrides (kimai_project_id, status_id, money_collected, notes, created_at, updated_at, extras_json)
            SELECT kimai_project_id, status_id, money_collected, notes, created_at, updated_at, extras_json
-             FROM overrides_projects WHERE kimai_project_id IS NOT NULL`
+             FROM project_overrides WHERE kimai_project_id IS NOT NULL`
         )
       } catch {}
     }

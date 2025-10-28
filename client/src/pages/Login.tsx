@@ -58,9 +58,7 @@ export function Login({ onLoggedIn, className, ...props }: { onLoggedIn: (u: any
               <Field>
                 <div className="flex items-center w-full">
                   <FieldLabel htmlFor="password">Password</FieldLabel>
-                  <a href="/reset/request" className="ml-auto inline-block text-sm underline-offset-4 hover:underline font-medium">
-                    Forgot your password?
-                  </a>
+
                 </div>
                 <Input id="password" type="password" name="current-password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
               </Field>
@@ -73,6 +71,11 @@ export function Login({ onLoggedIn, className, ...props }: { onLoggedIn: (u: any
               </Field>
             </FieldGroup>
           </form>
+          <div className="flex items-end w-full justify-end pt-5">
+            <a href="/reset/request" className="nline-block text-sm underline-offset-4 hover:underline font-medium">
+              Forgot your password?
+            </a>
+          </div>
         </CardContent>
       </Card>
     </div>

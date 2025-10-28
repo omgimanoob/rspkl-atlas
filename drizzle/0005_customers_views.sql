@@ -17,7 +17,7 @@ SELECT
   o.status AS override_status,
   o.is_prospective AS override_is_prospective
 FROM `replica_kimai_projects` p
-LEFT JOIN `overrides_projects` o ON o.kimai_project_id = p.id;
+LEFT JOIN `project_overrides` o ON o.kimai_project_id = p.id;
 
 DROP VIEW IF EXISTS `vw_timesheet_facts`;
 CREATE VIEW `vw_timesheet_facts` AS

@@ -24,6 +24,28 @@ Concise checklist for first-time deployment of RSPKL Atlas to a VM over SSH (sam
   - `CREATE USER 'atlas'@'localhost' IDENTIFIED BY 'super_secret_password';`
   - `GRANT ALL PRIVILEGES ON atlas.* TO 'atlas'@'localhost';`
 
+- [x] Kimai DB connectivity check
+  - `npm run kimai:check`
+  - Output summary: Basic query OK; `kimai2_projects count=173`
+
+- [x] Atlas DB install and seed
+  - `npm run db:install`
+  - Result: Drizzle migrations applied; default project statuses, studios/teams/directors seeded; admin user seeded.
+  - Admin seeded: `nickcys@gmail.com`
+
+- [x] Install deps and build
+  - `npm ci`
+  - `cd client && npm ci && npm run build && cd ..`
+  - `npm run build`
+
+- [x] Start API with PM2 (PORT from .env)
+  - `.env`: `PORT=9999`
+  - `NODE_ENV=production pm2 start /root/atlas/dist/src/index.js --name atlas-api --cwd /root/atlas --update-env`
+  - `pm2 save`
+
+- [x] Verify API health
+  - `curl http://localhost:9999/api/healthz` → `{ "ok": true, "db": true }`
+
 ## One-Time Server Setup
 - If you prefer a non-root service (recommended), undo and re-create under a normal user:
   - As root: `pm2 unstartup systemd`
@@ -111,8 +133,8 @@ Simple steps to install and provision the Atlas database. Choose local or remote
   - If you initialized PM2 as root earlier, your boot unit is `pm2-root`. Verify with `systemctl status pm2-root`.
 
 ## Verify
-- Health: `curl http://localhost:3333/api/healthz` → expect `{ "ok": true, "db": true }`
-- Open: `http://<server-ip>:3333` (or your domain if proxied)
+- Health: `curl http://localhost:${PORT}/api/healthz` (use `PORT` from `.env`) → expect `{ "ok": true, "db": true }`
+- Open: `http://<server-ip>:${PORT}` (or your domain if proxied)
 
 ## Next Deploys
 - Pull, rebuild, migrate, reload:
@@ -124,4 +146,87 @@ Simple steps to install and provision the Atlas database. Choose local or remote
   - `pm2 reload atlas-api`
 
 ## Optional Reverse Proxy
-- Put Nginx/Caddy in front of `localhost:3333` for TLS; keep port 3333 private.
+- Put Nginx in front of `127.0.0.1:9999` for TLS; keep port 9999 private.
+
+### Nginx Setup (Runbook)
+- [x] Create DNS A record (Cloudflare): `rspkl-atlas.ghostcoders.net → 163.47.10.241` (Proxied)
+- [x] Install Nginx and allow firewall
+- [x] Create site config for domain (proxy to `127.0.0.1:9999`)
+  - Domain: `rspkl-atlas.ghostcoders.net`
+  - Config:
+
+```nginx
+server {
+  listen 80;
+  server_name rspkl-atlas.ghostcoders.net;
+  client_max_body_size 10m;
+  location / {
+    proxy_pass http://127.0.0.1:9999;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    # Preserve original client scheme from Cloudflare for cookie/security logic
+    proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+  }
+}
+```
+
+- [x] Enable site and reload Nginx
+  - `sudo ln -s /etc/nginx/sites-available/atlas /etc/nginx/sites-enabled/atlas`
+  - `sudo nginx -t && sudo systemctl reload nginx`
+
+- [x] Obtain TLS with Certbot and enable redirect to HTTPS
+  - `sudo apt-get install -y certbot python3-certbot-nginx`
+  - `sudo certbot --nginx -d rspkl-atlas.ghostcoders.net --redirect`
+  - Result: Certificate issued and deployed to `/etc/nginx/sites-enabled/atlas`; HTTP→HTTPS redirect enabled.
+  - Cloudflare: set SSL/TLS mode to “Full (strict)” for end-to-end TLS.
+
+- [x] Verify HTTPS health
+  - `curl -I http://rspkl-atlas.ghostcoders.net/api/healthz` → `200 OK` (served via Cloudflare)
+  - `curl -I https://rspkl-atlas.ghostcoders.net/api/healthz` → `200 OK`
+
+Note: If you want HTTP→HTTPS redirects at the edge, enable “Always Use HTTPS” in Cloudflare. When using Flexible, ensure origin does not force HTTP→HTTPS to avoid loops. With a valid LE cert installed, prefer “Full (strict)”.
+
+## Nginx Reverse Proxy (HTTPS)
+Set up Nginx to serve your domain over HTTPS and proxy to the API on 127.0.0.1:9999.
+
+1) Install Nginx (Ubuntu):
+   - `sudo apt-get update && sudo apt-get install -y nginx`
+   - Firewall (UFW): `sudo ufw allow 'Nginx Full'`
+
+2) Create a site config (replace YOUR_DOMAIN):
+   - Create file: `sudo nano /etc/nginx/sites-available/atlas` and paste:
+
+```nginx
+server {
+  listen 80;
+  server_name YOUR_DOMAIN;
+  client_max_body_size 10m;
+  location / {
+    proxy_pass http://127.0.0.1:9999;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+  }
+}
+```
+   - `sudo ln -s /etc/nginx/sites-available/atlas /etc/nginx/sites-enabled/atlas`
+   - `sudo nginx -t && sudo systemctl reload nginx`
+
+3) Obtain TLS certs with Certbot (recommended):
+   - `sudo apt-get install -y certbot python3-certbot-nginx`
+   - `sudo certbot --nginx -d YOUR_DOMAIN --redirect`
+   - Auto-renewal is installed; test with: `sudo certbot renew --dry-run`
+
+4) Verify
+   - Open: `https://YOUR_DOMAIN` (login requires HTTPS because cookies are `Secure` in production)
+   - Health: `curl -I https://YOUR_DOMAIN/api/healthz`
+
+Example config to copy: `docs/nginx-atlas.conf`

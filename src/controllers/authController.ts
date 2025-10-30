@@ -4,7 +4,7 @@ import { db } from '../db/client';
 import { users } from '../db/schema';
 import { eq } from 'drizzle-orm';
 
-function setCookie(res, name: string, value: string, maxAgeSeconds: number) {
+function setCookie(req, res, name: string, value: string, maxAgeSeconds: number) {
   const parts = [
     `${name}=${encodeURIComponent(value)}`,
     'Path=/',
@@ -12,7 +12,22 @@ function setCookie(res, name: string, value: string, maxAgeSeconds: number) {
     'SameSite=Strict',
     `Max-Age=${maxAgeSeconds}`,
   ];
-  if (process.env.NODE_ENV === 'production') parts.push('Secure');
+  // In proxied environments (e.g., Cloudflare Flexible), determine original scheme
+  const xfProto = String(req.headers?.['x-forwarded-proto'] || '')
+    .split(',')[0]
+    .trim()
+    .toLowerCase();
+  let viaHttps = xfProto === 'https';
+  if (!viaHttps && req.headers?.['cf-visitor']) {
+    try {
+      const v = JSON.parse(String(req.headers['cf-visitor']));
+      if (v && v.scheme === 'https') viaHttps = true;
+    } catch {}
+  }
+  const forceSecure = String(process.env.FORCE_SECURE_COOKIES || '').match(/^(1|true)$/i);
+  if (forceSecure || (process.env.NODE_ENV === 'production' && viaHttps)) {
+    parts.push('Secure');
+  }
   res.setHeader('Set-Cookie', parts.join('; '));
 }
 
@@ -29,13 +44,13 @@ export async function loginHandler(req, res) {
 
   const roles = await AuthService.getUserRoles(user.id);
   const token = AuthService.signJwt({ id: user.id, email: user.email, roles });
-  setCookie(res, config.auth.cookieName, token, config.auth.tokenTtlSeconds);
+  setCookie(req, res, config.auth.cookieName, token, config.auth.tokenTtlSeconds);
   return res.json({ email: user.email, roles });
 }
 
 export async function logoutHandler(_req, res) {
   // Expire cookie
-  setCookie(res, config.auth.cookieName, '', 0);
+  setCookie(_req, res, config.auth.cookieName, '', 0);
   res.json({ ok: true });
 }
 

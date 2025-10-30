@@ -67,6 +67,9 @@ import {
 
 
 export const app = express();
+// Behind Cloudflare -> Nginx -> Node, trust two proxies to get real client IP
+// This also satisfies express-rate-limit when X-Forwarded-For is present
+app.set('trust proxy', 2);
 const port = Number(process.env.PORT);
 if (!port) {
   throw new Error('PORT environment variable is required');

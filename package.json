@@ -3,12 +3,13 @@
   "version": "1.0.0",
   "main": "src/index.ts",
   "scripts": {
+    "build": "tsc -p tsconfig.json",
     "dev": "nodemon --watch './src' --ext ts --exec ts-node ./src/index.ts",
     "db:generate": "drizzle-kit generate --config=drizzle.config.ts",
     "db:migrate": "ts-node scripts/migrate.ts",
     "db:seed": "ts-node scripts/seed.ts",
-    "db:seed:statuses": "ts-node scripts/seed-statuses.ts",
     "db:seed:admin": "ts-node scripts/seed-admin.ts",
+    "db:install": "npm run db:generate && npm run db:migrate && npm run db:seed && npm run db:seed:admin",
     "test": "jest",
     "test:projects:v2": "jest --runInBand tests/integration/projects-v2.test.ts",
     "test:prospective": "jest --runInBand tests/integration/public-statuses.test.ts tests/integration/prospective-create-public.test.ts",
@@ -33,7 +34,9 @@
     "sync:materialize": "ts-node scripts/materialize-views.ts",
     "db:ensure:overrides": "ts-node scripts/ensure-overrides.ts",
     "db:ensure:projects_v2": "ts-node scripts/ensure-projects-v2.ts",
-    "debug:mixed": "ts-node scripts/debug-projects-mixed.ts"
+    "debug:mixed": "ts-node scripts/debug-projects-mixed.ts",
+    "start:prod": "node dist/src/index.js",
+    "serve:prod": "npm run build && NODE_ENV=production PORT=${PORT:-3333} npm run start:prod"
   },
   "keywords": [],
   "author": "",

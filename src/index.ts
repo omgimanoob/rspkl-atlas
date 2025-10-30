@@ -96,16 +96,16 @@ const syncLimiter = rateLimit({
 app.use(authMiddleware);
 
 // Public auth endpoints
-app.post('/auth/login', loginLimiter, loginHandler);
-app.post('/auth/logout', logoutHandler);
-app.get('/me', meHandler);
-app.put('/me', selfWriteLimiter, updateMeHandler);
-app.post('/me/password', selfWriteLimiter, changePasswordHandler);
-app.post('/auth/password-reset/request', selfWriteLimiter, requestPasswordResetHandler);
-app.post('/auth/password-reset/confirm', selfWriteLimiter, confirmPasswordResetHandler);
+app.post('/api/auth/login', loginLimiter, loginHandler);
+app.post('/api/auth/logout', logoutHandler);
+app.get('/api/me', meHandler);
+app.put('/api/me', selfWriteLimiter, updateMeHandler);
+app.post('/api/me/password', selfWriteLimiter, changePasswordHandler);
+app.post('/api/auth/password-reset/request', selfWriteLimiter, requestPasswordResetHandler);
+app.post('/api/auth/password-reset/confirm', selfWriteLimiter, confirmPasswordResetHandler);
 
 // Health endpoint
-app.get('/healthz', async (_req, res) => {
+app.get('/api/healthz', async (_req, res) => {
   try {
     await Promise.all([
       atlasPool.query('SELECT 1'),
@@ -117,8 +117,17 @@ app.get('/healthz', async (_req, res) => {
   }
 });
 
-// Static public assets (login page can be added later)
-app.use(express.static('public'));
+// Static assets and built client app
+if (process.env.NODE_ENV === 'production') {
+  const path = require('path');
+  // Serve built client first so '/' serves the app
+  app.use(express.static(path.resolve(process.cwd(), 'client', 'dist')));
+  // Serve public assets without claiming '/'
+  app.use(express.static('public', { index: false } as any));
+} else {
+  // Dev: only serve public assets; Vite serves the client
+  app.use(express.static('public'));
+}
 
 // API routes with RBAC
 // Dual-gate: permissions OR legacy roles
@@ -134,102 +143,102 @@ app.put(
   ...permit('overrides:update', 'write', { resourceExtractor: (req) => ({ resource_type: 'project', resource_id: req.body?.id ?? req.body?.kimai_project_id }) }),
   updateProjectOverridesHandler
 );
-app.get('/bi/sunburst', ...permit('bi:read', 'read'), getSunburstHandler);
-app.get('/projects', ...permit('project:read', 'read'), getProjectsHandler);
-app.get('/timesheets', ...permit('timesheet:read', 'read'), getDetailedTimesheetsHandler);
-app.post('/sync/timesheets', syncLimiter, ...permit('sync:execute', 'write'), syncTimesheetsHandler);
-app.post('/sync/users', syncLimiter, ...permit('sync:execute', 'write'), syncUsersHandler);
-app.post('/sync/activities', syncLimiter, ...permit('sync:execute', 'write'), syncActivitiesHandler);
-app.post('/sync/tags', syncLimiter, ...permit('sync:execute', 'write'), syncTagsHandler);
-app.post('/sync/customers', syncLimiter, ...permit('sync:execute', 'write'), syncCustomersHandler);
-app.post('/sync/tsmeta', syncLimiter, ...permit('sync:execute', 'write'), syncTimesheetMetaHandler);
-app.post('/sync/teams', syncLimiter, ...permit('sync:execute', 'write'), syncTeamsHandler);
-app.post('/sync/teams-users', syncLimiter, ...permit('sync:execute', 'write'), syncUsersTeamsHandler);
-app.post('/sync/clear/:table', syncLimiter, ...permit('sync:execute', 'write'), clearReplicaHandler);
-app.post('/sync/projects', syncLimiter, ...permit('sync:execute', 'write'), syncProjectsHandler);
-app.get('/sync/health', ...permit('sync:execute', 'read'), syncHealthHandler);
-app.get('/sync/verify', ...permit('sync:execute', 'read'), syncVerifyHandler);
+app.get('/api/bi/sunburst', ...permit('bi:read', 'read'), getSunburstHandler);
+app.get('/api/projects', ...permit('project:read', 'read'), getProjectsHandler);
+app.get('/api/timesheets', ...permit('timesheet:read', 'read'), getDetailedTimesheetsHandler);
+app.post('/api/sync/timesheets', syncLimiter, ...permit('sync:execute', 'write'), syncTimesheetsHandler);
+app.post('/api/sync/users', syncLimiter, ...permit('sync:execute', 'write'), syncUsersHandler);
+app.post('/api/sync/activities', syncLimiter, ...permit('sync:execute', 'write'), syncActivitiesHandler);
+app.post('/api/sync/tags', syncLimiter, ...permit('sync:execute', 'write'), syncTagsHandler);
+app.post('/api/sync/customers', syncLimiter, ...permit('sync:execute', 'write'), syncCustomersHandler);
+app.post('/api/sync/tsmeta', syncLimiter, ...permit('sync:execute', 'write'), syncTimesheetMetaHandler);
+app.post('/api/sync/teams', syncLimiter, ...permit('sync:execute', 'write'), syncTeamsHandler);
+app.post('/api/sync/teams-users', syncLimiter, ...permit('sync:execute', 'write'), syncUsersTeamsHandler);
+app.post('/api/sync/clear/:table', syncLimiter, ...permit('sync:execute', 'write'), clearReplicaHandler);
+app.post('/api/sync/projects', syncLimiter, ...permit('sync:execute', 'write'), syncProjectsHandler);
+app.get('/api/sync/health', ...permit('sync:execute', 'read'), syncHealthHandler);
+app.get('/api/sync/verify', ...permit('sync:execute', 'read'), syncVerifyHandler);
 
 // Public statuses lookup for UI (read-only)
-app.get('/statuses', ...permit('project:read', 'read'), listStatusesHandler);
+app.get('/api/statuses', ...permit('project:read', 'read'), listStatusesHandler);
 
 // Prospective projects creation (non-admin; permission-gated)
-app.post('/prospective', writeLimiter, ...permit('prospective:create', 'write'), createProspectiveHandler);
+app.post('/api/prospective', writeLimiter, ...permit('prospective:create', 'write'), createProspectiveHandler);
 
 // Prospective projects listing (non-admin read)
-app.get('/prospective', ...permit('prospective:read', 'read'), listProspectiveHandler);
+app.get('/api/prospective', ...permit('prospective:read', 'read'), listProspectiveHandler);
 
 // Prospective projects (admin-only for now)
-app.post('/admin/prospective', writeLimiter, ...permit('rbac:admin', 'write'), createProspectiveHandler);
-app.get('/admin/prospective', ...permit('rbac:admin', 'read'), listProspectiveHandler);
-app.post('/admin/prospective/:id/link', writeLimiter, ...permit('rbac:admin', 'write'), linkProspectiveHandler);
+app.post('/api/admin/prospective', writeLimiter, ...permit('rbac:admin', 'write'), createProspectiveHandler);
+app.get('/api/admin/prospective', ...permit('rbac:admin', 'read'), listProspectiveHandler);
+app.post('/api/admin/prospective/:id/link', writeLimiter, ...permit('rbac:admin', 'write'), linkProspectiveHandler);
 
 // Admin RBAC APIs (strict permission-only)
-app.get('/admin/rbac/roles', ...permit('rbac:admin', 'read'), listRoles);
-app.post('/admin/rbac/roles', writeLimiter, ...permit('rbac:admin', 'write'), createRole);
-app.delete('/admin/rbac/roles/:id', writeLimiter, ...permit('rbac:admin', 'write'), deleteRole);
+app.get('/api/admin/rbac/roles', ...permit('rbac:admin', 'read'), listRoles);
+app.post('/api/admin/rbac/roles', writeLimiter, ...permit('rbac:admin', 'write'), createRole);
+app.delete('/api/admin/rbac/roles/:id', writeLimiter, ...permit('rbac:admin', 'write'), deleteRole);
 
-app.get('/admin/rbac/permissions', ...permit('rbac:admin', 'read'), listPermissions);
-app.post('/admin/rbac/permissions', writeLimiter, ...permit('rbac:admin', 'write'), createPermission);
-app.delete('/admin/rbac/permissions/:id', writeLimiter, ...permit('rbac:admin', 'write'), deletePermission);
+app.get('/api/admin/rbac/permissions', ...permit('rbac:admin', 'read'), listPermissions);
+app.post('/api/admin/rbac/permissions', writeLimiter, ...permit('rbac:admin', 'write'), createPermission);
+app.delete('/api/admin/rbac/permissions/:id', writeLimiter, ...permit('rbac:admin', 'write'), deletePermission);
 
-app.post('/admin/rbac/roles/:id/permissions/:perm', writeLimiter, ...permit('rbac:admin', 'write'), addPermissionToRole);
-app.delete('/admin/rbac/roles/:id/permissions/:perm', writeLimiter, ...permit('rbac:admin', 'write'), removePermissionFromRole);
-app.get('/admin/rbac/roles/:id/permissions', ...permit('rbac:admin', 'read'), listRolePermissions);
+app.post('/api/admin/rbac/roles/:id/permissions/:perm', writeLimiter, ...permit('rbac:admin', 'write'), addPermissionToRole);
+app.delete('/api/admin/rbac/roles/:id/permissions/:perm', writeLimiter, ...permit('rbac:admin', 'write'), removePermissionFromRole);
+app.get('/api/admin/rbac/roles/:id/permissions', ...permit('rbac:admin', 'read'), listRolePermissions);
 
-app.post('/admin/rbac/users/:id/roles/:role', writeLimiter, ...permit('rbac:admin', 'write'), assignRoleToUser);
-app.delete('/admin/rbac/users/:id/roles/:role', writeLimiter, ...permit('rbac:admin', 'write'), removeRoleFromUser);
-app.get('/admin/rbac/users/:id/roles', ...permit('rbac:admin', 'read'), listUserRoles);
+app.post('/api/admin/rbac/users/:id/roles/:role', writeLimiter, ...permit('rbac:admin', 'write'), assignRoleToUser);
+app.delete('/api/admin/rbac/users/:id/roles/:role', writeLimiter, ...permit('rbac:admin', 'write'), removeRoleFromUser);
+app.get('/api/admin/rbac/users/:id/roles', ...permit('rbac:admin', 'read'), listUserRoles);
 
-app.get('/admin/rbac/grants', ...permit('rbac:admin', 'read'), listGrants);
-app.post('/admin/rbac/grants', writeLimiter, ...permit('rbac:admin', 'write'), createGrant);
-app.delete('/admin/rbac/grants/:id', writeLimiter, ...permit('rbac:admin', 'write'), deleteGrant);
+app.get('/api/admin/rbac/grants', ...permit('rbac:admin', 'read'), listGrants);
+app.post('/api/admin/rbac/grants', writeLimiter, ...permit('rbac:admin', 'write'), createGrant);
+app.delete('/api/admin/rbac/grants/:id', writeLimiter, ...permit('rbac:admin', 'write'), deleteGrant);
 
 // Admin Project Statuses (lookup table)
-app.get('/admin/statuses', ...permit('rbac:admin', 'read'), listStatusesHandler);
-app.post('/admin/statuses', writeLimiter, ...permit('rbac:admin', 'write'), createStatusHandler);
-app.put('/admin/statuses/:id', writeLimiter, ...permit('rbac:admin', 'write'), updateStatusHandler);
-app.delete('/admin/statuses/:id', writeLimiter, ...permit('rbac:admin', 'write'), deleteStatusHandler);
+app.get('/api/admin/statuses', ...permit('rbac:admin', 'read'), listStatusesHandler);
+app.post('/api/admin/statuses', writeLimiter, ...permit('rbac:admin', 'write'), createStatusHandler);
+app.put('/api/admin/statuses/:id', writeLimiter, ...permit('rbac:admin', 'write'), updateStatusHandler);
+app.delete('/api/admin/statuses/:id', writeLimiter, ...permit('rbac:admin', 'write'), deleteStatusHandler);
 
 // Admin Users APIs (permission-only)
-app.post('/admin/users', writeLimiter, ...permit('rbac:admin', 'write'), createUserHandler);
-app.get('/admin/users', ...permit('rbac:admin', 'read'), listUsersHandler);
-app.get('/admin/users/:id', ...permit('rbac:admin', 'read'), getUserByIdHandler);
-app.put('/admin/users/:id', writeLimiter, ...permit('rbac:admin', 'write'), updateUserHandler);
-app.post('/admin/users/:id/activate', writeLimiter, ...permit('rbac:admin', 'write'), activateUserHandler);
-app.post('/admin/users/:id/deactivate', writeLimiter, ...permit('rbac:admin', 'write'), deactivateUserHandler);
-app.delete('/admin/users/:id', writeLimiter, ...permit('rbac:admin', 'write'), deleteUserHandler);
+app.post('/api/admin/users', writeLimiter, ...permit('rbac:admin', 'write'), createUserHandler);
+app.get('/api/admin/users', ...permit('rbac:admin', 'read'), listUsersHandler);
+app.get('/api/admin/users/:id', ...permit('rbac:admin', 'read'), getUserByIdHandler);
+app.put('/api/admin/users/:id', writeLimiter, ...permit('rbac:admin', 'write'), updateUserHandler);
+app.post('/api/admin/users/:id/activate', writeLimiter, ...permit('rbac:admin', 'write'), activateUserHandler);
+app.post('/api/admin/users/:id/deactivate', writeLimiter, ...permit('rbac:admin', 'write'), deactivateUserHandler);
+app.delete('/api/admin/users/:id', writeLimiter, ...permit('rbac:admin', 'write'), deleteUserHandler);
 
 // V2 Projects APIs
-app.get('/v2/projects', ...permit('project:read', 'read'), listProjectsV2Handler);
-app.get('/v2/statuses', ...permit('project:read', 'read'), listStatusesHandler);
-app.post('/v2/prospective', writeLimiter, ...permit('prospective:create', 'write'), createProspectiveV2Handler);
-app.put('/v2/prospective/:id', writeLimiter, ...permit('prospective:update', 'write'), updateProspectiveV2Handler);
-app.post('/v2/prospective/:id/link', writeLimiter, ...permit('prospective:link', 'write'), linkProspectiveV2Handler);
-app.put('/v2/projects/:kimaiId/overrides', writeLimiter, ...permit('overrides:update', 'write', { resourceExtractor: (req) => ({ resource_type: 'project', resource_id: Number(req.params.kimaiId) || null }) }), updateKimaiOverridesV2Handler);
+app.get('/api/v2/projects', ...permit('project:read', 'read'), listProjectsV2Handler);
+app.get('/api/v2/statuses', ...permit('project:read', 'read'), listStatusesHandler);
+app.post('/api/v2/prospective', writeLimiter, ...permit('prospective:create', 'write'), createProspectiveV2Handler);
+app.put('/api/v2/prospective/:id', writeLimiter, ...permit('prospective:update', 'write'), updateProspectiveV2Handler);
+app.post('/api/v2/prospective/:id/link', writeLimiter, ...permit('prospective:link', 'write'), linkProspectiveV2Handler);
+app.put('/api/v2/projects/:kimaiId/overrides', writeLimiter, ...permit('overrides:update', 'write', { resourceExtractor: (req) => ({ resource_type: 'project', resource_id: Number(req.params.kimaiId) || null }) }), updateKimaiOverridesV2Handler);
 
 // Payments
-app.get('/payments', ...permit('payments:view', 'read'), listPaymentsHandler);
-app.post('/payments', writeLimiter, ...permit('payments:create', 'write'), createPaymentHandler);
-app.post('/payments/recalc/:kimaiId', writeLimiter, ...permit('payments:create', 'write'), recalcPaymentTotalsHandler);
+app.get('/api/payments', ...permit('payments:view', 'read'), listPaymentsHandler);
+app.post('/api/payments', writeLimiter, ...permit('payments:create', 'write'), createPaymentHandler);
+app.post('/api/payments/recalc/:kimaiId', writeLimiter, ...permit('payments:create', 'write'), recalcPaymentTotalsHandler);
 
 // Studios (admin-only for now)
-app.get('/studios', ...permit('rbac:admin', 'read'), listStudiosHandler)
-app.post('/studios', writeLimiter, ...permit('rbac:admin', 'write'), createStudioHandler)
-app.put('/studios/:id', writeLimiter, ...permit('rbac:admin', 'write'), updateStudioHandler)
-app.delete('/studios/:id', writeLimiter, ...permit('rbac:admin', 'write'), deleteStudioHandler)
-app.get('/teams', ...permit('rbac:admin', 'read'), listReplicaTeamsHandler)
-app.get('/studios/:id/teams', ...permit('rbac:admin', 'read'), listStudioTeamsHandler)
-app.post('/studios/:id/teams', writeLimiter, ...permit('rbac:admin', 'write'), addStudioTeamHandler)
-app.delete('/studios/:id/teams/:teamId', writeLimiter, ...permit('rbac:admin', 'write'), removeStudioTeamHandler)
-app.get('/kimai-users', ...permit('rbac:admin', 'read'), listReplicaUsersHandler)
-app.get('/studios/:id/directors', ...permit('rbac:admin', 'read'), listStudioDirectorsHandler)
-app.post('/studios/:id/directors', writeLimiter, ...permit('rbac:admin', 'write'), addStudioDirectorHandler)
-app.delete('/studios/:id/directors/:userId', writeLimiter, ...permit('rbac:admin', 'write'), removeStudioDirectorHandler)
+app.get('/api/studios', ...permit('rbac:admin', 'read'), listStudiosHandler)
+app.post('/api/studios', writeLimiter, ...permit('rbac:admin', 'write'), createStudioHandler)
+app.put('/api/studios/:id', writeLimiter, ...permit('rbac:admin', 'write'), updateStudioHandler)
+app.delete('/api/studios/:id', writeLimiter, ...permit('rbac:admin', 'write'), deleteStudioHandler)
+app.get('/api/teams', ...permit('rbac:admin', 'read'), listReplicaTeamsHandler)
+app.get('/api/studios/:id/teams', ...permit('rbac:admin', 'read'), listStudioTeamsHandler)
+app.post('/api/studios/:id/teams', writeLimiter, ...permit('rbac:admin', 'write'), addStudioTeamHandler)
+app.delete('/api/studios/:id/teams/:teamId', writeLimiter, ...permit('rbac:admin', 'write'), removeStudioTeamHandler)
+app.get('/api/kimai-users', ...permit('rbac:admin', 'read'), listReplicaUsersHandler)
+app.get('/api/studios/:id/directors', ...permit('rbac:admin', 'read'), listStudioDirectorsHandler)
+app.post('/api/studios/:id/directors', writeLimiter, ...permit('rbac:admin', 'write'), addStudioDirectorHandler)
+app.delete('/api/studios/:id/directors/:userId', writeLimiter, ...permit('rbac:admin', 'write'), removeStudioDirectorHandler)
 
 // Minimal metrics endpoint (no auth; safe aggregate counters only)
 import { metricsSnapshot, syncMetrics } from './services/metrics';
-app.get('/metrics', async (_req, res) => {
+app.get('/api/metrics', async (_req, res) => {
   try {
     const base = metricsSnapshot();
     const sync = await syncMetrics();
@@ -246,8 +255,23 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ error: 'Internal Server Error' });
 });
 
+// SPA fallback (middleware) for non-API GETs in production
+if (process.env.NODE_ENV === 'production') {
+  const path = require('path');
+  app.use((req, res, next) => {
+    if (req.method !== 'GET') return next();
+    if (req.originalUrl.startsWith('/api/')) return next();
+    if (/\.[a-zA-Z0-9]+$/.test(req.originalUrl)) return next();
+    res.sendFile(path.resolve(process.cwd(), 'client', 'dist', 'index.html'));
+  });
+}
+
 async function bootstrap() {
-  await AuthService.seedAdminIfConfigured();
+  try {
+    await AuthService.seedAdminIfConfigured();
+  } catch (e: any) {
+    console.warn('[bootstrap] Admin seed skipped:', e?.message || e);
+  }
   app.listen(port, () => {
     console.log(`RSPKL Atlas API listening at http://localhost:${port}`);
   });

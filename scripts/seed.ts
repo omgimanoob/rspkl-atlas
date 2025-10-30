@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { db } from '../src/db/client';
+import { atlasPool } from '../db';
 import { roles, permissions, rolePermissions, studios, studioTeams, studioDirectors } from '../src/db/schema';
 import { sql, inArray, eq } from 'drizzle-orm';
 import { StatusService } from '../src/services/statusService';
@@ -75,28 +76,28 @@ async function main() {
   await mapRolePermissions(roleMap, permMap, grants);
   console.log('Seeded roles, permissions, and role-permission mappings.');
 
-  // Also seed project statuses if the table is empty (idempotent)
+  // Project statuses (idempotent); unified here (replaces separate seed-statuses script)
   try {
     await StatusService.ensureSchema();
     const existing = await StatusService.list();
-    if (!existing.length) {
+    if (existing.length) {
+      console.log(`[seed] Skipping statuses: ${existing.length} already present.`);
+    } else {
       const defaults = [
-        { name: 'Unassigned', code: 'unassigned', sort_order: 10 },
-        { name: 'Schematic Design', code: 'schematic', sort_order: 20 },
-        { name: 'Design Development', code: 'design-dev', sort_order: 30 },
-        { name: 'Tender', code: 'tender', sort_order: 40 },
-        { name: 'Under construction', code: 'under-construction', sort_order: 50 },
-        { name: 'Post construction', code: 'post-construction', sort_order: 60 },
-        { name: 'KIV', code: 'kiv', sort_order: 70 },
-        { name: 'Others', code: 'others', sort_order: 80 },
+        { name: 'Unassigned', code: 'unassigned', color: '#6b7280', sort_order: 10 },
+        { name: 'Schematic Design', code: 'schematic', color: '#3b82f6', sort_order: 20 },
+        { name: 'Design Development', code: 'design-dev', color: '#6366f1', sort_order: 30 },
+        { name: 'Tender', code: 'tender', color: '#a78bfa', sort_order: 40 },
+        { name: 'Under construction', code: 'under-construction', color: '#f59e0b', sort_order: 50 },
+        { name: 'Post construction', code: 'post-construction', color: '#10b981', sort_order: 60 },
+        { name: 'KIV', code: 'kiv', color: '#ef4444', sort_order: 70 },
+        { name: 'Others', code: 'others', color: '#9ca3af', sort_order: 80 },
       ];
       for (const s of defaults) {
         await StatusService.create(s);
         console.log(`[seed] status created: ${s.name}`);
       }
-      console.log('Seeded default project statuses.');
-    } else {
-      console.log(`[seed] Skipped statuses: ${existing.length} already present.`);
+      console.log('[seed] Seeded default project statuses.');
     }
   } catch (e: any) {
     console.warn('[seed] Status seeding skipped:', e?.message || e);
@@ -148,7 +149,13 @@ async function main() {
   }
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+main()
+  .then(async () => {
+    try { await atlasPool.end(); } catch {}
+    process.exit(0);
+  })
+  .catch(async (e) => {
+    console.error(e);
+    try { await atlasPool.end(); } catch {}
+    process.exit(1);
+  });

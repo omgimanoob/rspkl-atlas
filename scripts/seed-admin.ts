@@ -1,5 +1,6 @@
 import 'dotenv/config'
 import { AuthService } from '../src/services/authService'
+import { atlasPool } from '../db'
 
 async function main() {
   const email = process.env.ADMIN_EMAIL
@@ -16,8 +17,10 @@ async function main() {
   console.log('[seed-admin] Done.')
 }
 
-main().catch((e) => {
-  console.error('[seed-admin] Failed:', e?.message || e)
-  process.exit(1)
-})
-
+main()
+  .then(async () => { try { await atlasPool.end() } catch {}; process.exit(0) })
+  .catch(async (e) => {
+    console.error('[seed-admin] Failed:', e?.message || e)
+    try { await atlasPool.end() } catch {}
+    process.exit(1)
+  })

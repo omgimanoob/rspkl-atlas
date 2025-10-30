@@ -109,16 +109,16 @@ export default function App() {
         },
         {
           path: 'projects',
-          element: <Navigate to="/projects-v2" replace />,
-        },
-        {
-          path: 'projects-v2',
           element: (
             <>
               <PageHeader trail={[{ label: 'Home', href: '/' }, { label: 'Projects', current: true }]} />
               <ProjectsV2 me={me!} />
             </>
           ),
+        },
+        {
+          path: 'projects-v2',
+          element: <Navigate to="/projects" replace />,
         },
         {
           path: 'payments',
@@ -151,10 +151,10 @@ export default function App() {
         },
         // Admin routes (show Forbidden when lacking permission)
         {
-          path: 'console/users',
+          path: 'admin/users',
           element: (
             <>
-              <PageHeader trail={[{ label: 'Home', href: '/' }, { label: 'Admin', href: '/console/users' }, { label: 'Users', current: true }]} />
+              <PageHeader trail={[{ label: 'Home', href: '/' }, { label: 'Admin', href: '/admin/users' }, { label: 'Users', current: true }]} />
               <RequireRoles me={me!} anyOf={['admins']}>
                 <AdminUsers currentUserId={me!.id} />
               </RequireRoles>
@@ -162,10 +162,10 @@ export default function App() {
           ),
         },
         {
-          path: 'console/roles',
+          path: 'admin/roles',
           element: (
             <>
-              <PageHeader trail={[{ label: 'Home', href: '/' }, { label: 'Admin', href: '/console/roles' }, { label: 'Roles', current: true }]} />
+              <PageHeader trail={[{ label: 'Home', href: '/' }, { label: 'Admin', href: '/admin/roles' }, { label: 'Roles', current: true }]} />
               <RequireRoles me={me!} anyOf={['admins']}>
                 <AdminRoles />
               </RequireRoles>
@@ -173,10 +173,10 @@ export default function App() {
           ),
         },
         {
-          path: 'console/permissions',
+          path: 'admin/permissions',
           element: (
             <>
-              <PageHeader trail={[{ label: 'Home', href: '/' }, { label: 'Admin', href: '/console/permissions' }, { label: 'Permissions', current: true }]} />
+              <PageHeader trail={[{ label: 'Home', href: '/' }, { label: 'Admin', href: '/admin/permissions' }, { label: 'Permissions', current: true }]} />
               <RequireRoles me={me!} anyOf={['admins']}>
                 <AdminPermissions />
               </RequireRoles>
@@ -184,10 +184,10 @@ export default function App() {
           ),
         },
         {
-          path: 'console/statuses',
+          path: 'admin/statuses',
           element: (
             <>
-              <PageHeader trail={[{ label: 'Home', href: '/' }, { label: 'Admin', href: '/console/statuses' }, { label: 'Statuses', current: true }]} />
+              <PageHeader trail={[{ label: 'Home', href: '/' }, { label: 'Admin', href: '/admin/statuses' }, { label: 'Statuses', current: true }]} />
               <RequireRoles me={me!} anyOf={['admins']}>
                 <AdminStatuses />
               </RequireRoles>
@@ -195,10 +195,10 @@ export default function App() {
           ),
         },
         {
-          path: 'console/grants',
+          path: 'admin/grants',
           element: (
             <>
-              <PageHeader trail={[{ label: 'Home', href: '/' }, { label: 'Admin', href: '/console/grants' }, { label: 'Grants', current: true }]} />
+              <PageHeader trail={[{ label: 'Home', href: '/' }, { label: 'Admin', href: '/admin/grants' }, { label: 'Grants', current: true }]} />
               <RequireRoles me={me!} anyOf={['admins']}>
                 <AdminGrants />
               </RequireRoles>

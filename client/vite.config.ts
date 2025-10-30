@@ -10,7 +10,8 @@ export default defineConfig(({ mode }) => {
 
   const proxy: Record<string, any> = {}
   if (target) {
-    proxy['/api'] = { target, changeOrigin: true, rewrite: (path: string) => path.replace(/^\/api/, '') }
+    // Preserve '/api' so requests like /api/me proxy to `${target}/api/me`
+    proxy['/api'] = { target, changeOrigin: true }
   } else {
     // No proxy configured; requests must be same-origin in dev
     console.warn('[client] VITE_API_TARGET not set. Dev requests must hit same origin.')

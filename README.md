@@ -9,6 +9,15 @@ Link: [./client/.env](./client/.env)
 Bash commands to test various functions and endpoints.
 Link: [quick-sanity-tests.md](./quick-sanity-tests.md)
 
+### Build & Run
+- Guide for development and production builds: [docs/build-and-run.md](./docs/build-and-run.md)
+
+### Initial Deployment
+- First-time server deploy checklist: [docs/initial-deployment.md](./docs/initial-deployment.md)
+
+### CI/CD
+- Continuous Integration and Deployment guidance: [docs/ci-cd.md](./docs/ci-cd.md)
+
 ---
 
 ### Development Plan

@@ -43,7 +43,7 @@ const data = {
   ],
   navMain: [
     { title: 'Home', url: '/', icon: Home },
-    { title: 'Projects', url: '/projects-v2', icon: FolderKanban },
+    { title: 'Projects', url: '/projects', icon: FolderKanban },
     { title: 'Payments', url: '/payments', icon: Banknote },
   ],
   projects: [
@@ -79,11 +79,11 @@ export function AppSidebar({ me, onLogout, ...props }: React.ComponentProps<type
       url: '#',
       icon: Settings2,
       items: [
-        { title: 'Users', url: '/console/users' },
-        { title: 'Roles', url: '/console/roles' },
-        { title: 'Permissions', url: '/console/permissions' },
-        { title: 'Statuses', url: '/console/statuses' },
-        { title: 'Grants', url: '/console/grants' },
+        { title: 'Users', url: '/admin/users' },
+        { title: 'Roles', url: '/admin/roles' },
+        { title: 'Permissions', url: '/admin/permissions' },
+        { title: 'Statuses', url: '/admin/statuses' },
+        { title: 'Grants', url: '/admin/grants' },
       ],
     })
   }

@@ -4,6 +4,21 @@
     "esModuleInterop": true,
     "module": "CommonJS",
     "target": "ES2020",
-    "strict": false
-  }
+    "strict": false,
+    "outDir": "dist",
+    "rootDir": ".",
+    "skipLibCheck": true
+  },
+  "include": [
+    "src/**/*.ts",
+    "scripts/**/*.ts",
+    "db.ts",
+    "drizzle.config.ts"
+  ],
+  "exclude": [
+    "client",
+    "node_modules",
+    "drizzle/**/*.sql",
+    "tests"
+  ]
 }

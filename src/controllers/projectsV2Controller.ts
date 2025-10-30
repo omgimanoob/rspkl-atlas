@@ -221,6 +221,7 @@ export async function listProjectsV2Handler(req: Request, res: Response): Promis
     res.json({ items, total, page, pageSize, counts, statusFacets })
     return
   } catch (e: any) {
+    console.error('[projects:v2:list] failed:', e?.message || e)
     res.status(500).json({ error: 'Failed to list projects (v2)' })
     return
   }

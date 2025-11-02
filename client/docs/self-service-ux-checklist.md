@@ -122,5 +122,5 @@ Next Steps
 - [ ] Link to support or escalation if reset fails repeatedly.
 
 ## References
-- Server endpoints are documented in `README.md` and `quick-sanity-tests.md`.
+- Server endpoints are documented in [README.md](../../README.md) and [docs/quick-sanity-tests.md](../../docs/quick-sanity-tests.md).
 - Backend behavior (rate limits, error codes) in `src/controllers/selfController.ts`.

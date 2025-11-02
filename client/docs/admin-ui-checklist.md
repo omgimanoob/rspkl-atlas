@@ -107,5 +107,5 @@ Scope: Build an admin console for managing users and RBAC (roles, permissions, g
 - [ ] Add Admin UI section to README with routes and screenshots.
 
 References
-- Backend endpoints documented in README and quick-sanity-tests.md
+- Backend endpoints documented in [README.md](../../README.md) and [docs/quick-sanity-tests.md](../../docs/quick-sanity-tests.md)
 - RBAC docs: docs/rbac-implementation-plan.md, docs/rbac-permission-conventions.md

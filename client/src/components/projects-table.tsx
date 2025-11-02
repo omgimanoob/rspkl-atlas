@@ -34,6 +34,7 @@ export type ProjectRow = {
   invoice_text: string | null
   global_activities: number
   statusId?: number | null
+  status?: string | null
   moneyCollected?: number | null
   isProspective?: boolean | null
   createdByUserId?: number | null
@@ -370,7 +371,7 @@ export function ProjectsTable({
   })
 
   // Default visible columns
-  const defaultVisible = new Set(['name','origin','comment','status','moneyCollected','isProspective','actions'])
+  const defaultVisible = new Set(['name','origin','comment','statusId','moneyCollected','isProspective','actions'])
   const initialVisibility = useMemo(() => {
     const vis: Record<string, boolean> = {}
     columns.forEach(col => {
@@ -472,7 +473,9 @@ export function ProjectsTable({
                       key={cell.id}
                       className={cn(cell.column.id === 'comment' ? 'w-full' : 'whitespace-nowrap w-px')}
                     >
-                      {flexRender(cell.column.columnDef.cell ?? cell.column.columnDef.header, cell.getContext())}
+                      {cell.column.columnDef.cell
+                        ? flexRender(cell.column.columnDef.cell, cell.getContext())
+                        : String(cell.getValue() ?? '')}
                     </TableCell>
                   ))}
                 </TableRow>

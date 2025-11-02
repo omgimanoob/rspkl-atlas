@@ -44,19 +44,19 @@ describe('Admin Project Statuses CRUD and usage', () => {
   });
 
   it('creates, lists, updates, and deletes a status', async () => {
-    const create = await agent.post('/api/admin/api/statuses').send({ name: 'Planning', code: 'planning', sort_order: 10 }).expect(201);
+    const create = await agent.post('/api/admin/statuses').send({ name: 'Planning', code: 'planning', sort_order: 10 }).expect(201);
     expect(create.body.id).toBeDefined();
     const id = create.body.id;
 
-    const list = await agent.get('/api/admin/api/statuses').expect(200);
+    const list = await agent.get('/api/admin/statuses').expect(200);
     expect(list.body.some((s: any) => s.id === id && s.name === 'Planning')).toBe(true);
 
-    const update = await agent.put(`/api/admin/api/statuses/${id}`).send({ name: 'Planning Updated', is_active: false }).expect(200);
+    const update = await agent.put(`/api/admin/statuses/${id}`).send({ name: 'Planning Updated', is_active: false }).expect(200);
     expect(update.body.name).toBe('Planning Updated');
     expect(update.body.is_active === 0 || update.body.is_active === false).toBeTruthy();
 
-    await agent.delete(`/api/admin/api/statuses/${id}`).expect(200);
-    const list2 = await agent.get('/api/admin/api/statuses').expect(200);
+    await agent.delete(`/api/admin/statuses/${id}`).expect(200);
+    const list2 = await agent.get('/api/admin/statuses').expect(200);
     expect(list2.body.some((s: any) => s.id === id)).toBe(false);
   });
 
@@ -65,17 +65,17 @@ describe('Admin Project Statuses CRUD and usage', () => {
     const suffix = `${Date.now()}`;
     const name = `Alpha-${suffix}`;
     const code = `alpha-${suffix}`;
-    const s = await agent.post('/api/admin/api/statuses').send({ name, code }).expect(201);
+    const s = await agent.post('/api/admin/statuses').send({ name, code }).expect(201);
     const sid = s.body.id;
     const pid = 7777000 + Math.floor(Math.random() * 100000);
     try { await atlasPool.query('DELETE FROM project_overrides WHERE kimai_project_id = ?', [pid]); } catch {}
-    const up = await agent.put('/api/overrides').send({ id: pid, status_id: sid, money_collected: 42 }).expect(200);
+    const up = await agent.put('/overrides').send({ id: pid, status_id: sid }).expect(200);
     // Verify row exists and has status_id set to sid
     const [row]: any = await atlasPool.query('SELECT status_id FROM project_overrides WHERE kimai_project_id = ? LIMIT 1', [pid]);
     expect(row.length).toBe(1);
     expect(Number(row[0].status_id)).toBe(Number(sid));
     // Cleanup: remove created override row and status
     try { await atlasPool.query('DELETE FROM project_overrides WHERE kimai_project_id = ?', [pid]); } catch {}
-    try { await agent.delete(`/api/admin/api/statuses/${sid}`).expect(200); } catch {}
+    try { await agent.delete(`/api/admin/statuses/${sid}`).expect(200); } catch {}
   });
 });

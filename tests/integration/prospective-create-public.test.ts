@@ -47,11 +47,10 @@ describe('Prospective create (POST /api/prospective)', () => {
     }
   })
 
-  it('creates an Atlas-native prospective row with is_prospective=false', async () => {
+  it('creates an Atlas-native prospective row with is_prospective=true', async () => {
     const res = await agent.post('/api/prospective').send({ name: 'UI Draft', notes: 'created via test' }).expect(201)
     expect(res.body.kimai_project_id).toBeNull()
-    expect(res.body.is_prospective).toBe(false)
+    expect(res.body.is_prospective).toBe(true)
     createdId = res.body.id
   })
 })
-

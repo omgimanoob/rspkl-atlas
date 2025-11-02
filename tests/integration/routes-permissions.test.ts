@@ -162,27 +162,27 @@ describe('Permission-protected routes (dual-gate)', () => {
     await agent.post('/api/auth/logout').expect(200);
   });
 
-  it('PUT /api/overrides/status: scoped user allowed for project 123, denied for 999', async () => {
+  it('PUT /overrides/status: scoped user allowed for project 123, denied for 999', async () => {
     await login(agent, scopedEmail, pwd);
     await agent
-      .put('/api/overrides/status')
+      .put('/overrides/status')
       .send({ id: 123, status_id: 1001 })
       .expect(200);
     await agent
-      .put('/api/overrides/status')
+      .put('/overrides/status')
       .send({ id: 999, status_id: 1001 })
       .expect(403);
     await agent.post('/api/auth/logout').expect(200);
   });
 
-  it('PUT /api/overrides: scoped user allowed for project 123, denied for 999', async () => {
+  it('PUT /overrides: scoped user allowed for project 123, denied for 999', async () => {
     await login(agent, scopedEmail, pwd);
     await agent
-      .put('/api/overrides')
+      .put('/overrides')
       .send({ id: 123, status_id: 1001 })
       .expect(200);
     await agent
-      .put('/api/overrides')
+      .put('/overrides')
       .send({ id: 999, status_id: 1001 })
       .expect(403);
 // Increase timeout due to endpoints that include artificial delays
@@ -190,13 +190,13 @@ jest.setTimeout(30000);
     await agent.post('/api/auth/logout').expect(200);
   });
 
-  it('POST /api/sync/api/timesheets: admins allowed, others denied', async () => {
+  it('POST /api/sync/timesheets: admins allowed, others denied', async () => {
     await login(agent, adminEmail, pwd);
-    await agent.post('/api/sync/api/timesheets').expect(200);
+    await agent.post('/api/sync/timesheets').expect(200);
     await agent.post('/api/auth/logout').expect(200);
 
     await login(agent, basicEmail, pwd);
-    await agent.post('/api/sync/api/timesheets').expect(403);
+    await agent.post('/api/sync/timesheets').expect(403);
     await agent.post('/api/auth/logout').expect(200);
   });
 

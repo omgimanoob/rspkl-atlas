@@ -27,7 +27,7 @@ export function TeamSwitcher({
     ''
   const buildVersion = import.meta.env.VITE_BUILD_VERSION || ''
   const buildLabel = [
-    buildVersion ? `v${buildVersion}` : '',
+    buildVersion ? `${buildVersion}` : '',
     buildId ? buildId : '',
   ]
     .filter(Boolean)
@@ -48,12 +48,14 @@ export function TeamSwitcher({
             </div>
             <div className="grid flex-1 text-left text-sm leading-tight">
               <span className="truncate font-semibold">{name}</span>
-              {sub ? <span className="truncate text-xs">{sub}</span> : null}
-              {buildLabel ? (
-                <span className="truncate text-[10px] uppercase tracking-wide text-muted-foreground">
-                  Build {buildLabel}
-                </span>
-              ) : null}
+              {(sub || buildLabel) ?
+                <span className="truncate text-xs">{sub}{buildLabel ? (
+                  <small className="ms-1 text-[9px] uppercase tracking-wide text-muted-foreground">
+                    VER {buildLabel}
+                  </small>
+                ) : null}</span>
+                : null}
+
             </div>
           </SidebarMenuButton>
         </DropdownMenu>

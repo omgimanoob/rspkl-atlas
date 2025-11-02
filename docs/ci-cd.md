@@ -37,11 +37,8 @@ This runbook captures the end-to-end build, test, and deploy process for RSPKL A
    pm2 save
    ```
 5. **Verify**
-   ```bash
-   curl -I https://rspkl-atlas.ghostcoders.net/api/healthz
-   # and hit https://rspkl-atlas.ghostcoders.net/ in a browser to confirm login view
-   ```
-   > Latest check: Nov 2 2025 deploy returned `HTTP/2 200` from the health endpoint after reload.
+   - Hit `https://rspkl-atlas.ghostcoders.net/` in a browser to confirm the login view and build label.
+   - Optional: run `curl -I https://rspkl-atlas.ghostcoders.net/api/healthz` for a manual spot-check (it’s no longer part of the automated workflow because Cloudflare occasionally returned transient `502` responses immediately after reload).
 6. **Document anomalies** in this file or `docs/initial-deployment.md`.
 
 ## Local / CI Build & Test Checklist
@@ -122,8 +119,7 @@ Set these repository secrets before enabling the deploy step:
 - `DEPLOY_KEY` — Private key matching the droplet’s deploy key (use the PEM contents).
 
 Optional: add `known_hosts` handling if strict host checking is enabled; by default the action accepts the host fingerprint on first run.
-
-Once secrets are present, every merge to `main` automatically rebuilds and redeploys using the same commands documented above. If the health check fails, the workflow exits non-zero so you can investigate before considering the deploy complete.
+Once secrets are present, every merge to `main` automatically rebuilds and redeploys using the same commands documented above. The workflow still reuses PM2 reload; the automated `curl` against `/api/healthz` was removed after a transient Cloudflare `502` (Nov 2 2025), so do a quick manual check post-deploy.
 
 > Add secrets via **GitHub → Settings → Secrets and variables → Actions → New repository secret**. Paste the private key (including `-----BEGIN`/`END-----`) into `DEPLOY_KEY`.
 
@@ -134,6 +130,30 @@ Once secrets are present, every merge to `main` automatically rebuilds and redep
 3. Refreshed `docs/AGENTS.md` so future agents know the workflow expects SSH secrets and will no-op without them.
 4. Repository secrets `DEPLOY_HOST`, `DEPLOY_USER`, and `DEPLOY_KEY` were added (private key copied from `/root/.ssh/id_ed25519`) so the deploy job can connect to the droplet.
 5. Workflow exports `VITE_BUILD_VERSION` (from `client/package.json`) and `VITE_BUILD_ID` (short Git SHA) so the frontend displays the exact release tag visible in the team switcher.
+6. Automatic `/api/healthz` verification was removed after Cloudflare responded with a transient `502`; perform manual checks until a retry/backoff strategy is introduced.
+
+## Branch Workflow Cheat Sheet
+
+Mid-development backup (no deploy):
+```bash
+git checkout -b feature-a          # or stay on existing feature branch
+git add <files>
+git commit -m "WIP feature-a"
+git push origin feature-a          # no CI deploy runs because main is untouched
+```
+
+Ready to ship:
+```bash
+git checkout feature-a
+git fetch origin
+git rebase origin/main             # optional to keep history linear
+git checkout main
+git merge feature-a                # or fast-forward
+npm run build && npm test          # recommended pre-push checks
+git push origin main               # triggers CI build + deploy
+git branch -d feature-a            # optional cleanup
+git push origin --delete feature-a
+```
 
 ## GitHub Actions Example
 

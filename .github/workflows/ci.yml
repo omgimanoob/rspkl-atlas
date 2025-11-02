@@ -1,0 +1,74 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install API dependencies
+        run: npm ci
+
+      - name: Export build metadata
+        run: |
+          echo "VITE_BUILD_ID=${GITHUB_SHA::7}" >> $GITHUB_ENV
+          VERSION=$(node -p "require('./client/package.json').version")
+          echo "VITE_BUILD_VERSION=${VERSION}" >> $GITHUB_ENV
+
+      - name: Build API
+        run: npm run build
+
+      - name: Run tests
+        run: npm test
+
+      - name: Install client dependencies
+        working-directory: client
+        run: npm ci
+
+      - name: Build client
+        working-directory: client
+        run: npm run build
+
+  deploy:
+    name: Deploy to Droplet
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.0.4
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          script_stop: true
+          envs: GITHUB_SHA
+          script: |
+            set -euo pipefail
+            cd ~/atlas
+            git fetch origin
+            git checkout main
+            git reset --hard "$GITHUB_SHA"
+            export VITE_BUILD_ID=${GITHUB_SHA::7}
+            export VITE_BUILD_VERSION=$(node -p "require('./client/package.json').version")
+            npm ci
+            cd client && npm ci && npm run build && cd ..
+            npm run build
+            npm run db:migrate
+            pm2 reload atlas-api
+            pm2 save
+            curl -I --fail https://rspkl-atlas.ghostcoders.net/api/healthz

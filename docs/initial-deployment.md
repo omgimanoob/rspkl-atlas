@@ -182,13 +182,13 @@ server {
   - `sudo apt-get install -y certbot python3-certbot-nginx`
   - `sudo certbot --nginx -d rspkl-atlas.ghostcoders.net --redirect`
   - Result: Certificate issued and deployed to `/etc/nginx/sites-enabled/atlas`; HTTP→HTTPS redirect enabled.
-  - Cloudflare: set SSL/TLS mode to “Full (strict)” for end-to-end TLS.
+  - Cloudflare: SSL/TLS mode kept at “Flexible” to avoid impacting other ghostcoders.net subdomains; origin still serves HTTPS so cookies marked `Secure` remain valid.
 
 - [x] Verify HTTPS health
   - `curl -I http://rspkl-atlas.ghostcoders.net/api/healthz` → `200 OK` (served via Cloudflare)
   - `curl -I https://rspkl-atlas.ghostcoders.net/api/healthz` → `200 OK`
 
-Note: If you want HTTP→HTTPS redirects at the edge, enable “Always Use HTTPS” in Cloudflare. When using Flexible, ensure origin does not force HTTP→HTTPS to avoid loops. With a valid LE cert installed, prefer “Full (strict)”.
+Note: If you want HTTP→HTTPS redirects at the edge, enable “Always Use HTTPS” in Cloudflare. When using Flexible, ensure origin does not force HTTP→HTTPS to avoid loops. With a valid LE cert installed, you can switch to “Full (strict)” later when other subdomains are ready.
 
 ## Nginx Reverse Proxy (HTTPS)
 Set up Nginx to serve your domain over HTTPS and proxy to the API on 127.0.0.1:9999.

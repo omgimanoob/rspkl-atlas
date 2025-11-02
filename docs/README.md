@@ -16,7 +16,7 @@ Link: [quick-sanity-tests.md](./quick-sanity-tests.md)
 - First-time server deploy checklist: [docs/initial-deployment.md](./docs/initial-deployment.md)
 
 ### CI/CD
-- Continuous Integration and Deployment guidance: [docs/ci-cd.md](./docs/ci-cd.md)
+- Deployment runbook (build/test/PM2 reload sequence + GitHub Actions examples): [docs/ci-cd.md](./docs/ci-cd.md)
 
 ---
 

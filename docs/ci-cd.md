@@ -1,13 +1,64 @@
 # CI/CD Guide
 
-This guide outlines a practical CI/CD pipeline for RSPKL Atlas, covering installs, build, tests, database migrations, and deployment.
+This runbook captures the end-to-end build, test, and deploy process for RSPKL Atlas. Follow it before shipping any production change.
 
 ## Key Principles
 
-- Use `npm ci` for deterministic installs.
-- Split client and API builds: client (Vite) → `client/dist`; API (tsc) → `dist/`.
-- Run Drizzle migrations on deploy; keep migration artifacts in `drizzle/` under version control.
+- Use `npm ci` everywhere for deterministic installs.
+- Build API (`npm run build` → `dist/`) and client (`client/npm run build` → `client/dist/`) separately.
+- Run Drizzle migrations (and seeds) on the target DB before restarting the app.
+- Deploy from the server (git pull → install → build → migrate → reload) instead of copying local artifacts.
 - All API endpoints are under `/api/...`; the API statically serves `client/dist` in production and provides SPA fallback.
+
+## Recommended Production Deploy Workflow
+
+1. **Connect & sync**
+   ```bash
+   ssh do-rspkl-atlas
+   cd ~/atlas
+   git pull origin main
+   ```
+2. **Install and build on the droplet**
+   ```bash
+   npm ci
+   cd client && npm ci && npm run build && cd ..
+   npm run build
+   ```
+3. **Apply migrations and seeds**
+   ```bash
+   npm run db:migrate
+   npm run db:seed
+   npm run db:seed:admin   # optional, only if ADMIN_* envs set
+   ```
+   > Production note (Nov 2 2025): live environment skips the seed scripts to avoid overwriting MySQL data; we only run `npm run db:migrate` during routine deploys.
+4. **Restart & persist**
+   ```bash
+   pm2 reload atlas-api
+   pm2 save
+   ```
+5. **Verify**
+   ```bash
+   curl -I https://rspkl-atlas.ghostcoders.net/api/healthz
+   # and hit https://rspkl-atlas.ghostcoders.net/ in a browser to confirm login view
+   ```
+   > Latest check: Nov 2 2025 deploy returned `HTTP/2 200` from the health endpoint after reload.
+6. **Document anomalies** in this file or `docs/initial-deployment.md`.
+
+## Local / CI Build & Test Checklist
+
+Run locally or in CI before merging to keep the pipeline green:
+
+```bash
+npm ci
+npm run build
+npm test                      # or targeted suites
+cd client
+npm ci
+# Optional: export build metadata for local previews
+export VITE_BUILD_VERSION=$(node -p "require('./package.json').version")
+export VITE_BUILD_ID=$(git rev-parse --short HEAD)
+npm run build
+```
 
 ## Environment Variables
 
@@ -17,6 +68,8 @@ Required for API during build/run/test stages:
 - Kimai DB: `KIMAI_DB_HOST`, `KIMAI_DB_PORT`, `KIMAI_DB_USER`, `KIMAI_DB_PASSWORD`, `KIMAI_DB_DATABASE`
 - Auth: `AUTH_JWT_SECRET`, `AUTH_COOKIE_NAME`, `AUTH_TOKEN_TTL_SECONDS`
 - Optional: `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_DISPLAY_NAME` (admin seeding)
+- Optional mailer: `MAILER_URL`, `MAILER_FROM`, `MAILER_FROM_NAME`, `DEVELOPER_EMAIL`
+- Optional build metadata: set `VITE_BUILD_VERSION` (semantic version) and/or `VITE_BUILD_ID` (commit or timestamp) before running the client build to show the “Build …” label in the UI.
 
 Client dev proxy only (not prod):
 - `VITE_API_TARGET` — e.g., `http://localhost:9999`
@@ -35,6 +88,52 @@ In CI/CD, run migrations against the target DB before starting the app:
 - `npm run db:seed:admin` (if admin envs set; idempotent)
 
 These scripts use the `ATLAS_DB_*` vars and rely on network access to the DB.
+
+## Why Not `scp` Local Builds?
+
+- **Parity:** native dependencies (e.g., `mysql2`) link against your local OS/architecture; building on macOS and running on Linux can break.
+- **Secrets:** server builds read `.env` in-place; local artifacts risk embedding secrets or relying on stale variables.
+- **Repeatability:** the server-side workflow (`git pull` → `npm ci` → `npm run build`) is easy to audit and reproduce.
+- **Diff hygiene:** you avoid copying stray dev files (e.g., `.env.local`, caches) into production.
+
+If you ever must upload artifacts (e.g., emergency recovery), archive `dist/` and `client/dist/`, note the commit SHA, and rebuild natively at the first opportunity.
+
+## GitHub Actions Automation
+
+The repository includes `.github/workflows/ci.yml`, which mirrors this runbook in two jobs:
+
+1. **Build & Test** (runs on every push/PR to `main`):
+   - Installs root dependencies (`npm ci`).
+   - Builds the API (`npm run build`) and runs Jest tests.
+   - Installs and builds the client (`client/npm ci`, `client/npm run build`).
+
+2. **Deploy to Droplet** (runs only on pushes to `main`):
+   - SSHs into the production droplet.
+   - Resets `/root/atlas` to the pushed commit.
+   - Re-runs the build + migrate + `pm2 reload` sequence.
+   - Hits `https://rspkl-atlas.ghostcoders.net/api/healthz` and fails the job if the health check is not `200`.
+
+### Required GitHub Secrets
+
+Set these repository secrets before enabling the deploy step:
+
+- `DEPLOY_HOST` — Droplet IP or hostname (e.g., `206.189.47.158`).
+- `DEPLOY_USER` — SSH user with rights to run the deploy script (currently `root`).
+- `DEPLOY_KEY` — Private key matching the droplet’s deploy key (use the PEM contents).
+
+Optional: add `known_hosts` handling if strict host checking is enabled; by default the action accepts the host fingerprint on first run.
+
+Once secrets are present, every merge to `main` automatically rebuilds and redeploys using the same commands documented above. If the health check fails, the workflow exits non-zero so you can investigate before considering the deploy complete.
+
+> Add secrets via **GitHub → Settings → Secrets and variables → Actions → New repository secret**. Paste the private key (including `-----BEGIN`/`END-----`) into `DEPLOY_KEY`.
+
+### Automation Setup Notes (Nov 2 2025)
+
+1. Added `.github/workflows/ci.yml` with “Build & Test” and “Deploy to Droplet” jobs that mirror the manual runbook.
+2. Updated this document with the secret requirements and explanation of the deploy job’s health check.
+3. Refreshed `docs/AGENTS.md` so future agents know the workflow expects SSH secrets and will no-op without them.
+4. Repository secrets `DEPLOY_HOST`, `DEPLOY_USER`, and `DEPLOY_KEY` were added (private key copied from `/root/.ssh/id_ed25519`) so the deploy job can connect to the droplet.
+5. Workflow exports `VITE_BUILD_VERSION` (from `client/package.json`) and `VITE_BUILD_ID` (short Git SHA) so the frontend displays the exact release tag visible in the team switcher.
 
 ## GitHub Actions Example
 
@@ -207,4 +306,5 @@ CMD ["node", "dist/src/index.js"]
   - A: Set `VITE_API_TARGET` to your API dev URL (e.g., `http://localhost:9999`). The Vite proxy preserves `/api`.
 - Q: How do I avoid serving JSON when visiting `/payments` in prod?
   - A: All API routes are under `/api`. Visiting `/payments` hits the SPA; `/api/payments` returns JSON.
-
+- Q: Can I deploy by uploading my local `dist/` via SCP?
+  - A: Avoid it. Build on the droplet so binaries match, secrets stay server-side, and the procedure stays scripted.

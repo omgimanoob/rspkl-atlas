@@ -1,4 +1,4 @@
-import { mergeProjectFields } from '../../src/services/api/overridesMerge';
+import { mergeProjectFields } from '../../src/services/overridesMerge';
 
 describe('mergeProjectFields', () => {
   it('upstream + null override -> upstream', () => {
@@ -37,4 +37,3 @@ describe('mergeProjectFields', () => {
     expect(res.is_prospective).toBeNull();
   });
 });
-

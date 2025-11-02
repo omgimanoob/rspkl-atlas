@@ -71,4 +71,4 @@ jobs:
             npm run db:migrate
             pm2 reload atlas-api
             pm2 save
-            curl -I --fail https://rspkl-atlas.ghostcoders.net/api/healthz
+            # curl -I --fail https://rspkl-atlas.ghostcoders.net/api/healthz

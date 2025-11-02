@@ -218,7 +218,7 @@ export function ProjectsV2({ me }: { me?: { email: string; roles: string[] } }) 
   return (
     <div className="p-4 flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3 hidden sm:inline">
+        <div className="hidden items-center gap-3 sm:flex">
           <div className="text-base font-semibold">Projects</div>
         </div>
         <div className="flex items-center gap-2">

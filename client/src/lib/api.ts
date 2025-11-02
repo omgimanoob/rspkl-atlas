@@ -173,7 +173,7 @@ export const api = {
         '/api/sync/verify'
       )
     },
-    clear(kind: 'projects' | 'timesheets' | 'users' | 'activities' | 'tags' | 'timesheet_tags' | 'customers' | 'teams' | 'users_teams') {
+    clear(kind: 'projects' | 'timesheets' | 'users' | 'activities' | 'tags' | 'timesheet_tags' | 'timesheet_meta' | 'customers' | 'teams' | 'users_teams') {
       return http<{ ok: true; table: string }>(`/api/sync/clear/${encodeURIComponent(kind)}`, { method: 'POST' })
     }
   },

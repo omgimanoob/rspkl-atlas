@@ -13,7 +13,8 @@
     "src/**/*.ts",
     "scripts/**/*.ts",
     "db.ts",
-    "drizzle.config.ts"
+    "drizzle.config.ts",
+    "types/**/*.d.ts"
   ],
   "exclude": [
     "client",

@@ -22,23 +22,23 @@ describe('Admin Statuses unique code inference', () => {
     const user = await db.select({ id: users.id }).from(users).where(eq(users.email, adminEmail)).limit(1).then(r => r[0])
     const admins = await ensureRole('admins', 'Administrator')
     await db.insert(userRoles).values({ userId: user.id, roleId: admins.id }).onDuplicateKeyUpdate({ set: { userId: user.id, roleId: admins.id } })
-    await agent.post('/auth/login').send({ email: adminEmail, password: pwd }).expect(200)
+    await agent.post('/api/auth/login').send({ email: adminEmail, password: pwd }).expect(200)
   })
 
   afterAll(async () => {
-    await agent.post('/auth/logout').expect(200)
+    await agent.post('/api/auth/logout').expect(200)
     // Cleanup statuses created in this test
     for (const id of createdIds) {
-      try { await agent.delete(`/admin/statuses/${id}`).expect(200) } catch {}
+      try { await agent.delete(`/api/admin/api/statuses/${id}`).expect(200) } catch {}
     }
   })
 
   it('generates a unique code when two names slug to the same base', async () => {
     const name1 = `Design Stage` // slug: design-stage
     const name2 = `Design-Stage` // slug: design-stage (same base)
-    const s1 = await agent.post('/admin/statuses').send({ name: name1 }).expect(201)
+    const s1 = await agent.post('/api/admin/api/statuses').send({ name: name1 }).expect(201)
     createdIds.push(s1.body.id)
-    const s2 = await agent.post('/admin/statuses').send({ name: name2 }).expect(201)
+    const s2 = await agent.post('/api/admin/api/statuses').send({ name: name2 }).expect(201)
     createdIds.push(s2.body.id)
     expect(typeof s1.body.code).toBe('string')
     expect(typeof s2.body.code).toBe('string')

@@ -46,16 +46,16 @@ describe('Overrides edge cases: missing project id', () => {
   });
 
   it('hr user: missing id yields 400 (controller validation)', async () => {
-    await agent.post('/auth/login').send({ email: hrEmail, password: pwd }).expect(200);
-    await agent.put('/overrides/status').send({ status: 'active' }).expect(400);
-    await agent.put('/overrides').send({ status: 'active' }).expect(400);
-    await agent.post('/auth/logout').expect(200);
+    await agent.post('/api/auth/login').send({ email: hrEmail, password: pwd }).expect(200);
+    await agent.put('/api/overrides/status').send({ status: 'active' }).expect(400);
+    await agent.put('/api/overrides').send({ status: 'active' }).expect(400);
+    await agent.post('/api/auth/logout').expect(200);
   });
 
   it('basic user: missing id yields 403 (permission enforce)', async () => {
-    await agent.post('/auth/login').send({ email: basicEmail, password: pwd }).expect(200);
-    await agent.put('/overrides/status').send({ status: 'active' }).expect(403);
-    await agent.put('/overrides').send({ status: 'active' }).expect(403);
-    await agent.post('/auth/logout').expect(200);
+    await agent.post('/api/auth/login').send({ email: basicEmail, password: pwd }).expect(200);
+    await agent.put('/api/overrides/status').send({ status: 'active' }).expect(403);
+    await agent.put('/api/overrides').send({ status: 'active' }).expect(403);
+    await agent.post('/api/auth/logout').expect(200);
   });
 });

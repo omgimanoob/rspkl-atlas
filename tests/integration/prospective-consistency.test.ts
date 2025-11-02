@@ -39,27 +39,27 @@ describe('Prospective consistency rules', () => {
 
   beforeAll(async () => {
     await createAdmin(email, pwd)
-    await agent.post('/auth/login').send({ email, password: pwd }).expect(200)
+    await agent.post('/api/auth/login').send({ email, password: pwd }).expect(200)
   })
 
   afterAll(async () => {
-    await agent.post('/auth/logout').expect(200)
+    await agent.post('/api/auth/logout').expect(200)
   })
 
   it('rejects create prospective when is_prospective is not 1 for kimai_project_id NULL', async () => {
-    const res = await agent.post('/admin/prospective').send({ name: 'Alpha', status: 'Tender', is_prospective: 0 })
+    const res = await agent.post('/api/admin/api/prospective').send({ name: 'Alpha', status: 'Tender', is_prospective: 0 })
     expect(res.status).toBe(400)
     expect(res.body?.reason).toBe('atlas_native_must_be_prospective')
   })
 
   it('creates Atlas-native project with is_prospective = 1 by rule', async () => {
-    const res = await agent.post('/admin/prospective').send({ name: 'Beta' }).expect(201)
+    const res = await agent.post('/api/admin/api/prospective').send({ name: 'Beta' }).expect(201)
     expect(res.body.kimai_project_id).toBeNull()
     expect(res.body.is_prospective).toBe(true)
   })
 
   it('rejects overrides upsert when kimai-backed has is_prospective != 0', async () => {
-    const res = await agent.put('/overrides').send({ id: 987654, is_prospective: 1 })
+    const res = await agent.put('/api/overrides').send({ id: 987654, is_prospective: 1 })
     // Kimai-backed must be 0 now; controller may map to 400
     expect([200,400]).toContain(res.status)
   })

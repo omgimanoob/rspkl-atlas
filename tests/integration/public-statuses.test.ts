@@ -21,22 +21,22 @@ async function createUserWithRole(email: string, password: string, roleCode: str
   return u
 }
 
-describe('Public statuses lookup (GET /statuses)', () => {
+describe('Public statuses lookup (GET /api/statuses)', () => {
   const agent = request.agent(app)
   const email = `pub.statuses.${Date.now()}@example.com`
   const pwd = 'Secret123!'
 
   beforeAll(async () => {
     await createUserWithRole(email, pwd, 'hr')
-    await agent.post('/auth/login').send({ email, password: pwd }).expect(200)
+    await agent.post('/api/auth/login').send({ email, password: pwd }).expect(200)
   })
 
   afterAll(async () => {
-    await agent.post('/auth/logout').expect(200)
+    await agent.post('/api/auth/logout').expect(200)
   })
 
   it('returns 200 with a list of statuses', async () => {
-    const res = await agent.get('/statuses').expect(200)
+    const res = await agent.get('/api/statuses').expect(200)
     expect(Array.isArray(res.body)).toBe(true)
     // Elements should have id/name shape when present
     if (res.body.length) {

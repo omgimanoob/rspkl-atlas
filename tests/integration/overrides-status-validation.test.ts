@@ -47,27 +47,27 @@ describe('Overrides status validation', () => {
 
   beforeAll(async () => {
     await createUser(hrEmail, pwd, ['hr']);
-    await agent.post('/auth/login').send({ email: hrEmail, password: pwd }).expect(200);
+    await agent.post('/api/auth/login').send({ email: hrEmail, password: pwd }).expect(200);
   });
 
   afterAll(async () => {
-    await agent.post('/auth/logout').expect(200);
+    await agent.post('/api/auth/logout').expect(200);
     await deleteUser(hrEmail);
   });
 
-  it('rejects missing status_id on /overrides/status', async () => {
-    await agent.put('/overrides/status').send({ id: 123, status: 'Under construction' }).expect(400);
+  it('rejects missing status_id on /api/overrides/status', async () => {
+    await agent.put('/api/overrides/status').send({ id: 123, status: 'Under construction' }).expect(400);
   });
 
-  it('accepts valid status_id on /overrides/status', async () => {
-    await agent.put('/overrides/status').send({ id: 123, status_id: 1234 }).expect(200);
+  it('accepts valid status_id on /api/overrides/status', async () => {
+    await agent.put('/api/overrides/status').send({ id: 123, status_id: 1234 }).expect(200);
   });
 
-  it('allows /overrides upsert without status_id (no status change)', async () => {
-    await agent.put('/overrides').send({ id: 123, money_collected: 1000 }).expect(200);
+  it('allows /api/overrides upsert without status_id (no status change)', async () => {
+    await agent.put('/api/overrides').send({ id: 123, money_collected: 1000 }).expect(200);
   });
 
-  it('accepts valid status_id on /overrides upsert', async () => {
-    await agent.put('/overrides').send({ id: 123, status_id: 1234, money_collected: 1000 }).expect(200);
+  it('accepts valid status_id on /api/overrides upsert', async () => {
+    await agent.put('/api/overrides').send({ id: 123, status_id: 1234, money_collected: 1000 }).expect(200);
   });
 });

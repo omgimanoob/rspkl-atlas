@@ -55,10 +55,10 @@ describe('Admin Users APIs', () => {
     await mapRolePermission(admins.id, p.id);
     // Create admin user with admins role
     await createUserDirect(adminEmail, pwd, ['admins']);
-    await adminAgent.post('/auth/login').send({ email: adminEmail, password: pwd }).expect(200);
+    await adminAgent.post('/api/auth/login').send({ email: adminEmail, password: pwd }).expect(200);
     // Non-admin user
     await createUserDirect(basicEmail, pwd, []);
-    await userAgent.post('/auth/login').send({ email: basicEmail, password: pwd }).expect(200);
+    await userAgent.post('/api/auth/login').send({ email: basicEmail, password: pwd }).expect(200);
   });
 
   afterAll(async () => {
@@ -72,13 +72,13 @@ describe('Admin Users APIs', () => {
   });
 
   it('denies non-admin access', async () => {
-    await userAgent.get('/admin/users').expect(403);
-    await userAgent.post('/admin/users').send({ email: 'x@y.com', password: 'Secret!' }).expect(403);
+    await userAgent.get('/api/admin/users').expect(403);
+    await userAgent.post('/api/admin/users').send({ email: 'x@y.com', password: 'Secret!' }).expect(403);
   });
 
   it('creates a user', async () => {
     const email = `user.${Date.now()}@example.com`;
-    const resp = await adminAgent.post('/admin/users').send({ email, password: 'ChangeMe1', display_name: 'Alpha', is_active: true }).expect(201);
+    const resp = await adminAgent.post('/api/admin/users').send({ email, password: 'ChangeMe1', display_name: 'Alpha', is_active: true }).expect(201);
     expect(resp.body.email).toBe(email.toLowerCase());
     expect(resp.body.display_name).toBe('Alpha');
     expect(resp.body.is_active).toBe(true);
@@ -86,13 +86,13 @@ describe('Admin Users APIs', () => {
   });
 
   it('rejects invalid payloads', async () => {
-    await adminAgent.post('/admin/users').send({}).expect(400);
-    await adminAgent.post('/admin/users').send({ email: 'not-an-email', password: 'short' }).expect(400);
-    await adminAgent.post('/admin/users').send({ email: 'ok@example.com', password: 'ChangeMe1', is_active: 'yes' }).expect(400);
+    await adminAgent.post('/api/admin/users').send({}).expect(400);
+    await adminAgent.post('/api/admin/users').send({ email: 'not-an-email', password: 'short' }).expect(400);
+    await adminAgent.post('/api/admin/users').send({ email: 'ok@example.com', password: 'ChangeMe1', is_active: 'yes' }).expect(400);
   });
 
   it('lists users with pagination', async () => {
-    const list = await adminAgent.get('/admin/users?page=1&pageSize=5').expect(200);
+    const list = await adminAgent.get('/api/admin/users?page=1&pageSize=5').expect(200);
     expect(Array.isArray(list.body.items)).toBe(true);
     expect(list.body.page).toBe(1);
     expect(list.body.pageSize).toBe(5);
@@ -100,39 +100,39 @@ describe('Admin Users APIs', () => {
   });
 
   it('fetches user by id and updates fields', async () => {
-    const got = await adminAgent.get(`/admin/users/${createdUserId}`).expect(200);
+    const got = await adminAgent.get(`/api/admin/users/${createdUserId}`).expect(200);
     expect(got.body.id).toBe(createdUserId);
-    const upd = await adminAgent.put(`/admin/users/${createdUserId}`).send({ display_name: 'Beta', is_active: false }).expect(200);
+    const upd = await adminAgent.put(`/api/admin/users/${createdUserId}`).send({ display_name: 'Beta', is_active: false }).expect(200);
     expect(upd.body.display_name).toBe('Beta');
     expect(upd.body.is_active).toBe(false);
   });
 
   it('rejects non-boolean is_active on update', async () => {
-    await adminAgent.put(`/admin/users/${createdUserId}`).send({ is_active: 'nope' }).expect(400);
+    await adminAgent.put(`/api/admin/users/${createdUserId}`).send({ is_active: 'nope' }).expect(400);
   });
 
   it('activates and deactivates user', async () => {
-    const deact = await adminAgent.post(`/admin/users/${createdUserId}/deactivate`).expect(200);
+    const deact = await adminAgent.post(`/api/admin/users/${createdUserId}/deactivate`).expect(200);
     expect(deact.body.is_active).toBe(false);
-    const act = await adminAgent.post(`/admin/users/${createdUserId}/activate`).expect(200);
+    const act = await adminAgent.post(`/api/admin/users/${createdUserId}/activate`).expect(200);
     expect(act.body.is_active).toBe(true);
   });
 
   it('soft-deletes user via DELETE', async () => {
-    const resp = await adminAgent.delete(`/admin/users/${createdUserId}`).expect(200);
+    const resp = await adminAgent.delete(`/api/admin/users/${createdUserId}`).expect(200);
     expect(resp.body.is_active).toBe(false);
   });
 
   it('returns 404 for missing user id and 400 for invalid id', async () => {
-    await adminAgent.get('/admin/users/999999999').expect(404);
-    await adminAgent.get('/admin/users/abc').expect(400);
+    await adminAgent.get('/api/admin/users/999999999').expect(404);
+    await adminAgent.get('/api/admin/users/abc').expect(400);
   });
 
   it('returns 409 on duplicate email', async () => {
     // Create once
     const email = `dup.${Date.now()}@example.com`;
-    await adminAgent.post('/admin/users').send({ email, password: 'ChangeMe1' }).expect(201);
+    await adminAgent.post('/api/admin/users').send({ email, password: 'ChangeMe1' }).expect(201);
     // Try duplicate
-    await adminAgent.post('/admin/users').send({ email: email.toUpperCase(), password: 'ChangeMe1' }).expect(409);
+    await adminAgent.post('/api/admin/users').send({ email: email.toUpperCase(), password: 'ChangeMe1' }).expect(409);
   });
 });

@@ -41,7 +41,7 @@ describe('Auth integration', () => {
 
   it('login with valid credentials sets cookie and returns roles', async () => {
     const res = await agent
-      .post('/auth/login')
+      .post('/api/auth/login')
       .send({ email: TEST_EMAIL, password: TEST_PASSWORD })
       .expect(200);
     expect(res.body.email).toBe(TEST_EMAIL);
@@ -49,17 +49,17 @@ describe('Auth integration', () => {
   });
 
   it('me returns 200 with cookie after login', async () => {
-    const res = await agent.get('/me').expect(200);
+    const res = await agent.get('/api/me').expect(200);
     expect(res.body.email).toBe(TEST_EMAIL);
   });
 
-  it('logout clears cookie, subsequent /me is 401', async () => {
-    await agent.post('/auth/logout').expect(200);
-    await agent.get('/me').expect(401);
+  it('logout clears cookie, subsequent /api/me is 401', async () => {
+    await agent.post('/api/auth/logout').expect(200);
+    await agent.get('/api/me').expect(401);
   });
 
   it('invalid login returns 401', async () => {
     const bad = request.agent(app);
-    await bad.post('/auth/login').send({ email: TEST_EMAIL, password: 'wrong' }).expect(401);
+    await bad.post('/api/auth/login').send({ email: TEST_EMAIL, password: 'wrong' }).expect(401);
   });
 });

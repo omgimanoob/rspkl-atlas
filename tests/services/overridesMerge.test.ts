@@ -1,4 +1,4 @@
-import { mergeProjectFields } from '../../src/services/overridesMerge';
+import { mergeProjectFields } from '../../src/services/api/overridesMerge';
 
 describe('mergeProjectFields', () => {
   it('upstream + null override -> upstream', () => {

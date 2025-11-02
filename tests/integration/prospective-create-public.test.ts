@@ -22,7 +22,7 @@ async function mapRolePermission(roleId: number, permissionId: number) {
   await db.insert(rolePermissions).values({ roleId, permissionId }).onDuplicateKeyUpdate({ set: { roleId, permissionId } })
 }
 
-describe('Prospective create (POST /prospective)', () => {
+describe('Prospective create (POST /api/prospective)', () => {
   const agent = request.agent(app)
   const email = `pros.create.${Date.now()}@example.com`
   const pwd = 'Secret123!'
@@ -37,18 +37,18 @@ describe('Prospective create (POST /prospective)', () => {
     const star = await ensurePermission('*')
     await mapRolePermission(admins.id, star.id)
     await db.insert(userRoles).values({ userId: u.id, roleId: admins.id }).onDuplicateKeyUpdate({ set: { userId: u.id, roleId: admins.id } })
-    await agent.post('/auth/login').send({ email, password: pwd }).expect(200)
+    await agent.post('/api/auth/login').send({ email, password: pwd }).expect(200)
   })
 
   afterAll(async () => {
-    await agent.post('/auth/logout').expect(200)
+    await agent.post('/api/auth/logout').expect(200)
     if (createdId) {
       try { await (atlasPool as any).query('DELETE FROM project_overrides WHERE id = ?', [createdId]) } catch {}
     }
   })
 
   it('creates an Atlas-native prospective row with is_prospective=false', async () => {
-    const res = await agent.post('/prospective').send({ name: 'UI Draft', notes: 'created via test' }).expect(201)
+    const res = await agent.post('/api/prospective').send({ name: 'UI Draft', notes: 'created via test' }).expect(201)
     expect(res.body.kimai_project_id).toBeNull()
     expect(res.body.is_prospective).toBe(false)
     createdId = res.body.id

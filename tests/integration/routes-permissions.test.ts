@@ -4,6 +4,7 @@ import { app } from '../../src/index';
 import { db } from '../../src/db/client';
 import { users, roles, userRoles, permissionGrants, permissions, rolePermissions } from '../../src/db/schema';
 import { eq } from 'drizzle-orm';
+import type { Request, Response } from 'express';
 
 jest.setTimeout(30000);
 
@@ -46,7 +47,7 @@ jest.mock('../../src/controllers/projectOverridesController', () => {
   const original = jest.requireActual('../../src/controllers/projectOverridesController');
   return {
     ...original,
-    updateProjectOverridesHandler: (req, res) => res.json({ ok: true }),
+    updateProjectOverridesHandler: (req: Request, res: Response) => res.json({ ok: true }),
   };
 });
 
@@ -81,7 +82,7 @@ async function deleteUser(email: string) {
 }
 
 async function login(agent: any, email: string, password: string) {
-  return agent.post('/auth/login').send({ email, password }).expect(200);
+  return agent.post('/api/auth/login').send({ email, password }).expect(200);
 }
 
 describe('Permission-protected routes (dual-gate)', () => {
@@ -126,86 +127,86 @@ describe('Permission-protected routes (dual-gate)', () => {
     }
   });
 
-  it('GET /projects: hr allowed, basic denied', async () => {
+  it('GET /api/projects: hr allowed, basic denied', async () => {
     await login(agent, hrEmail, pwd);
-    await agent.get('/projects').expect(200);
-    await agent.post('/auth/logout').expect(200);
+    await agent.get('/api/projects').expect(200);
+    await agent.post('/api/auth/logout').expect(200);
 
     await login(agent, basicEmail, pwd);
-    await agent.get('/projects').expect(403);
-    await agent.post('/auth/logout').expect(200);
+    await agent.get('/api/projects').expect(403);
+    await agent.post('/api/auth/logout').expect(200);
   });
 
   it('Unauthenticated: protected routes return 401', async () => {
     // no login
-    await agent.get('/projects').expect(401);
+    await agent.get('/api/projects').expect(401);
   });
 
-  it('GET /timesheets: management allowed, basic denied', async () => {
+  it('GET /api/timesheets: management allowed, basic denied', async () => {
     await login(agent, mgmtEmail, pwd);
-    await agent.get('/timesheets').expect(200);
-    await agent.post('/auth/logout').expect(200);
+    await agent.get('/api/timesheets').expect(200);
+    await agent.post('/api/auth/logout').expect(200);
 
     await login(agent, basicEmail, pwd);
-    await agent.get('/timesheets').expect(403);
-    await agent.post('/auth/logout').expect(200);
+    await agent.get('/api/timesheets').expect(403);
+    await agent.post('/api/auth/logout').expect(200);
   });
 
-  it('GET /bi/sunburst: directors allowed, basic denied', async () => {
+  it('GET /api/bi/sunburst: directors allowed, basic denied', async () => {
     await login(agent, dirEmail, pwd);
-    await agent.get('/bi/sunburst').expect(200);
-    await agent.post('/auth/logout').expect(200);
+    await agent.get('/api/bi/sunburst').expect(200);
+    await agent.post('/api/auth/logout').expect(200);
 
     await login(agent, basicEmail, pwd);
-    await agent.get('/bi/sunburst').expect(403);
-    await agent.post('/auth/logout').expect(200);
+    await agent.get('/api/bi/sunburst').expect(403);
+    await agent.post('/api/auth/logout').expect(200);
   });
 
-  it('PUT /overrides/status: scoped user allowed for project 123, denied for 999', async () => {
+  it('PUT /api/overrides/status: scoped user allowed for project 123, denied for 999', async () => {
     await login(agent, scopedEmail, pwd);
     await agent
-      .put('/overrides/status')
+      .put('/api/overrides/status')
       .send({ id: 123, status_id: 1001 })
       .expect(200);
     await agent
-      .put('/overrides/status')
+      .put('/api/overrides/status')
       .send({ id: 999, status_id: 1001 })
       .expect(403);
-    await agent.post('/auth/logout').expect(200);
+    await agent.post('/api/auth/logout').expect(200);
   });
 
-  it('PUT /overrides: scoped user allowed for project 123, denied for 999', async () => {
+  it('PUT /api/overrides: scoped user allowed for project 123, denied for 999', async () => {
     await login(agent, scopedEmail, pwd);
     await agent
-      .put('/overrides')
+      .put('/api/overrides')
       .send({ id: 123, status_id: 1001 })
       .expect(200);
     await agent
-      .put('/overrides')
+      .put('/api/overrides')
       .send({ id: 999, status_id: 1001 })
       .expect(403);
 // Increase timeout due to endpoints that include artificial delays
 jest.setTimeout(30000);
-    await agent.post('/auth/logout').expect(200);
+    await agent.post('/api/auth/logout').expect(200);
   });
 
-  it('POST /sync/timesheets: admins allowed, others denied', async () => {
+  it('POST /api/sync/api/timesheets: admins allowed, others denied', async () => {
     await login(agent, adminEmail, pwd);
-    await agent.post('/sync/timesheets').expect(200);
-    await agent.post('/auth/logout').expect(200);
+    await agent.post('/api/sync/api/timesheets').expect(200);
+    await agent.post('/api/auth/logout').expect(200);
 
     await login(agent, basicEmail, pwd);
-    await agent.post('/sync/timesheets').expect(403);
-    await agent.post('/auth/logout').expect(200);
+    await agent.post('/api/sync/api/timesheets').expect(403);
+    await agent.post('/api/auth/logout').expect(200);
   });
 
   it("Wildcard-only user can access endpoints without role fallback (projects, admin GET)", async () => {
     await login(agent, wildcardEmail, pwd);
-    // Should allow GET /projects via '*' permission (no HR/management/directors role)
-    await agent.get('/projects').expect(200);
+    // Should allow GET /api/projects via '*' permission (no HR/management/directors role)
+    await agent.get('/api/projects').expect(200);
     // Should allow admin listings via '*' despite lacking rbac:admin explicitly
-    await agent.get('/admin/rbac/roles').expect(200);
-    await agent.get('/admin/rbac/permissions').expect(200);
-    await agent.post('/auth/logout').expect(200);
+    await agent.get('/api/admin/rbac/roles').expect(200);
+    await agent.get('/api/admin/rbac/permissions').expect(200);
+    await agent.post('/api/auth/logout').expect(200);
   });
 });

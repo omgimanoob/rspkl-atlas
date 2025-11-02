@@ -32,7 +32,7 @@ describe('Prospective projects admin API', () => {
     const star = await ensurePermission('*');
     await mapRolePermission(admins.id, star.id);
     await db.insert(userRoles).values({ userId: adminUser.id, roleId: admins.id }).onDuplicateKeyUpdate({ set: { userId: adminUser.id, roleId: admins.id } });
-    await agent.post('/auth/login').send({ email: adminEmail, password: pwd }).expect(200);
+    await agent.post('/api/auth/login').send({ email: adminEmail, password: pwd }).expect(200);
   });
 
   afterAll(async () => {
@@ -43,11 +43,11 @@ describe('Prospective projects admin API', () => {
   });
 
   it('creates and lists a prospective project', async () => {
-    const create = await agent.post('/admin/prospective').send({ name: 'Prospect A', notes: 'tbd' }).expect(201);
+    const create = await agent.post('/api/admin/api/prospective').send({ name: 'Prospect A', notes: 'tbd' }).expect(201);
     createdId = create.body.id;
     // By new rule, atlas-native rows have is_prospective = 1 (true)
     expect(create.body.is_prospective).toBe(true);
-    const list = await agent.get('/admin/prospective').expect(200);
+    const list = await agent.get('/api/admin/api/prospective').expect(200);
     expect(list.body.some((r: any) => r.id === createdId && r.name === 'Prospect A')).toBe(true);
   });
 
@@ -55,10 +55,10 @@ describe('Prospective projects admin API', () => {
     const kimaiId = 90000000 + Math.floor(Math.random() * 999999); // reduce collision risk across runs
     // Ensure there is not an existing override for that id (tests run against a persistent DB)
     await atlasPool.query('DELETE FROM project_overrides WHERE kimai_project_id = ?', [kimaiId]);
-    const link = await agent.post(`/admin/prospective/${createdId}/link`).send({ kimai_project_id: kimaiId }).expect(200);
+    const link = await agent.post(`/api/admin/api/prospective/${createdId}/link`).send({ kimai_project_id: kimaiId }).expect(200);
     expect(link.body.kimai_project_id).toBe(kimaiId);
     expect(link.body.is_prospective).toBe(false);
     // Double-link to same kimai id should conflict if another row exists; but here linking again on same row should fail due to already_linked
-    await agent.post(`/admin/prospective/${createdId}/link`).send({ kimai_project_id: kimaiId }).expect(400);
+    await agent.post(`/api/admin/api/prospective/${createdId}/link`).send({ kimai_project_id: kimaiId }).expect(400);
   });
 });

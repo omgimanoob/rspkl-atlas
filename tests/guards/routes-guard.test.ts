@@ -22,22 +22,22 @@ describe('Route guard: requirePermission on protected routes', () => {
     const src = fs.readFileSync(file, 'utf8');
     const blocks = extractRouteBlocks(src);
     const allowlist = new Set<string>([
-      "'/auth/login'",
-      '"/auth/login"',
-      "'/auth/logout'",
-      '"/auth/logout"',
-      "'/me'",
-      '"/me"',
-      "'/me/password'",
-      '"/me/password"',
-      "'/auth/password-reset/request'",
-      '"/auth/password-reset/request"',
-      "'/auth/password-reset/confirm'",
-      '"/auth/password-reset/confirm"',
-      "'/healthz'",
-      '"/healthz"',
-      "'/metrics'",
-      '"/metrics"',
+      "'/api/auth/login'",
+      '"/api/auth/login"',
+      "'/api/auth/logout'",
+      '"/api/auth/logout"',
+      "'/api/me'",
+      '"/api/me"',
+      "'/api/me/password'",
+      '"/api/me/password"',
+      "'/api/auth/password-reset/request'",
+      '"/api/auth/password-reset/request"',
+      "'/api/auth/password-reset/confirm'",
+      '"/api/auth/password-reset/confirm"',
+      "'/api/healthz'",
+      '"/api/healthz"',
+      "'/api/metrics'",
+      '"/api/metrics"',
     ]);
 
     const failures: string[] = [];

@@ -1,4 +1,9 @@
 {
   "extends": "../tsconfig.tests.json",
-  "include": ["**/*"]
+  "include": ["**/*"],
+  "exclude": [
+    "../client",
+    "../node_modules",
+    "../drizzle/**/*.sql"
+  ]
 }

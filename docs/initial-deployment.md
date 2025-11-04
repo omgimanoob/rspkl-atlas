@@ -66,7 +66,7 @@ Concise checklist for first-time deployment of RSPKL Atlas to a VM over SSH (sam
   - Kimai DB: `KIMAI_DB_HOST`, `KIMAI_DB_PORT`, `KIMAI_DB_USER`, `KIMAI_DB_PASSWORD`, `KIMAI_DB_DATABASE`
   - Optional admin seed: `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_DISPLAY_NAME`
   - Optional mail: `MAILER_URL` (e.g., `dev://log`), `MAILER_FROM`, `MAILER_FROM_NAME`
-  - Optional links: `APP_BASE_URL`, `RESET_PATH`
+  - Optional links: `PASSWORD_RESET_ALLOWED_ORIGINS`, `RESET_PATH`
 
 ### MySQL Setup (Atlas DB)
 Simple steps to install and provision the Atlas database. Choose local or remote.

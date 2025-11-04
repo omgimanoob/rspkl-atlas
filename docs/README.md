@@ -91,7 +91,7 @@ SPA Hosting
     - Dev log: `dev://log` (logs instead of sending)
     - Disable: `null://null` (no-op)
   - `DEVELOPER_EMAIL` (for test sends)
-  - `APP_BASE_URL` (base URL of the web app used in links, e.g., `https://app.rspkl.com` or `http://localhost:5173`)
+  - `PASSWORD_RESET_ALLOWED_ORIGINS` (optional comma-separated origins permitted in reset links; omit to accept any origin inferred from the request)
   - `RESET_PATH` (path on the web app that handles password resets, default `/reset`)
 - Test send:
   - `npm run mail:test` (sends to `DEVELOPER_EMAIL` if SMTP is enabled; logs URL with password redacted)

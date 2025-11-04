@@ -56,7 +56,7 @@ Notes
 
 ## Environment & Links
 
-- App base URL for links in emails: `APP_BASE_URL`; reset path: `RESET_PATH`
+- Password reset links use the request origin; optional allowlist via `PASSWORD_RESET_ALLOWED_ORIGINS`; reset path: `RESET_PATH`
 - Email service: `MAILER_FROM`, `MAILER_FROM_NAME`, `MAILER_URL`, `DEVELOPER_EMAIL`
 - RBAC flags and metrics: see `docs/rbac-flags.md`
 

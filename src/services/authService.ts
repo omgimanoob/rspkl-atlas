@@ -9,6 +9,23 @@ import { atlasPool } from '../../db';
 import { createMailerFromEnv } from './mailer';
 import { validatePasswordStrength } from './passwordPolicy';
 
+function normalizeOrigin(value?: string): string | null {
+  if (!value) return null;
+  try {
+    const u = new URL(value);
+    if (!u.protocol || !u.host) return null;
+    return `${u.protocol}//${u.host}`.replace(/\/$/, '');
+  } catch {
+    return null;
+  }
+}
+
+function isOriginAllowed(origin: string): boolean {
+  const allowed = config.web.allowedOrigins;
+  if (!allowed || allowed.length === 0) return true;
+  return allowed.includes(origin);
+}
+
 export type UserRecord = {
   id: number;
   email: string;
@@ -132,11 +149,22 @@ export const AuthService = {
     return true;
   },
 
-  async requestPasswordReset(email: string): Promise<{ ok: true; debugToken?: string }> {
+  async requestPasswordReset(email: string, origin?: string): Promise<{ ok: true; debugToken?: string }> {
     await this.ensurePasswordResetSchema();
     const user = await this.findUserByEmail(email);
     if (!user) {
       return { ok: true };
+    }
+    const normalizedOrigin = normalizeOrigin(origin);
+    let base = normalizedOrigin;
+    if (!base && config.web.allowedOrigins.length === 1) {
+      base = config.web.allowedOrigins[0];
+    }
+    if (!base) {
+      throw new Error(origin ? 'invalid_origin' : 'missing_origin');
+    }
+    if (!isOriginAllowed(base)) {
+      throw new Error('origin_not_allowed');
     }
     const token = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
@@ -148,7 +176,6 @@ export const AuthService = {
     }
     // Dev logging only: avoid noisy output during tests
     if (process.env.NODE_ENV === 'development') {
-      const base = String(config.web.baseUrl || '').replace(/\/$/, '');
       const path = String(config.web.resetPath || '/reset');
       const link = `${base}${path.startsWith('/') ? path : '/' + path}?token=${token}`;
       console.log(`[auth] Password reset link for ${email}: ${link}`);
@@ -162,7 +189,6 @@ export const AuthService = {
       const from = process.env.MAILER_FROM_NAME && process.env.MAILER_FROM
         ? `${process.env.MAILER_FROM_NAME} <${process.env.MAILER_FROM}>`
         : process.env.MAILER_FROM || 'no-reply@localhost';
-      const base = String(config.web.baseUrl || '').replace(/\/$/, '');
       const path = String(config.web.resetPath || '/reset');
       const link = `${base}${path.startsWith('/') ? path : '/' + path}?token=${token}`;
       await mailer.send({ to: email, from, subject: 'Reset your RSPKL Atlas password', text: `Use this link to reset your password: ${link}` });

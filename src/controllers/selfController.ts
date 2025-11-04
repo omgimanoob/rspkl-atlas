@@ -15,6 +15,31 @@ export const selfWriteLimiter = rateLimit({
   },
 });
 
+function inferRequestOrigin(req): string | null {
+  const originHeader = req.get && req.get('origin');
+  if (originHeader) {
+    try {
+      const u = new URL(originHeader);
+      return `${u.protocol}//${u.host}`.replace(/\/$/, '');
+    } catch {}
+  }
+  const referer = req.get && req.get('referer');
+  if (referer) {
+    try {
+      const u = new URL(referer);
+      return `${u.protocol}//${u.host}`.replace(/\/$/, '');
+    } catch {}
+  }
+  const host = req.get && req.get('host');
+  if (!host) return null;
+  const forwardedProto = (req.headers?.['x-forwarded-proto'] || '') as string;
+  const proto = forwardedProto
+    ? String(forwardedProto).split(',')[0]?.trim()
+    : req.protocol;
+  if (!proto) return null;
+  return `${proto}://${host}`.replace(/\/$/, '');
+}
+
 export async function updateMeHandler(req, res) {
   const u = (req as any).user;
   if (!u) return res.status(401).json({ error: 'Unauthorized' });
@@ -48,10 +73,20 @@ export async function changePasswordHandler(req, res) {
 export async function requestPasswordResetHandler(req, res) {
   const { email } = req.body || {};
   if (!email || typeof email !== 'string') return res.status(400).json({ error: 'Bad Request', reason: 'invalid_email' });
-  const resp = await AuthService.requestPasswordReset(email);
-  incPasswordResetRequest();
-  // Always 200, do not disclose existence; include debug token only in test.
-  return res.json(resp);
+  const origin = inferRequestOrigin(req);
+  try {
+    const resp = await AuthService.requestPasswordReset(email, origin || undefined);
+    incPasswordResetRequest();
+    // Always 200, do not disclose existence; include debug token only in test.
+    return res.json(resp);
+  } catch (e: any) {
+    const msg = e?.message || 'error';
+    const badOrigins = ['missing_origin', 'invalid_origin', 'origin_not_allowed'];
+    if (badOrigins.includes(msg)) {
+      return res.status(400).json({ error: 'Bad Request', reason: msg });
+    }
+    return res.status(500).json({ error: 'Internal Server Error' });
+  }
 }
 
 export async function confirmPasswordResetHandler(req, res) {

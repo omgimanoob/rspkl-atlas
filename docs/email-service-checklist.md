@@ -28,7 +28,7 @@ Actionable tasks to introduce a minimal, production-safe email delivery service 
 
 ## Phase 3 – Integration Points
 - [x] Password reset: send reset emails when not in test
-  - [x] Hook into `AuthService.requestPasswordReset()` to call `mailer.send()`
+  - [x] Hook into `AuthService.requestPasswordReset(email, origin)` to call `mailer.send()`
   - [x] Subject: `Reset your RSPKL Atlas password`
   - [x] Body: include secure link; avoid leaking sensitive context
 - [ ] Optional notifications

@@ -341,13 +341,13 @@ Expected: 200 on success; 400 if token invalid/expired/used or password weak
 
 ### Password Reset Email (SMTP)
 
-Configure where links in emails should point:
+Configure which origins are allowed in password reset emails:
 
 ```bash
 # .env
-# Public base URL of the web app used in links (password reset, etc)
-# No trailing slash. Example: https://app.rspkl.com (prod) or http://localhost:5173 (dev)
-APP_BASE_URL=https://app.rspkl.com
+# Optional comma-separated list of allowed origins for password reset links
+# Example: https://app.rspkl.com,http://localhost:5173
+PASSWORD_RESET_ALLOWED_ORIGINS=https://app.rspkl.com,http://localhost:5173
 
 # Path on the web app that handles password reset and accepts ?token=
 # Should start with a leading slash. Default: /reset
@@ -377,7 +377,7 @@ curl -s -X POST "http://localhost:$PORT/auth/password-reset/request" \
 ```
 
 Expected:
-- Email arrives with link `${APP_BASE_URL}${RESET_PATH}?token=...`
+- Email arrives with link `${ORIGIN}${RESET_PATH}?token=...` where `ORIGIN` is the request origin (or the single allowed origin if only one is configured)
 - Logs show redacted SMTP URL in CLI helpers
 
 ---

@@ -8,6 +8,25 @@ function parseIdList(value?: string | null): number[] {
     .filter(n => Number.isFinite(n));
 }
 
+
+
+function parseOriginList(value?: string | null): string[] {
+  if (!value) return [];
+  return String(value)
+    .split(/[,\s]+/)
+    .map(v => {
+      const trimmed = v.trim();
+      if (!trimmed) return '';
+      try {
+        const u = new URL(trimmed);
+        return `${u.protocol}//${u.host}`.replace(/\/$/, '');
+      } catch {
+        return '';
+      }
+    })
+    .filter(Boolean);
+}
+
 const defaultExcludedProjects = [92, 93, 94, 95, 140, 141, 142, 145, 157];
 const defaultExcludedCustomers = [43, 84, 85, 86];
 const defaultExcludedUsers = [155, 156, 157, 158, 168, 169, 170, 173];
@@ -20,25 +39,9 @@ export const config = {
     tokenTtlSeconds: Number(process.env.AUTH_TOKEN_TTL_SECONDS || 60 * 60 * 8), // 8h
   },
   web: {
-    // Base URL for links sent to users (e.g., password reset)
-    // Examples: https://app.rspkl.com or http://localhost:5173
-    baseUrl: (() => {
-      const raw =
-        process.env.APP_BASE_URL ||
-        process.env.WEB_APP_URL ||
-        (process.env.NODE_ENV === 'production' ? 'https://app.rspkl.com' : 'http://localhost:5173');
-      // In non-production, auto-downgrade https://localhost to http://localhost to avoid dev TLS issues
-      if (process.env.NODE_ENV !== 'production') {
-        try {
-          const u = new URL(raw);
-          if ((u.hostname === 'localhost' || u.hostname === '127.0.0.1') && u.protocol === 'https:') {
-            u.protocol = 'http:';
-            return u.toString().replace(/\/$/, '');
-          }
-        } catch {}
-      }
-      return String(raw).replace(/\/$/, '');
-    })(),
+    // Optional allowlist for origins that can receive password reset links.
+    // Example: https://app.rspkl.com,http://localhost:5173
+    allowedOrigins: parseOriginList(process.env.PASSWORD_RESET_ALLOWED_ORIGINS),
     // Path on the web app that handles password reset and accepts ?token=
     resetPath: process.env.RESET_PATH || '/reset',
   },

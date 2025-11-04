@@ -31,7 +31,7 @@ describe('AuthService self-service', () => {
   });
 
   it('request and confirm password reset', async () => {
-    const req = await AuthService.requestPasswordReset(email);
+    const req = await AuthService.requestPasswordReset(email, 'http://localhost:5173');
     expect(req.ok).toBe(true);
     const token = (req as any).debugToken;
     expect(typeof token).toBe('string');
@@ -39,4 +39,3 @@ describe('AuthService self-service', () => {
     await expect(AuthService.confirmPasswordReset(token, 'EchoPwd123!')).rejects.toThrow();
   });
 });
-

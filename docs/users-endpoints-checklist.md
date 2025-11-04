@@ -91,12 +91,12 @@ Actionable micro-tasks to implement minimal admin-only user management endpoints
   - [x] Store hashed tokens (one-time use); TTL (e.g., 30 minutes).
   - [x] Invalidate token on confirm; mark used_at to prevent reuse.
 - [ ] Services & controllers
-  - [x] `AuthService.requestPasswordReset(email)` — create token if user exists; no-op otherwise.
+- [x] `AuthService.requestPasswordReset(email, origin)` — create token if user exists; origin validated against allowlist.
   - [x] `AuthService.confirmPasswordReset(token, newPassword)` — validate + rotate password.
   - [x] `AuthService.changePassword(userId, current, next)` — verify current + rotate.
   - [x] `UsersService.updateSelf(userId, { displayName })` (via UsersService.updateUser).
 – [x] Emails / delivery
-  - [x] Dev: log reset link `https://app/reset?token=...` to console or DB outbox.
+  - [x] Dev: log reset link `${origin}${RESET_PATH}?token=...` to console or DB outbox.
   - [x] Prod: integrate mail provider via SMTP (nodemailer) and env-configured MAILER_URL/MAILER_FROM.
 – [x] Auditing & metrics
   - [x] Audit successful password changes and reset confirmations (no sensitive payloads).

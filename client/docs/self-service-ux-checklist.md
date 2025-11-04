@@ -103,7 +103,7 @@ Acceptance Criteria
 ## Phase 12 — SPA Deep‑Linking & Dev Ergonomics
 - [x] Public router entries for `/reset/request` and `/reset` so deep links resolve pre‑auth.
 - [x] Client path normalization to collapse duplicate slashes (e.g., `//reset/request`).
-- [x] Backend auto‑downgrades `https://localhost` to `http://localhost` for `APP_BASE_URL` in non‑prod to avoid TLS errors in dev.
+- [x] Backend derives reset link origin from the HTTP request and validates it against `PASSWORD_RESET_ALLOWED_ORIGINS` (if configured).
 - [x] Document production rewrites (history API fallback) to ensure `/reset` serves the SPA index.html. See `client/docs/spa-history-fallback.md`.
 
 ---

@@ -3,6 +3,7 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbP
 import { SidebarTrigger } from '@/components/ui/sidebar'
 import { Separator } from '@/components/ui/separator'
 import { ModeToggle } from '@/components/mode-toggle'
+import { Link } from 'react-router-dom'
 
 type Crumb = {
   label: string
@@ -27,7 +28,9 @@ export function PageHeader({
                 {c.current ? (
                   <BreadcrumbPage>{c.label}</BreadcrumbPage>
                 ) : (
-                  <BreadcrumbLink href={c.href || '#'}>{c.label}</BreadcrumbLink>
+                  <BreadcrumbLink asChild>
+                    <Link to={c.href || '/'}>{c.label}</Link>
+                  </BreadcrumbLink>
                 )}
               </BreadcrumbItem>
               {i < trail.length - 1 && <BreadcrumbSeparator />}

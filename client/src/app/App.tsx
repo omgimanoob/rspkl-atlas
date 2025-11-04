@@ -23,6 +23,7 @@ import { AdminGrants } from '@/pages/admin/Grants'
 import { AdminStatuses } from '@/pages/admin/Statuses'
 import { Payments } from '@/pages/Payments'
 import { Studios } from '@/pages/Studios'
+import { Loader2 } from 'lucide-react'
 
 export default function App() {
   // Normalize path to avoid double-slash routing misses (e.g., //reset/request)
@@ -61,7 +62,16 @@ export default function App() {
     return () => { setStatusAnnouncer(null); setAlertAnnouncer(null) }
   }, [])
 
-  if (loading) return <div className="p-6">Loading...</div>
+  if (loading) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center bg-background text-muted-foreground transition-colors">
+        <div className="flex items-center justify-center" role="status" aria-live="polite" aria-busy="true">
+          <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
+          <span className="sr-only">Loading Atlas…</span>
+        </div>
+      </main>
+    )
+  }
 
   if (!me) {
     // Public routes: reset request/confirm; fallback to Login
